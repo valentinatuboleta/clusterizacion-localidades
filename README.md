@@ -4,7 +4,7 @@ Proyecto de Data Science y Machine Learning para la segmentación y clusterizaci
 
 ---
 
-## 📁 Estructura del Proyecto
+##  Estructura del Proyecto
 
 ```text
 clusterizacion-localidades/
@@ -25,7 +25,7 @@ clusterizacion-localidades/
 
 ---
 
-## 🚀 Configuración Inicial
+##  Configuración Inicial
 
 ### 1. Crear y activar entorno virtual
 ```bash
@@ -53,7 +53,7 @@ AZURE_BLOB_NAME="tu_archivo.parquet"
 
 ---
 
-## 📊 Uso
+##  Uso
 
 Puedes ejecutar el notebook interactivo en Jupyter:
 ```bash
