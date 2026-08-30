@@ -81,11 +81,12 @@ def limpiar_ruido_marketing(texto: str) -> str:
         t = re.sub(norm_pattern, "", t, flags=re.IGNORECASE)
     
     # 2. Remover rangos de numeración irrelevantes para la categoría (ej. "302 - 306 & 314 - 318", "201 AL 219")
-    t = re.sub(r"\b\d+\s*[-–&ALalTOto]+\s*\d+\b", "", t)
+    t = re.sub(r"\b\d{2,4}\s*(?:[-–&/]|AL|A|TO|Y)\s*\d{2,4}\b", "", t, flags=re.IGNORECASE)
     t = re.sub(r"\b\d{3,4}\b", "", t)  # Números específicos de 3 o 4 dígitos (asientos/filas internas)
     
-    # 3. Remover caracteres especiales sobrantes
+    # 3. Remover caracteres especiales sobrantes y paréntesis vacíos
     t = re.sub(r"[#\-_/&,.:;+*]", " ", t)
+    t = re.sub(r"\(\s*\)", "", t)
     t = re.sub(r"\s+", " ", t).strip()
     
     return t
@@ -93,33 +94,36 @@ def limpiar_ruido_marketing(texto: str) -> str:
 
 def extraer_atributos_estructurales(texto: str) -> Dict[str, int]:
     """
-    Extrae variables binarias que identifican la jerarquía de nivel, orientación y restricciones.
+    Extrae variables binarias que identifican la jerarquía de nivel, orientación y restricciones
+    organizadas en 4 dimensiones ortogonales independientes (sin solapamiento léxico entre tags).
     """
     t = normalizar_texto(texto)
     
     return {
-        # --- Nivel / Tipo de Localidad ---
-        "tag_palco": int(bool(re.search(r"\b(PALCO|PALCOS|BOX|BOXES|SUITE|MESA)\b", t))),
+        # --- Dimensión 1: Jerarquía Comercial / Tipo de Asiento ---
+        "tag_palco": int(bool(re.search(r"\b(PALCO|PALCOS|BOX|BOXES|SUITE|SUITES|MESA|MESAS)\b", t))),
         "tag_vip": int(bool(re.search(r"\b(VIP|PLATINUM|PLATINO|PREMIUM|GOLD|DIAMANTE|ORO|PLATA)\b", t))),
-        "tag_platea": int(bool(re.search(r"\b(PLATEA|SILLAS|PISTA|CANCHA)\b", t))),
-        "tag_preferencial": int(bool(re.search(r"\b(PREFERENCIAL|PREFERENTE|CENTRAL|DELANTERA|FRONTAL)\b", t))),
-        "tag_general": int(bool(re.search(r"\b(GENERAL|TIQUETE|ENTRADA|STANDARD|NORMAL)\b", t))),
-        "tag_balcon": int(bool(re.search(r"\b(BALCON|PISO 2|PISO 3|PISO 4|SEGUNDO PISO|TERCER PISO)\b", t))),
-        "tag_piso_alto": int(bool(re.search(r"\b(ALTA|PISO 3|PISO 4|TERCER PISO|CUARTO PISO|POSTERIOR)\b", t))),
-        "tag_piso_bajo": int(bool(re.search(r"\b(BAJA|PISO 1|PRIMER PISO|PRIMERA FILA|DELANTERA)\b", t))),
+        "tag_platea": int(bool(re.search(r"\b(PLATEA|SILLAS|SILLERIA|PISTA|CANCHA)\b", t))),
+        "tag_preferencial": int(bool(re.search(r"\b(PREFERENCIAL|PREFERENTE|CENTRAL|FRONTAL)\b", t))),
+        "tag_general": int(bool(re.search(r"\b(GENERAL|TIQUETE|ENTRADA|STANDARD|NORMAL|ADMISION)\b", t))),
         
-        # --- Orientación y Geografía en el Venue ---
-        "tag_occidental": int(bool(re.search(r"\b(OCCIDENTAL|OESTE)\b", t))),
-        "tag_oriental": int(bool(re.search(r"\b(ORIENTAL|ESTE)\b", t))),
-        "tag_norte": int(bool(re.search(r"\b(NORTE)\b", t))),
+        # --- Dimensión 2: Nivel Vertical y Arquitectura del Venue ---
+        "tag_balcon": int(bool(re.search(r"\b(BALCON|BALCONES|MEZZANINE|VOLADIZO)\b", t))),
+        "tag_piso_alto": int(bool(re.search(r"\b(ALTA|ALTAS|PISO 2|PISO 3|PISO 4|PISO 5|SEGUNDO PISO|TERCER PISO|CUARTO PISO|POSTERIOR|ALTO)\b", t))),
+        "tag_piso_bajo": int(bool(re.search(r"\b(BAJA|BAJAS|PISO 1|PRIMER PISO|PLANTA BAJA|DELANTERA|PRIMERA FILA|BAJO)\b", t))),
+        
+        # --- Dimensión 3: Orientación Espacial y Geografía en el Venue ---
+        "tag_occidental": int(bool(re.search(r"\b(OCCIDENTAL|OCC|OESTE)\b", t))),
+        "tag_oriental": int(bool(re.search(r"\b(ORIENTAL|ORI|ESTE)\b", t))),
+        "tag_norte": int(bool(re.search(r"\b(NORTE|NTE)\b", t))),
         "tag_sur": int(bool(re.search(r"\b(SUR)\b", t))),
-        "tag_lateral": int(bool(re.search(r"\b(LATERAL|COSTADO)\b", t))),
-        "tag_vista_parcial": int(bool(re.search(r"\b(VISTA PARCIAL|RESTRINGIDA)\b", t))),
+        "tag_lateral": int(bool(re.search(r"\b(LATERAL|LATERALES|COSTADO|ESQUINA)\b", t))),
+        "tag_vista_parcial": int(bool(re.search(r"\b(VISTA PARCIAL|VISIBILIDAD PARCIAL|RESTRINGIDA|REDUCIDA|OBSTRUIDA|PILARES)\b", t))),
         
-        # --- Restricciones de Acceso ---
+        # --- Dimensión 4: Restricciones de Acceso y Audiencia ---
         "tag_familiar": int(bool(re.search(r"\b(FAMILIAR|FAMILIA)\b", t))),
-        "tag_menores": int(bool(re.search(r"\b(MENORES|LIBRE DE ALCOHOL|CERO ALCOHOL)\b", t))),
-        "tag_movilidad_reducida": int(bool(re.search(r"\b(MOVILIDAD REDUCIDA|DISCAPACIDAD|PMR|SILLA DE RUEDAS)\b", t)))
+        "tag_menores": int(bool(re.search(r"\b(MENORES|KIDS|NINOS|INFANTIL|LIBRE DE ALCOHOL|CERO ALCOHOL)\b", t))),
+        "tag_movilidad_reducida": int(bool(re.search(r"\b(MOVILIDAD REDUCIDA|DISCAPACIDAD|PMR|SILLA DE RUEDAS|ACCESIBLE)\b", t)))
     }
 
 
@@ -127,15 +131,15 @@ def pipeline_procesamiento_nlp(df: pd.DataFrame, col_nombre: str = "logical_seat
     """
     Ejecuta el pipeline completo de NLP sobre el DataFrame de localidades:
     1. Crea la columna 'texto_limpio' sin ruido publicitario.
-    2. Genera y acopla las columnas de tags estructurales, espaciales y restricciones.
+    2. Genera y acopla las columnas de tags estructurales a partir del 'texto_limpio'.
     """
     df_res = df.copy()
     
     # 1. Limpieza de texto
     df_res["texto_limpio"] = df_res[col_nombre].apply(limpiar_ruido_marketing)
     
-    # 2. Extracción de tags
-    tags_df = df_res[col_nombre].apply(extraer_atributos_estructurales).apply(pd.Series)
+    # 2. Extracción de tags sobre el texto limpio
+    tags_df = df_res["texto_limpio"].apply(extraer_atributos_estructurales).apply(pd.Series)
     
     for col in tags_df.columns:
         df_res[col] = tags_df[col]

@@ -20,7 +20,9 @@ def filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame:
     - performance_quota > 0 (el evento debe tener aforo registrado).
     - med_unit_amt_itx >= 0 (precios no negativos).
     - net_sold_p_qty >= 0 y net_sold_c_qty >= 0 (cantidades no negativas).
+    - Consistencia física del evento: suma(dn_quota) == performance_quota por t_performance_id.
     """
+    # 1. Filtros básicos de validez física y monetaria
     df_clean = df[
         (df["dn_quota"] > 0) &
         (df["performance_quota"] > 0) &
@@ -28,6 +30,10 @@ def filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame:
         (df["net_sold_p_qty"] >= 0) &
         (df["net_sold_c_qty"] >= 0)
     ].copy()
+    
+    # 2. Validar que la suma del aforo de las localidades activas sea igual al aforo total del evento
+    suma_quota_evento = df_clean.groupby("t_performance_id")["dn_quota"].transform("sum")
+    df_clean = df_clean[suma_quota_evento == df_clean["performance_quota"]].copy()
     
     return df_clean
 

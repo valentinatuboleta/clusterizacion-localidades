@@ -117,28 +117,50 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 ---
 
 #### 1.3 `extraer_atributos_estructurales(texto: str) -> Dict[str, int]`
-* **¿Para qué se crea?**: Para desacoplar el texto en **17 variables binarias ($1$ o $0$)** que describen la jerarquía de nivel, la orientación geográfica y las restricciones de acceso.
-* **¿Por qué se usa?**: Los algoritmos matemáticos como K-Means procesan números, no cadenas de texto. Esta función convierte conceptos humanos en dimensiones vectoriales.
-* **Lógica interna**: Evalúa expresiones regulares compiladas sobre el texto normalizado.
-* **Transformación (Ejemplo de registro):**
-  * **Texto evaluado:** `"PALCOS VIP OCCIDENTAL FAMILIAR"`
+* **¿Para qué se crea?**: Para desacoplar el texto en **17 variables binarias ($1$ o $0$)** organizadas en **4 dimensiones ortogonales independientes** (sin solapamientos léxicos ni tokens duplicados entre categorías).
+* **¿Por qué se usa?**: Los algoritmos matemáticos como K-Means procesan números, no cadenas de texto. Esta función convierte conceptos semánticos en dimensiones vectoriales estructuradas.
+* **Comportamiento Multi-Etiqueta (*Multi-hot Encoding*)**: Una misma localidad puede activar simultáneamente tags en dimensiones independientes (ej. Orientación + Nivel Vertical + Jerarquía Comercial + Restricción), lo cual describe con precisión su naturaleza sin forzarla a una sola etiqueta.
+* **Estructura de las 4 Dimensiones Ortogonales:**
+  1. **Dimensión 1 (Jerarquía Comercial / Tipo de Asiento):**
+     * `tag_palco`: `PALCO`, `PALCOS`, `BOX`, `BOXES`, `SUITE`, `SUITES`, `MESA`, `MESAS`
+     * `tag_vip`: `VIP`, `PLATINUM`, `PLATINO`, `PREMIUM`, `GOLD`, `DIAMANTE`, `ORO`, `PLATA`
+     * `tag_platea`: `PLATEA`, `SILLAS`, `SILLERIA`, `PISTA`, `CANCHA`
+     * `tag_preferencial`: `PREFERENCIAL`, `PREFERENTE`, `CENTRAL`, `FRONTAL`
+     * `tag_general`: `GENERAL`, `TIQUETE`, `ENTRADA`, `STANDARD`, `NORMAL`, `ADMISION`
+  2. **Dimensión 2 (Nivel Vertical y Arquitectura del Venue):**
+     * `tag_balcon`: `BALCON`, `BALCONES`, `MEZZANINE`, `VOLADIZO` *(Exclusivo para estructuras de balcón de teatro; no solapa con pisos)*.
+     * `tag_piso_alto`: `ALTA`, `ALTAS`, `PISO 2`, `PISO 3`, `PISO 4`, `PISO 5`, `SEGUNDO PISO`, `TERCER PISO`, `CUARTO PISO`, `POSTERIOR`, `ALTO`.
+     * `tag_piso_bajo`: `BAJA`, `BAJAS`, `PISO 1`, `PRIMER PISO`, `PLANTA BAJA`, `DELANTERA`, `PRIMERA FILA`, `BAJO`.
+  3. **Dimensión 3 (Orientación Espacial y Geografía en el Recinto):**
+     * `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
+  4. **Dimensión 4 (Restricciones de Acceso y Audiencia):**
+     * `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
+* **Transformación (Ejemplo de registro real multi-dimensional):**
+  * **Texto evaluado:** `"OCCIDENTAL ALTA VIP FAMILIAR"`
   * **Diccionario generado:**
     ```python
     {
-      "tag_palco": 1,           # Detectó 'PALCOS'
+      # Dimensión 1: Jerarquía Comercial
+      "tag_palco": 0,
       "tag_vip": 1,             # Detectó 'VIP'
       "tag_platea": 0,
       "tag_preferencial": 0,
       "tag_general": 0,
-      "tag_balcon": 0,
-      "tag_piso_alto": 0,
+      
+      # Dimensión 2: Nivel Vertical
+      "tag_balcon": 0,          # Ya no solapa erróneamente
+      "tag_piso_alto": 1,       # Detectó 'ALTA'
       "tag_piso_bajo": 0,
+      
+      # Dimensión 3: Orientación Espacial
       "tag_occidental": 1,      # Detectó orientación 'OCCIDENTAL'
       "tag_oriental": 0,
       "tag_norte": 0,
       "tag_sur": 0,
       "tag_lateral": 0,
       "tag_vista_parcial": 0,
+      
+      # Dimensión 4: Restricciones de Acceso
       "tag_familiar": 1,        # Detectó restricción 'FAMILIAR'
       "tag_menores": 0,
       "tag_movilidad_reducida": 0
@@ -169,15 +191,17 @@ Este módulo resuelve la distorsión del dinero y el tamaño del venue calculand
 ---
 
 #### 2.1 `filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame`
-* **¿Para qué se crea?**: Limpia registros basura o transacciones anómalas (aforos negativos, eventos con aforo 0, montos negativos por devoluciones masivas).
+* **¿Para qué se crea?**: Limpia registros inconsistentes o transacciones anómalas (aforos negativos, eventos con aforo 0, montos negativos por devoluciones) y valida que la suma de localidades activas coincida con el aforo total del recinto.
 * **¿Por qué se usa?**: Entrenar un modelo de clustering con datos inconsistentes desplazaría los centroides hacia valores espurios.
 * **Condición de filtrado**:
   ```python
-  (dn_quota > 0) & (performance_quota > 0) & (med_unit_amt_itx >= 0) & (net_sold_p_qty >= 0) & (net_sold_c_qty >= 0)
+  (dn_quota > 0) & (performance_quota > 0) & (med_unit_amt_itx >= 0) & 
+  (net_sold_p_qty >= 0) & (net_sold_c_qty >= 0) &
+  (suma_dn_quota_por_evento == performance_quota)
   ```
 * **Transformación:**
   * **Filas iniciales:** $34,030$
-  * **Filas limpias conservadas:** **$33,878$** (99.55% del catálogo conservado con calidad certificada).
+  * **Filas limpias conservadas:** **$33,775$** en **$18,627$ eventos únicos** (99.25% del catálogo conservado con calidad física 100% certificada).
 
 ---
 
