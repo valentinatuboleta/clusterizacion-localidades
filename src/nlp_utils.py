@@ -94,36 +94,22 @@ def limpiar_ruido_marketing(texto: str) -> str:
 
 def extraer_atributos_estructurales(texto: str) -> Dict[str, int]:
     """
-    Extrae variables binarias que identifican la jerarquía de nivel, orientación y restricciones
-    organizadas en 4 dimensiones ortogonales independientes (sin solapamiento léxico entre tags).
+    Extrae las 7 variables binarias estructurales clave que identifican la jerarquía
+    comercial, tipo de asiento y nivel vertical de la localidad.
     """
     t = normalizar_texto(texto)
     
     return {
-        # --- Dimensión 1: Jerarquía Comercial / Tipo de Asiento ---
+        # --- Jerarquía Comercial / Tipo de Asiento ---
         "tag_palco": int(bool(re.search(r"\b(PALCO|PALCOS|BOX|BOXES|SUITE|SUITES|MESA|MESAS)\b", t))),
         "tag_vip": int(bool(re.search(r"\b(VIP|PLATINUM|PLATINO|PREMIUM|GOLD|DIAMANTE|ORO|PLATA)\b", t))),
         "tag_platea": int(bool(re.search(r"\b(PLATEA|SILLAS|SILLERIA|PISTA|CANCHA)\b", t))),
         "tag_preferencial": int(bool(re.search(r"\b(PREFERENCIAL|PREFERENTE|CENTRAL|FRONTAL)\b", t))),
         "tag_general": int(bool(re.search(r"\b(GENERAL|TIQUETE|ENTRADA|STANDARD|NORMAL|ADMISION)\b", t))),
         
-        # --- Dimensión 2: Nivel Vertical y Arquitectura del Venue ---
+        # --- Nivel Vertical y Arquitectura del Venue ---
         "tag_balcon": int(bool(re.search(r"\b(BALCON|BALCONES|MEZZANINE|VOLADIZO)\b", t))),
-        "tag_piso_alto": int(bool(re.search(r"\b(ALTA|ALTAS|PISO 2|PISO 3|PISO 4|PISO 5|SEGUNDO PISO|TERCER PISO|CUARTO PISO|POSTERIOR|ALTO)\b", t))),
-        "tag_piso_bajo": int(bool(re.search(r"\b(BAJA|BAJAS|PISO 1|PRIMER PISO|PLANTA BAJA|DELANTERA|PRIMERA FILA|BAJO)\b", t))),
-        
-        # --- Dimensión 3: Orientación Espacial y Geografía en el Venue ---
-        "tag_occidental": int(bool(re.search(r"\b(OCCIDENTAL|OCC|OESTE)\b", t))),
-        "tag_oriental": int(bool(re.search(r"\b(ORIENTAL|ORI|ESTE)\b", t))),
-        "tag_norte": int(bool(re.search(r"\b(NORTE|NTE)\b", t))),
-        "tag_sur": int(bool(re.search(r"\b(SUR)\b", t))),
-        "tag_lateral": int(bool(re.search(r"\b(LATERAL|LATERALES|COSTADO|ESQUINA)\b", t))),
-        "tag_vista_parcial": int(bool(re.search(r"\b(VISTA PARCIAL|VISIBILIDAD PARCIAL|RESTRINGIDA|REDUCIDA|OBSTRUIDA|PILARES)\b", t))),
-        
-        # --- Dimensión 4: Restricciones de Acceso y Audiencia ---
-        "tag_familiar": int(bool(re.search(r"\b(FAMILIAR|FAMILIA)\b", t))),
-        "tag_menores": int(bool(re.search(r"\b(MENORES|KIDS|NINOS|INFANTIL|LIBRE DE ALCOHOL|CERO ALCOHOL)\b", t))),
-        "tag_movilidad_reducida": int(bool(re.search(r"\b(MOVILIDAD REDUCIDA|DISCAPACIDAD|PMR|SILLA DE RUEDAS|ACCESIBLE)\b", t)))
+        "tag_piso_alto": int(bool(re.search(r"\b(ALTA|ALTAS|PISO 2|PISO 3|PISO 4|PISO 5|SEGUNDO PISO|TERCER PISO|CUARTO PISO|POSTERIOR|ALTO)\b", t)))
     }
 
 
