@@ -152,24 +152,26 @@ def evaluar_rango_k(
 ) -> pd.DataFrame:
     """
     Evalúa múltiples valores de k calculando Inercia, Silueta, Calinski-Harabasz y Davies-Bouldin.
+    Metodología rigurosa: Todas las métricas se evalúan sobre la misma muestra X_eval usando RandomState local.
     """
     metricas = []
     
     if len(X) > sample_size:
-        np.random.seed(random_state)
-        idx = np.random.choice(len(X), sample_size, replace=False)
+        rng = np.random.RandomState(random_state)
+        idx = rng.choice(len(X), sample_size, replace=False)
         X_eval = X[idx]
     else:
+        idx = np.arange(len(X))
         X_eval = X
 
     for k in range(k_min, k_max + 1):
         kmeans = KMeans(n_clusters=k, random_state=random_state, n_init=10)
         labels = kmeans.fit_predict(X)
-        labels_eval = labels[idx] if len(X) > sample_size else labels
+        labels_eval = labels[idx]
         
-        sil = silhouette_score(X_eval, labels_eval)
-        ch = calinski_harabasz_score(X, labels)
-        db = davies_bouldin_score(X, labels)
+        sil = float(silhouette_score(X_eval, labels_eval))
+        ch = float(calinski_harabasz_score(X_eval, labels_eval))
+        db = float(davies_bouldin_score(X_eval, labels_eval))
         
         metricas.append({
             "k": k,
@@ -216,31 +218,28 @@ def construir_perfiles_ideales_escalados(
     Construye las representaciones vectoriales ideales para cada arquetipo multi-zona
     dentro del espacio geométrico escalado de 25 dimensiones.
     
-    1. Bloque numérico (3 variables): Se especifica en unidades relativas naturales y se transforma
-       mediante scaler.transform() para proyectarlo al espacio RobustScaler.
-    2. Bloque tags (7 variables): Se especifica la tasa de activación ideal en [0, 1].
-    3. Bloque TF-IDF (15 variables): Se ponderan los términos afines por peso_nlp (calibrado en 0.2
-       para evitar dilución dimensional sobre el bloque continuo).
+    Refactor robusto: Mapea cada dimensión explícitamente por nombre en lugar de
+    asumir posiciones fijas o slices posicionales [3:].
     """
     if n_clusters == 4:
         perfiles_config = {
             "VIP / Palcos / Premium": {
-                "num": [0.90, 0.85, 0.08],
+                "num": {"ratio_precio_max": 0.90, "percentil_precio_evento": 0.85, "peso_aforo": 0.08},
                 "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
                 "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
             },
             "Preferencial / Platea Frontal": {
-                "num": [0.80, 0.75, 0.20],
+                "num": {"ratio_precio_max": 0.80, "percentil_precio_evento": 0.75, "peso_aforo": 0.20},
                 "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
                 "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
             },
             "Popular / Visibilidad Parcial / Balcón": {
-                "num": [0.35, 0.30, 0.15],
+                "num": {"ratio_precio_max": 0.35, "percentil_precio_evento": 0.30, "peso_aforo": 0.15},
                 "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
                 "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
             },
             "Grada General / Masiva": {
-                "num": [0.60, 0.50, 0.60],
+                "num": {"ratio_precio_max": 0.60, "percentil_precio_evento": 0.50, "peso_aforo": 0.60},
                 "tags": {"tag_general": 0.6},
                 "words": {"tfidf_general": 0.5}
             }
@@ -249,48 +248,62 @@ def construir_perfiles_ideales_escalados(
         # Configuración para k=5 (óptimo de codo y mínimo Davies-Bouldin en multi-zona)
         perfiles_config = {
             "VIP / Palcos / Premium": {
-                "num": [0.90, 0.85, 0.08],
+                "num": {"ratio_precio_max": 0.90, "percentil_precio_evento": 0.85, "peso_aforo": 0.08},
                 "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
                 "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
             },
             "Preferencial / Platea Frontal": {
-                "num": [0.85, 0.82, 0.10],
+                "num": {"ratio_precio_max": 0.85, "percentil_precio_evento": 0.82, "peso_aforo": 0.10},
                 "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
                 "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
             },
             "Platea General / Intermedia": {
-                "num": [0.80, 0.70, 0.35],
+                "num": {"ratio_precio_max": 0.80, "percentil_precio_evento": 0.70, "peso_aforo": 0.35},
                 "tags": {"tag_platea": 0.4},
                 "words": {"tfidf_platea": 0.3}
             },
             "Grada General / Masiva": {
-                "num": [0.75, 0.60, 0.75],
+                "num": {"ratio_precio_max": 0.75, "percentil_precio_evento": 0.60, "peso_aforo": 0.75},
                 "tags": {"tag_general": 0.6},
                 "words": {"tfidf_general": 0.5}
             },
             "Popular / Balcón / Visibilidad Parcial": {
-                "num": [0.35, 0.30, 0.12],
+                "num": {"ratio_precio_max": 0.35, "percentil_precio_evento": 0.30, "peso_aforo": 0.12},
                 "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
                 "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
             }
         }
     
+    # Identificar nombres y orden de columnas numéricas que maneja el scaler
+    cols_num_scaler = []
+    if scaler is not None and hasattr(scaler, "feature_names_in_"):
+        cols_num_scaler = list(scaler.feature_names_in_)
+    else:
+        cols_num_scaler = [f for f in feature_names if not f.startswith("tag_") and not f.startswith("tfidf_")]
+        
     perfiles_vectores = {}
     for nombre, cfg in perfiles_config.items():
-        if scaler is not None and hasattr(scaler, "transform"):
-            num_scaled = scaler.transform([cfg["num"]])[0]
-        else:
-            num_scaled = np.array(cfg["num"], dtype=float)
-            
-        vec = list(num_scaled)
-        
-        for feat in feature_names[3:]:
-            if feat.startswith("tag_"):
-                vec.append(cfg["tags"].get(feat, 0.0))
-            elif feat.startswith("tfidf_"):
-                vec.append(cfg["words"].get(feat, 0.0) * peso_nlp)
+        num_dict = cfg.get("num", {})
+        if len(cols_num_scaler) > 0:
+            num_row = [num_dict.get(c, 0.0) for c in cols_num_scaler]
+            if scaler is not None and hasattr(scaler, "transform"):
+                num_scaled_vals = scaler.transform([num_row])[0]
             else:
-                vec.append(0.0)
+                num_scaled_vals = np.array(num_row, dtype=float)
+            scaled_num_map = dict(zip(cols_num_scaler, num_scaled_vals))
+        else:
+            scaled_num_map = {}
+
+        vec = []
+        for feat in feature_names:
+            if feat in scaled_num_map:
+                vec.append(scaled_num_map[feat])
+            elif feat.startswith("tag_"):
+                vec.append(cfg.get("tags", {}).get(feat, 0.0))
+            elif feat.startswith("tfidf_"):
+                vec.append(cfg.get("words", {}).get(feat, 0.0) * peso_nlp)
+            else:
+                vec.append(num_dict.get(feat, 0.0))
                 
         perfiles_vectores[nombre] = np.array(vec, dtype=float)
         
@@ -364,6 +377,8 @@ def asignar_arquetipos_demanda(
     # 2. Clasificador heurístico de fallback
     clusters_info = []
     for c_id in sorted(df_res[col_cluster].unique()):
+        if c_id == -1:
+            continue
         sub = df_res[df_res[col_cluster] == c_id]
         clusters_info.append({
             "cluster": c_id,
@@ -377,27 +392,37 @@ def asignar_arquetipos_demanda(
         
     df_info = pd.DataFrame(clusters_info)
     mapa_arquetipos = {}
-    
-    gen_c = df_info.sort_values(by=["aforo_prom", "general_share"], ascending=False).iloc[0]["cluster"]
-    mapa_arquetipos[int(gen_c)] = "Grada General / Masiva"
-    
-    restantes = df_info[df_info["cluster"] != gen_c].copy()
-    vip_c = restantes.sort_values(by=["palco_vip_share", "precio_prom"], ascending=False).iloc[0]["cluster"]
-    mapa_arquetipos[int(vip_c)] = "VIP / Palcos / Premium"
-    
-    restantes_2 = restantes[restantes["cluster"] != vip_c].sort_values(by="precio_prom", ascending=False)
-    if len(restantes_2) > 0:
-        pref_c = restantes_2.iloc[0]["cluster"]
-        mapa_arquetipos[int(pref_c)] = "Preferencial / Platea Frontal"
-    if len(restantes_2) > 1:
-        pop_c = restantes_2.iloc[1]["cluster"]
-        mapa_arquetipos[int(pop_c)] = "Popular / Visibilidad Parcial / Balcón"
+    if -1 in df_res[col_cluster].values:
+        mapa_arquetipos[-1] = "Admisión Única / Tarifa Plana"
         
-    for _, row in df_info.iterrows():
-        c = int(row["cluster"])
-        if c not in mapa_arquetipos:
-            mapa_arquetipos[c] = f"Segmento #{c}"
+    if len(df_info) > 0:
+        # 1. Grada General / Masiva (mayor aforo o share general)
+        gen_c = df_info.sort_values(by=["aforo_prom", "general_share"], ascending=False).iloc[0]["cluster"]
+        mapa_arquetipos[int(gen_c)] = "Grada General / Masiva"
+        
+        # 2. VIP / Palcos (mayor activación de palcos/VIP)
+        restantes = df_info[df_info["cluster"] != gen_c].copy()
+        if len(restantes) > 0:
+            vip_c = restantes.sort_values(by=["palco_vip_share", "precio_prom"], ascending=False).iloc[0]["cluster"]
+            mapa_arquetipos[int(vip_c)] = "VIP / Palcos / Premium"
             
+            restantes_2 = restantes[restantes["cluster"] != vip_c].sort_values(by="precio_prom", ascending=False)
+            if len(restantes_2) == 1:
+                mapa_arquetipos[int(restantes_2.iloc[0]["cluster"])] = "Preferencial / Platea Frontal"
+            elif len(restantes_2) == 2:
+                mapa_arquetipos[int(restantes_2.iloc[0]["cluster"])] = "Preferencial / Platea Frontal"
+                mapa_arquetipos[int(restantes_2.iloc[1]["cluster"])] = "Popular / Visibilidad Parcial / Balcón"
+            elif len(restantes_2) >= 3:
+                # Caso estándar k=5 multi-zona
+                mapa_arquetipos[int(restantes_2.iloc[0]["cluster"])] = "Preferencial / Platea Frontal"
+                mapa_arquetipos[int(restantes_2.iloc[1]["cluster"])] = "Platea General / Intermedia"
+                mapa_arquetipos[int(restantes_2.iloc[-1]["cluster"])] = "Popular / Balcón / Visibilidad Parcial"
+                
+        for _, row in df_info.iterrows():
+            c = int(row["cluster"])
+            if c not in mapa_arquetipos:
+                mapa_arquetipos[c] = f"Segmento #{c}"
+                
     df_res["arquetipo_demanda"] = df_res[col_cluster].map(mapa_arquetipos)
     return df_res
 
@@ -417,7 +442,7 @@ def pipeline_clustering_dos_etapas(
     2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 25D sobre multi-zona (~54.5%)
        con peso_nlp calibrado en 0.2 para evitar dilución dimensional.
        Ajusta K-Means con k óptimo (k=5 por defecto, determinado por codo ortogonal y mínimo Davies-Bouldin,
-       o selección automática mediante n_clusters_multizona='auto') y etiqueta mediante geometría húngara.
+       o selección automática balanceada mediante n_clusters_multizona='auto') y etiqueta mediante geometría húngara.
     3. Integración: Reensambla el catálogo unificado asegurando cobertura exacta del 100% de filas.
     """
     # 1. Separación a nivel evento
@@ -434,18 +459,23 @@ def pipeline_clustering_dos_etapas(
         scaler_type=scaler_type
     )
     
-    # Selección automática de k si se solicita 'auto'
+    # Selección automática de k si se solicita 'auto' mediante score compuesto (Silueta + Davies-Bouldin)
     if isinstance(n_clusters_multizona, str) and n_clusters_multizona.lower() == "auto":
-        db_best = float("inf")
-        best_k = 5
-        for cand_k in [4, 5, 6, 7]:
+        cand_ks = [4, 5, 6, 7]
+        sil_cands = []
+        db_cands = []
+        sample_eval_sz = min(5000, len(X_multizona))
+        for cand_k in cand_ks:
             km_cand = KMeans(n_clusters=cand_k, random_state=random_state, n_init=10)
             lbls = km_cand.fit_predict(X_multizona)
-            db_cand = davies_bouldin_score(X_multizona, lbls)
-            if db_cand < db_best:
-                db_best = db_cand
-                best_k = cand_k
-        n_clusters_multizona = best_k
+            sil_cands.append(silhouette_score(X_multizona[:sample_eval_sz], lbls[:sample_eval_sz]))
+            db_cands.append(davies_bouldin_score(X_multizona, lbls))
+        s_arr = np.array(sil_cands)
+        d_arr = np.array(db_cands)
+        norm_s = (s_arr - s_arr.min()) / (s_arr.max() - s_arr.min() + 1e-8)
+        norm_d = (d_arr.max() - d_arr) / (d_arr.max() - d_arr.min() + 1e-8)
+        best_idx = int(np.argmax(norm_s + norm_d))
+        n_clusters_multizona = cand_ks[best_idx]
     else:
         n_clusters_multizona = int(n_clusters_multizona)
     
@@ -487,18 +517,19 @@ def ejecutar_benchmark_modelos(
     4. HDBSCAN (Basado en densidad y detección de ruido)
 
     Metodología rigurosa: Todas las métricas (Silhouette, Davies-Bouldin, Calinski-Harabasz)
-    se calculan sobre la misma submuestra idéntica X_eval para garantizar comparabilidad estricta.
+    se calculan sobre la misma submuestra idéntica X_eval para garantizar comparabilidad estricta,
+    usando un generador RandomState local.
 
     Retorna:
     - df_metricas: Tabla comparativa de métricas de calidad de clustering.
-    - df_ari: Matriz de consenso / acuerdo entre modelos (Adjusted Rand Index).
+    - df_ari: Matriz de consenso / acuerdo 4x4 entre todos los modelos (Adjusted Rand Index).
     - dict_modelos: Diccionario con modelos entrenados y sus arrays de etiquetas.
     """
     import time
 
-    np.random.seed(random_state)
+    rng = np.random.RandomState(random_state)
     if len(X) > sample_size:
-        idx_eval = np.random.choice(len(X), sample_size, replace=False)
+        idx_eval = rng.choice(len(X), sample_size, replace=False)
         X_eval = X[idx_eval]
     else:
         idx_eval = np.arange(len(X))
@@ -606,15 +637,23 @@ def ejecutar_benchmark_modelos(
 
     df_metricas = pd.DataFrame(metricas)
 
-    # Matriz de Consenso / Acuerdo (Adjusted Rand Index)
+    # Matriz de Consenso / Acuerdo 4x4 (Adjusted Rand Index) evaluada sobre puntos válidos de X_eval
+    if mask_eval_hdb.sum() > 10:
+        ari_km_hdb = float(adjusted_rand_score(labels_km_eval[mask_eval_hdb], labels_hdb_eval[mask_eval_hdb]))
+        ari_gmm_hdb = float(adjusted_rand_score(labels_gmm_eval[mask_eval_hdb], labels_hdb_eval[mask_eval_hdb]))
+        ari_agg_hdb = float(adjusted_rand_score(labels_agg_sample[mask_eval_hdb], labels_hdb_eval[mask_eval_hdb]))
+    else:
+        ari_km_hdb, ari_gmm_hdb, ari_agg_hdb = np.nan, np.nan, np.nan
+
     ari_matrix = pd.DataFrame(
         [
-            [1.0, float(adjusted_rand_score(labels_km, labels_gmm)), float(adjusted_rand_score(labels_km[idx_eval], labels_agg_sample))],
-            [float(adjusted_rand_score(labels_gmm, labels_km)), 1.0, float(adjusted_rand_score(labels_gmm[idx_eval], labels_agg_sample))],
-            [float(adjusted_rand_score(labels_agg_sample, labels_km[idx_eval])), float(adjusted_rand_score(labels_agg_sample, labels_gmm[idx_eval])), 1.0]
+            [1.0, float(adjusted_rand_score(labels_km_eval, labels_gmm_eval)), float(adjusted_rand_score(labels_km_eval, labels_agg_sample)), ari_km_hdb],
+            [float(adjusted_rand_score(labels_gmm_eval, labels_km_eval)), 1.0, float(adjusted_rand_score(labels_gmm_eval, labels_agg_sample)), ari_gmm_hdb],
+            [float(adjusted_rand_score(labels_agg_sample, labels_km_eval)), float(adjusted_rand_score(labels_agg_sample, labels_gmm_eval)), 1.0, ari_agg_hdb],
+            [ari_km_hdb, ari_gmm_hdb, ari_agg_hdb, 1.0]
         ],
-        index=["K-Means", "GMM", "Jerárquico"],
-        columns=["K-Means", "GMM", "Jerárquico"]
+        index=["K-Means", "GMM", "Jerárquico", "HDBSCAN"],
+        columns=["K-Means", "GMM", "Jerárquico", "HDBSCAN"]
     )
 
     return df_metricas, ari_matrix, dict_modelos

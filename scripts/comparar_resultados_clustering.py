@@ -99,17 +99,28 @@ def ejecutar_comparativa():
     print(matriz_migracion.to_string())
 
     print("\n" + "="*80)
-    print("HALLAZGOS CLAVE:")
+    print("HALLAZGOS CLAVE (Calculados dinámicamente del run actual):")
     print("="*80)
-    # Cuántas filas de la vieja 'Grada General' eran tarifa plana
+    # 1. Cuántas filas de la vieja 'Grada General' eran tarifa plana
     vieja_grada = df_old[df_old["arquetipo_demanda"] == "Grada General / Masiva"]
     grada_era_tarifa_plana = (df_new.loc[vieja_grada.index, "arquetipo_demanda"] == "Admisión Única / Tarifa Plana").sum()
+    pct_grada_tp = (grada_era_tarifa_plana / len(vieja_grada) * 100) if len(vieja_grada) > 0 else 0.0
     print(f"1. De las {len(vieja_grada):,} filas que el modelo anterior llamaba 'Grada General', exactamente")
-    print(f"   {grada_era_tarifa_plana:,} ({grada_era_tarifa_plana/len(vieja_grada)*100:.1f}%) eran funciones monozona (Cinemateca/Maloka/YAWA).")
-    print("2. La 'Grada General' del modelo anterior tenía Ratio = 1.00 (más cara que VIP).")
-    print("   En el modelo nuevo, 'Grada General' ahora representa graderías reales con aforo masivo (59.2%).")
-    print("3. 'VIP / Palcos / Premium' se expandió de 1,905 a 5,400 filas, capturando palcos y plateas")
-    print("   de alta gama que antes caían en 'Popular' o 'Preferencial' por el arrastre de los centroides.")
+    print(f"   {grada_era_tarifa_plana:,} ({pct_grada_tp:.1f}%) eran funciones monozona (Cinemateca/Maloka/YAWA).")
+
+    # 2. Métricas de la nueva Grada General
+    if "Grada General / Masiva" in df_new["arquetipo_demanda"].values:
+        nueva_grada = df_new[df_new["arquetipo_demanda"] == "Grada General / Masiva"]
+        aforo_nueva_grada = nueva_grada["peso_aforo"].mean() * 100
+        print(f"2. En el modelo nuevo, 'Grada General / Masiva' cuenta con {len(nueva_grada):,} filas")
+        print(f"   y representa graderías reales con aforo dominante promedio del {aforo_nueva_grada:.1f}%.")
+
+    # 3. Transición de VIP / Palcos
+    vip_old = df_old[df_old["arquetipo_demanda"] == "VIP / Palcos / Premium"]
+    vip_new = df_new[df_new["arquetipo_demanda"] == "VIP / Palcos / Premium"]
+    p_med_vip = vip_new["med_unit_amt_itx"].median() if "med_unit_amt_itx" in vip_new.columns else 0.0
+    print(f"3. 'VIP / Palcos / Premium' pasó de {len(vip_old):,} filas (mezcladas con monozona) a {len(vip_new):,} filas puras,")
+    print(f"   concentrando palcos y mesas de alta gama con precio mediano de ${p_med_vip:,.0f} COP (el más alto del catálogo).")
 
 
 if __name__ == "__main__":

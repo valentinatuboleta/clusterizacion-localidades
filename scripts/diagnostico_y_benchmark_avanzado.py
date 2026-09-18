@@ -73,9 +73,9 @@ def run():
     df_sweep = pd.DataFrame(sweep_res)
     print(df_sweep.to_string(index=False))
 
-    # Fijamos el espacio estándar (peso_nlp=1.2) para el resto del diagnóstico
+    # Fijamos el espacio calibrado de producción (peso_nlp=0.2) para el resto del diagnóstico
     X_std, scaler_std, tfidf_std, feats_std = construir_espacio_vectorial_mixto(
-        df_multi, peso_nlp=1.2, scaler_type="robust"
+        df_multi, peso_nlp=0.2, scaler_type="robust"
     )
     X_sample_std = X_std[idx_sample]
 
@@ -219,19 +219,27 @@ def run():
     # EXPERIMENTO 7: SOBREQUIPPING (K=8 y K=10 consolidado a 5 arquetipos)
     # ------------------------------------------------------------------
     print("\n==================================================================")
-    print("EXPERIMENTO 7: SOBREQUIPPING (K fino 8-10 mapeado a Arquetipos)")
+    print("EXPERIMENTO 7: SOBREQUIPPING (K fino 8-10 mapeado a 5 Arquetipos)")
     print("==================================================================")
-    perfiles = construir_perfiles_ideales_escalados(feats_std, scaler_std, peso_nlp=1.2)
-    # Perfil adicional de Balcón para 5 arquetipos
     for k_fine in [8, 10]:
         km_fine = KMeans(n_clusters=k_fine, random_state=42, n_init=10)
         labels_fine = km_fine.fit_predict(X_std)
-        # Centroides finos
-        centroids_fine = km_fine.cluster_centers_
-        # Evaluamos silueta fina
         sil_fine = silhouette_score(X_sample_std, labels_fine[idx_sample])
         db_fine = davies_bouldin_score(X_sample_std, labels_fine[idx_sample])
-        print(f"K-Means fino k={k_fine}: Silueta={sil_fine:.4f}, Davies-Bouldin={db_fine:.4f}")
+        
+        # Mapeo real de micro-clusters a arquetipos con correspondencia húngara
+        mapa_fino = etiquetar_por_centroides_escalados(
+            kmeans=km_fine,
+            feature_names=feats_std,
+            scaler=scaler_std,
+            peso_nlp=0.2
+        )
+        arquetipos_consolidados = pd.Series(labels_fine).map(mapa_fino)
+        conteo = arquetipos_consolidados.value_counts()
+        print(f"\nK-Means fino k={k_fine}: Silueta={sil_fine:.4f}, Davies-Bouldin={db_fine:.4f}")
+        print("  Distribución consolidada en arquetipos:")
+        for arq, cnt in conteo.items():
+            print(f"    - {arq}: {cnt} ({cnt/len(labels_fine)*100:.1f}%)")
 
 if __name__ == "__main__":
     run()

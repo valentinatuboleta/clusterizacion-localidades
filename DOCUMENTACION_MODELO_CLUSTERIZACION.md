@@ -340,12 +340,24 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 #### 3.3 `evaluar_rango_k(X: np.ndarray, k_min: int, k_max: int) -> pd.DataFrame`
 * **Evaluación Empírica y Optimización Formal sobre Multi-Zona (`peso_nlp=0.2`):**
   * Al retirar los 15,375 puntos idénticos de tarifa plana y calibrar el peso del texto, el espacio multi-zona muestra su estructura geométrica real:
-    * $k=3$: Silhouette $0.244$, Davies-Bouldin $1.412$, Inercia $24,366$.
-    * $k=4$: Silhouette $0.248$, Davies-Bouldin $1.318$, Inercia $21,022$.
-    * **$k=5$ (Óptimo Formal):** Silhouette $0.249$, **Davies-Bouldin $1.272$ (Mínimo Global)**, Inercia $18,749$. Es el **punto de codo ortogonal exacto** (máxima distancia a la cuerda = $1.28$).
-    * $k=6$: Silhouette $0.249$, Davies-Bouldin $1.387$, Inercia $17,046$.
-    * $k=7$: Silhouette $0.270$, Davies-Bouldin $1.296$, Inercia $15,461$.
-  * **Decisión de Arquitectura:** Se selecciona **$k=5$ multi-zona** (+1 Tarifa Plana = **6 arquetipos de demanda finales**), el cual maximiza la parsimonia, minimiza la dispersión de Davies-Bouldin y separa limpiamente los nichos de alta gama, plateas intermedias y gradas masivas.
+    * $k=3$: Silhouette $0.244$, Davies-Bouldin $1.412$, Inercia $24,366$, Score Compuesto: $0.00$.
+    * $k=4$: Silhouette $0.248$, Davies-Bouldin $1.318$, Inercia $21,022$, Score Compuesto: $0.78$.
+    * **$k=5$ (Óptimo Formal):** Silhouette $0.249$, **Davies-Bouldin $1.272$ (Mínimo Global)**, Inercia $18,749$, **Codo Máximo (distancia ortogonal = $1.28$)**, Score Compuesto: **$1.13$**.
+    * $k=6$: Silhouette $0.249$, Davies-Bouldin $1.387$, Inercia $17,046$, Score Compuesto: $0.28$.
+    * $k=7$: Silhouette $0.270$, Davies-Bouldin $1.296$, Inercia $15,461$, Score Compuesto: $1.45$.
+    * $k=8$: Silhouette $0.277$, Davies-Bouldin $1.302$, Inercia $14,195$.
+    * $k=10$: Silhouette $0.284$, Davies-Bouldin $1.301$, Inercia $12,377$.
+
+* **Análisis Crítico: ¿Por qué $k=5$ y no $k=7$?**
+  1. **Parsimonia y Codo:** $k=5$ es el **punto de codo matemático exacto** en la curva de inercia (distancia máxima a la secante $1.28$) y el punto donde se **minimiza globalmente el índice Davies-Bouldin ($1.2720$)**.
+  2. **Sobre-fragmentación sin valor de negocio en $k=7$:** Aunque $k=7$ eleva la silueta a $0.270$, una inspección de centroides revela que simplemente fractura la *Platea General* y la *Tribuna Popular* en sub-segmentos redundantes que no corresponden a categorías comerciales reales del ticketing (crea clusters de $4.5\%$ sin diferenciación funcional de pricing).
+  3. **Naturaleza del Cluster *Grada General / Masiva* (819 filas, 2.4%):**
+     * En $k=5$, este cluster aísla con exactitud las localidades masivas de recintos de gran formato (Estadio El Campín, Atanasio Girardot, Movistar Arena en configuración masiva), donde una sola localidad absorbe un promedio del **$81.4\%$ del aforo total del evento** (hasta $35,000$ sillas).
+     * No es un cluster degenerado ni vacío: es la captura física fiel de la asimetría de capacidad en espectáculos masivos frente a teatros y salas íntimas.
+
+* **Decisión de Diseño de Ponderación NLP ($\omega_{\text{nlp}} = 0.2$ vs $0.0$):**
+  * La ablación muestra que con $\omega_{\text{nlp}} = 0.0$ (eliminando TF-IDF) la silueta es $0.252$ y con $0.2$ es $0.249$ (diferencia marginal $< 0.003$).
+  * Se mantiene $\omega_{\text{nlp}} = 0.2$ deliberadamente como **desempatador semántico (*tie-breaker*)**: cuando dos localidades tienen precios y aforos idénticos (ej. un *Palco* corporativo frente a una *Platea Delantera* en eventos medianos con ratio $\approx 0.85$), los términos de texto resuelven la ambigüedad hacia su jerarquía física correcta. Con pesos mayores ($\ge 1.0$), el texto diluía el bloque numérico; con $0.2$, opera como modulador fino.
 
 ---
 
@@ -423,35 +435,30 @@ El espacio mixto demostró resolver con precisión los problemas de ambigüedad 
 source .venv/bin/activate
 ```
 
-### 2. Ejecutar el pipeline desde Python
+### 2. Ejecutar el pipeline en dos etapas desde Python
 ```python
 import pandas as pd
-from src.feature_engineering import preparar_dataset_enriquecido
-from src.clustering import (
-    construir_espacio_vectorial_mixto, 
-    entrenar_modelo_clustering, 
-    asignar_arquetipos_demanda
+from src.feature_engineering import filtrar_consistencia_localidades, calcular_metricas_relativas
+from src.nlp_utils import pipeline_procesamiento_nlp
+from src.clustering import pipeline_clustering_dos_etapas
+
+# 1. Cargar y preparar datos limpios certificados
+df_raw = pd.read_parquet("data/raw/localidades_eda.parquet")
+df_clean = filtrar_consistencia_localidades(df_raw)
+df_rel = calcular_metricas_relativas(df_clean)
+df_enriquecido = pipeline_procesamiento_nlp(df_rel)
+
+# 2. Ejecutar pipeline en dos etapas (k=5 óptimo en multi-zona, peso_nlp=0.2)
+df_final, kmeans, scaler, tfidf_vec, feature_names, metricas = pipeline_clustering_dos_etapas(
+    df_enriquecido,
+    n_clusters_multizona=5,
+    peso_nlp=0.2,
+    random_state=42
 )
 
-# 1. Cargar datos en bruto
-df_raw = pd.read_parquet("data/raw/localidades_eda.parquet")
-
-# 2. Enriquecer con NLP y Métricas Relativas
-df_enriquecido = preparar_dataset_enriquecido(df_raw)
-
-# 3. Construir espacio vectorial mixto
-X_mixto, scaler, tfidf_vec, features = construir_espacio_vectorial_mixto(df_enriquecido)
-
-# 4. Entrenar K-Means
-kmeans, labels, metricas = entrenar_modelo_clustering(X_mixto, n_clusters=4)
-df_enriquecido["cluster"] = labels
-
-# 5. Asignar arquetipos de negocio
-df_final = asignar_arquetipos_demanda(df_enriquecido)
-
-# 6. Guardar dataset segmentado
+# 3. Guardar catálogo segmentado con los 6 arquetipos certificados
 df_final.to_parquet("data/processed/localidades_clusterizadas.parquet", index=False)
-print(" Segmentación completada exitosamente.")
+print(f"✅ Segmentación completada exitosamente: {len(df_final):,} filas clasificadas.")
 ```
 
 ### 3. Ejecutar los Cuadernos Interactivos

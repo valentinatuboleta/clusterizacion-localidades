@@ -2,7 +2,7 @@
 
 Proyecto integral de Data Science y Machine Learning para la segmentación y clasificación automatizada de localidades en espectáculos públicos a partir de datos transaccionales almacenados en formato `.parquet` en Azure Blob Storage.
 
-El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (características numéricas relativas *ex-ante*, tags estructurales de recinto extraídos mediante NLP y representaciones vectoriales TF-IDF) para agrupar el catálogo en **4 arquetipos estandarizados de demanda**.
+El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (características numéricas relativas *ex-ante*, tags estructurales de recinto extraídos mediante NLP y representaciones vectoriales TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
 
 ---
 
@@ -25,14 +25,19 @@ clusterizacion-localidades/
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
 │   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (25D), K-Means/GMM y arquetipos
 │
-├── src/                                        # Módulos Python reutilizables
+├── src/                                        # Módulos Python reutilizables y pruebas
 │   ├── __init__.py
 │   ├── azure_utils.py                          # Conexión y descarga segura desde Azure Blob Storage
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento y consistencia
-│   └── clustering.py                           # Construcción de espacio mixto (25D) y K-Means
+│   ├── clustering.py                           # Construcción de espacio mixto (25D) y clustering bietápico
+│   └── test_clustering_golden_set.py           # Suite de pruebas automatizadas y Golden Set (20 casos)
 │
-├── scripts/                                    # Automatización de entregables y visualizaciones
+├── scripts/                                    # Automatización, diagnóstico y análisis
+│   ├── comparar_resultados_clustering.py       # Comparativa cuantitativa y matriz de transición v2.0 vs v2.1
+│   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
+│   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (codo ortogonal y Davies-Bouldin)
+│   ├── verificar_k5_perfiles.py                # Inspección de centroides y activación de tags
 │   ├── build_presentation_from_template.py     # Inyección de insights en plantilla corporativa PPTX
 │   ├── build_full_notebook_presentation.py     # Generación de presentación ejecutiva completa
 │   ├── generate_all_presentation_figures.py    # Generación automatizada de figuras para reportes
@@ -98,25 +103,27 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
      * **Orientación Espacial:** `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
      * **Restricciones de Acceso:** `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
 
-3. **Arquitectura en Dos Etapas y Espacio Mixto 25D (`src/clustering.py` - Modelo v2.1):**
+3. **Arquitectura en Dos Etapas y Espacio Mixto 25D (`src/clustering.py` - Modelo v2.1 Optimizado):**
    * **Etapa 1 (Determinística):** Aislamiento de funciones de admisión única / tarifa plana a nivel evento ($15,375$ registros, $45.5\%$ del catálogo: Cinemateca, Maloka, museos). Asignación directa a *Admisión Única / Tarifa Plana*.
    * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 25 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
      * $3$ métricas numéricas relativas *ex-ante* (`RobustScaler`).
      * $7$ tags estructurales densos (5 comerciales + 2 verticales) en escala $[0, 1]$.
-     * $15$ características TF-IDF reentrenadas exclusivamente sobre multi-zona ($\omega_{\text{nlp}} = 1.2$).
-   * **Algoritmo & Etiquetado:** K-Means ($k=4$, `n_init=15`) con mapeo de centroides geométricos 1-a-1 en el espacio escalado (Algoritmo Húngaro).
+     * $15$ características TF-IDF reentrenadas exclusivamente sobre multi-zona con ponderación calibrada $\omega_{\text{nlp}} = 0.2$ (evitando la dilución dimensional del bloque continuo).
+   * **Algoritmo & Etiquetado:** K-Means ($k=5$, óptimo formal por codo ortogonal y mínimo Davies-Bouldin de $1.2720$) con correspondencia biyectiva de centroides geométricos 1-a-1 mediante el Algoritmo Húngaro.
 
 ---
 
-## 🏷️ Los 5 Arquetipos de Demanda (Modelo v2.1)
+## 🏷️ Los 6 Arquetipos de Demanda (Modelo v2.1 Optimizado)
 
-| Arquetipo | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Localidades Típicas |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | 45.5% | 1.00 | 100.0% | *Cinemateca, Maloka, YAWA, funciones monozona* |
-| **VIP / Palcos / Premium** | Etapa 2 | 5,400 | 16.0% | 0.84 | 7.7% | *Palcos, Mesas VIP, Platino, Boxes, Suite* |
-| **Preferencial / Platea Frontal** | Etapa 2 | 3,604 | 10.7% | 0.81 | 18.6% | *Platea 1, Platea 2, Preferencial Delantera* |
-| **Popular / Visibilidad Parcial / Balcón** | Etapa 2 | 7,311 | 21.6% | 0.38 | 12.7% | *Platea Posterior, Balcón Mayor, Vista Parcial* |
-| **Grada General / Masiva** | Etapa 2 | 2,085 | 6.2% | 0.79 | 59.2% | *Graderías masivas de estadios, Cancha General* |
+| Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| 🎟️ **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.5%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
+| ⭐ **VIP / Palcos / Premium** | Etapa 2 | 2,912 | **8.6%** | 0.76 | 4.7% | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+| 🎭 **Preferencial / Platea Frontal** | Etapa 2 | 4,697 | **13.9%** | 0.85 | 9.3% | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+| 🪑 **Platea General / Intermedia** | Etapa 2 | 3,432 | **10.2%** | 0.80 | 37.2% | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+| 🏟️ **Grada General / Masiva** | Etapa 2 | 819 | **2.4%** | 0.79 | 81.4% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+| 🎟️ **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,540 | **19.4%** | 0.35 | 11.3% | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+| **TOTAL CATÁLOGO** | **v2.1** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 

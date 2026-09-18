@@ -40,7 +40,7 @@ def chequear_k5():
         aforo = df_c["peso_aforo"].mean()
         
         tags_activos = []
-        for t in ["tag_vip", "tag_palco", "tag_platea", "tag_balcon", "tag_tribuna", "tag_preferencial", "tag_piso_alto"]:
+        for t in ["tag_vip", "tag_palco", "tag_platea", "tag_balcon", "tag_general", "tag_preferencial", "tag_piso_alto"]:
             if t in df_c.columns and df_c[t].mean() > 0.15:
                 tags_activos.append(f"{t}: {df_c[t].mean()*100:.1f}%")
         
