@@ -82,7 +82,7 @@ A continuación se detalla la razón de existencia, lógica algorítmica y el es
 
 ---
 
-### MÓDULO 1: Procesamiento de Lenguaje Natural ([`src/nlp_utils.py`](file:///Users/valentina/dev/clusterizacion-localidades/src/nlp_utils.py))
+### MÓDULO 1: Procesamiento de Lenguaje Natural ([`src/nlp_utils.py`](src/nlp_utils.py))
 
 Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la localidad.
 
@@ -184,7 +184,7 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 
 ---
 
-### MÓDULO 2: Ingeniería de Características Relativas ([`src/feature_engineering.py`](file:///Users/valentina/dev/clusterizacion-localidades/src/feature_engineering.py))
+### MÓDULO 2: Ingeniería de Características Relativas ([`src/feature_engineering.py`](src/feature_engineering.py))
 
 Este módulo resuelve la distorsión del dinero y el tamaño del venue calculando métricas **relativas a cada evento (`t_performance_id`)**.
 
@@ -279,7 +279,7 @@ El análisis de correlaciones lineales (Pearson $r$) valida tres propiedades est
 
 ---
 
-### MÓDULO 3: Fusión Vectorial y Clustering ([`src/clustering.py`](file:///Users/valentina/dev/clusterizacion-localidades/src/clustering.py))
+### MÓDULO 3: Fusión Vectorial y Clustering ([`src/clustering.py`](src/clustering.py))
 
 Este módulo ensambla la matriz mixta, ajusta el modelo de Machine Learning y asigna los nombres estandarizados de negocio.
 
@@ -288,7 +288,10 @@ Este módulo ensambla la matriz mixta, ajusta el modelo de Machine Learning y as
 #### 3.1 `construir_espacio_vectorial_mixto(...) -> Tuple[np.ndarray, Scaler, Vectorizer, List[str]]`
 * **¿Para qué se crea?**: Combina las variables numéricas continuas con las discretas y las representaciones de texto en una única matriz $\mathbf{X}_{\text{mixto}}$.
 * **¿Por qué se usa?**: K-Means necesita todas las dimensiones en una escala comparable. Usa `RobustScaler` para no ser distorsionado por outliers de aforo o precios atípicos.
-* **Dimensiones generadas:** $\mathbf{X}_{\text{mixto}} \in \mathbb{R}^{33,878 \times 37}$ (5 numéricas relativas + 17 tags estructurales + 15 vocabulario TF-IDF).
+* **Dimensiones generadas:** $\mathbf{X}_{\text{mixto}} \in \mathbb{R}^{33,775 \times 25}$ (3 numéricas relativas ex-ante + 7 tags estructurales densos + 15 vocabulario TF-IDF).
+* **Fundamentos metodológicos de la matriz de 25 dimensiones:**
+  1. **Exclusión de `tasa_ocupacion`:** La ocupación es una métrica *ex-post* de absorción de ventas. Incluirla en la segmentación induciría fuga de información y confundiría el éxito de comercialización de un evento con la jerarquía física y de valor intrínseco de la localidad. Por ende, solo se usan variables *ex-ante* (`ratio_precio_max`, `percentil_precio_evento`, `peso_aforo`).
+  2. **Selección de 7 tags estructurales densos:** De los 17 tags extraídos en el pipeline NLP (conservados en el DataFrame maestro para análisis exploratorio y reportes), para la matriz de clustering se seleccionan los 7 tags estructurales con suficiente densidad muestral (5 de jerarquía comercial y 2 de nivel vertical). Esto previene la dispersión matemática (*curse of dimensionality*) provocada por tags espaciales y de restricción ultra-escasos.
 
 ---
 
@@ -319,20 +322,20 @@ Este módulo ensambla la matriz mixta, ajusta el modelo de Machine Learning y as
 
 ##  Los 4 Arquetipos Universales de Demanda
 
-A partir del entrenamiento del modelo sobre los **33,878 registros**, el espacio vectorial mixto segmentó el catálogo en 4 arquetipos con comportamientos económicos perfectamente definidos:
+A partir del entrenamiento del modelo sobre los **33,775 registros**, el espacio vectorial mixto segmentó el catálogo en 4 arquetipos con comportamientos económicos perfectamente definidos:
 
 ```
                                     ▲ Ratio de Precio Relativo
                                     │
             VIP / PALCOS          │          PREFERENCIAL / PLATEA
        (Alto Precio / Bajo Aforo)   │     (Medio-Alto Precio / Aforo Medio)
-       Ocupación: 69.7%             │     Ocupación: 40.9%
+       Ocupación: 69.8%             │     Ocupación: 42.2%
                                     │
    ─────────────────────────────────┼─────────────────────────────────► Peso de Aforo
                                     │                                  (% Capacidad)
             POPULAR / BALCÓN      │          GRADA GENERAL
-       (Bajo Precio / Aforo Bajo)   │     (Precio Accesible / Gran Aforo)
-       Ocupación: 10.0%             │     Ocupación: 9.1%
+       (Bajo Precio / Aforo Medio)  │     (Precio Máximo / Gran Aforo)
+       Ocupación: 9.4%              │     Ocupación: 9.3%
                                     │
 ```
 
@@ -340,10 +343,10 @@ A partir del entrenamiento del modelo sobre los **33,878 registros**, el espacio
 
 | Arquetipo Estandarizado | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Tasa Ocupación Media | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-|  **VIP / Palcos / Premium** | 1,919 | **5.7%** | **0.72** | **19.1%** | **69.7%** | *Palcos, Mesas VIP, Platino, Boxes, Suite, Experiencia* |
-|  **Preferencial / Platea Frontal** | 5,759 | **17.0%** | **0.74** | **22.2%** | **40.9%** | *Platea 1, Platea 2, Preferencial Delantera, Sillas Centrales* |
-|  **Grada General / Masiva** | 17,182 | **50.7%** | **0.99** | **89.3%** | **9.1%** | *General, Entrada Única, Tiquete Full, Admisión General* |
-|  **Popular / Vista Parcial / Balcón** | 9,018 | **26.6%** | **0.49** | **18.3%** | **10.0%** | *Platea Posterior, Balcón Mayor, 2do Balcón, Vista Parcial, Lateral* |
+|  **VIP / Palcos / Premium** | 1,905 | **5.6%** | **0.72** | **19.2%** | **69.8%** | *Palcos, Mesas VIP, Platino, Boxes, Suite, Experiencia* |
+|  **Preferencial / Platea Frontal** | 5,548 | **16.4%** | **0.70** | **21.1%** | **42.2%** | *Platea 1, Platea 2, Preferencial Delantera, Sillas Centrales* |
+|  **Popular / Visibilidad Parcial / Balcón** | 11,361 | **33.6%** | **0.61** | **19.5%** | **9.4%** | *Platea Posterior, Balcón Mayor, 2do Balcón, Vista Parcial, Lateral* |
+|  **Grada General / Masiva** | 15,064 | **44.6%** | **1.00** | **98.8%** | **9.3%** | *General, Entrada Única, Tiquete Full, Admisión General* |
 
 ---
 
@@ -401,5 +404,5 @@ print(" Segmentación completada exitosamente.")
 ```
 
 ### 3. Ejecutar los Cuadernos Interactivos
-* **Exploración:** [`notebooks/01_eda_clusterizacion.ipynb`](file:///Users/valentina/dev/clusterizacion-localidades/notebooks/01_eda_clusterizacion.ipynb)
-* **Modelado y Clustering:** [`notebooks/02_clustering_espacio_mixto.ipynb`](file:///Users/valentina/dev/clusterizacion-localidades/notebooks/02_clustering_espacio_mixto.ipynb)
+* **Exploración:** [`notebooks/01_eda_clusterizacion.ipynb`](notebooks/01_eda_clusterizacion.ipynb)
+* **Modelado y Clustering:** [`notebooks/02_clustering_espacio_mixto.ipynb`](notebooks/02_clustering_espacio_mixto.ipynb)

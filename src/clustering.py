@@ -53,10 +53,15 @@ def construir_espacio_vectorial_mixto(
     tfidf_vectorizer: Optional[Any] = None
 ) -> Tuple[np.ndarray, Any, Any, List[str]]:
     """
-    Construye el espacio vectorial mixto combinando:
-    1. Métricas numéricas relativas ex-ante escaladas (ratio precio, percentil precio, peso aforo).
-    2. Tags estructurales binarios (0 o 1, sin distorsión de escala).
-    3. Embeddings/TF-IDF del texto limpio de la localidad ponderados por peso_nlp.
+    Construye el espacio vectorial mixto de 25 dimensiones combinando:
+    1. Métricas numéricas relativas ex-ante escaladas (3 variables: ratio_precio_max, percentil_precio_evento, peso_aforo).
+       Nota: 'tasa_ocupacion' se excluye deliberadamente al ser una métrica ex-post de absorción comercial.
+    2. Tags estructurales densos (7 variables: 5 de jerarquía comercial + 2 de nivel vertical).
+       Nota: De los 17 tags extraídos en el pipeline NLP, se seleccionan estos 7 para modelado
+       para evitar alta dimensionalidad y dispersión causada por orientaciones y restricciones ultra-escasas.
+    3. Embeddings/TF-IDF del texto limpio de la localidad (15 n-gramas) ponderados por peso_nlp.
+    
+    Total de dimensiones por defecto: 3 + 7 + 15 = 25 dimensiones.
     """
     # 1. Variables numéricas continuas
     cols_num_presentes = [c for c in columnas_numericas if c in df.columns]

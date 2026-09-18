@@ -12,7 +12,8 @@ def get_blob_service_client() -> BlobServiceClient:
     Inicializa y retorna el cliente de Azure Blob Storage desde la variable de entorno.
     """
     connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-    if not connection_string or "TU_ACCOUNT_NAME" in connection_string:
+    placeholders = ["TU_ACCOUNT_NAME", "TU_STORAGE_ACCOUNT_NAME", "TU_STORAGE_ACCOUNT_KEY"]
+    if not connection_string or any(p in connection_string for p in placeholders):
         raise ValueError(
             "Por favor configura una cadena de conexión válida en tu archivo .env (AZURE_STORAGE_CONNECTION_STRING)."
         )
@@ -28,8 +29,14 @@ def cargar_parquet_desde_azure(
     container_name = container_name or os.getenv("AZURE_CONTAINER_NAME")
     blob_name = blob_name or os.getenv("AZURE_BLOB_NAME")
 
-    if not container_name or not blob_name:
-        raise ValueError("AZURE_CONTAINER_NAME y AZURE_BLOB_NAME deben estar definidos en el entorno o como argumentos.")
+    placeholder_containers = ["tu_contenedor", "tu_contenedor_azure"]
+    placeholder_blobs = ["tu_archivo.parquet", "ruta/a/tu/archivo.parquet"]
+
+    if not container_name or container_name in placeholder_containers:
+        raise ValueError("AZURE_CONTAINER_NAME debe estar definido con un contenedor válido en tu archivo .env o argumentos.")
+
+    if not blob_name or blob_name in placeholder_blobs:
+        raise ValueError("AZURE_BLOB_NAME debe estar definido con una ruta válida de archivo .parquet en tu archivo .env o argumentos.")
 
     blob_service_client = get_blob_service_client()
     blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
