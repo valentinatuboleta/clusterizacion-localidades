@@ -20,6 +20,7 @@ from sklearn.metrics import (
     davies_bouldin_score,
     adjusted_rand_score
 )
+from scipy.optimize import linear_sum_assignment
 from src.nlp_utils import vectorizar_texto_limpio
 
 
@@ -39,6 +40,38 @@ DEFAULT_TAG_FEATURES = [
     "tag_balcon",
     "tag_piso_alto"
 ]
+
+
+def separar_admision_unica_multizona(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Particiona el catálogo a nivel EVENTO (t_performance_id) en dos ramas disjuntas:
+    1. Eventos Monozona / Admisión Única: Funciones con 1 sola localidad activa
+       O donde alguna localidad concentra el >= 99% del aforo (tarifa plana de facto).
+    2. Eventos Multi-Zona: Funciones estratificadas donde coexisten y compiten múltiples localidades.
+    
+    Garantiza consistencia física a nivel evento (no parte una función entre dos etapas)
+    y verifica cobertura matemática exacta: len(df_monozona) + len(df_multizona) == len(df).
+    """
+    df_work = df.copy()
+    
+    # 1. Métricas agrupadas a nivel evento
+    n_localidades_evento = df_work.groupby("t_performance_id")["dn_quota"].transform("count")
+    max_peso_aforo_evento = df_work.groupby("t_performance_id")["peso_aforo"].transform("max")
+    
+    # 2. Criterio primario: nunique == 1 por evento. Red de seguridad: max_peso_aforo >= 0.99
+    es_monozona = (n_localidades_evento == 1) | (max_peso_aforo_evento >= 0.99)
+    
+    df_work["es_monozona"] = es_monozona
+    df_work["segmento_etapa"] = np.where(es_monozona, "admision_unica", "multizona")
+    
+    df_monozona = df_work[es_monozona].copy()
+    df_multizona = df_work[~es_monozona].copy()
+    
+    assert len(df_monozona) + len(df_multizona) == len(df), (
+        f"Inconsistencia en partición: {len(df_monozona)} + {len(df_multizona)} != {len(df)}"
+    )
+    
+    return df_monozona, df_multizona
 
 
 def construir_espacio_vectorial_mixto(
@@ -173,14 +206,139 @@ def entrenar_modelo_clustering(
     return kmeans, labels, metricas
 
 
-def asignar_arquetipos_demanda(df_clustered: pd.DataFrame, col_cluster: str = "cluster") -> pd.DataFrame:
+def construir_perfiles_ideales_escalados(
+    feature_names: List[str],
+    scaler: Any = None,
+    peso_nlp: float = 1.2
+) -> Dict[str, np.ndarray]:
+    """
+    Construye las representaciones vectoriales ideales para cada arquetipo multi-zona
+    dentro del espacio geométrico escalado de 25 dimensiones.
+    
+    1. Bloque numérico (3 variables): Se especifica en unidades relativas naturales y se transforma
+       mediante scaler.transform() para proyectarlo al espacio RobustScaler.
+    2. Bloque tags (7 variables): Se especifica la tasa de activación ideal en [0, 1].
+    3. Bloque TF-IDF (15 variables): Se ponderan los términos afines por peso_nlp.
+    """
+    arquetipos_multi = [
+        "VIP / Palcos / Premium",
+        "Preferencial / Platea Frontal",
+        "Popular / Visibilidad Parcial / Balcón",
+        "Grada General / Masiva"
+    ]
+    
+    perfiles_config = {
+        "VIP / Palcos / Premium": {
+            "num": [0.90, 0.85, 0.08],
+            "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
+            "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
+        },
+        "Preferencial / Platea Frontal": {
+            "num": [0.80, 0.75, 0.20],
+            "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
+            "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
+        },
+        "Popular / Visibilidad Parcial / Balcón": {
+            "num": [0.35, 0.30, 0.15],
+            "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
+            "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
+        },
+        "Grada General / Masiva": {
+            "num": [0.60, 0.50, 0.60],
+            "tags": {"tag_general": 0.6},
+            "words": {"tfidf_general": 0.5}
+        }
+    }
+    
+    perfiles_vectores = {}
+    for nombre in arquetipos_multi:
+        cfg = perfiles_config[nombre]
+        
+        if scaler is not None and hasattr(scaler, "transform"):
+            num_scaled = scaler.transform([cfg["num"]])[0]
+        else:
+            num_scaled = np.array(cfg["num"], dtype=float)
+            
+        vec = list(num_scaled)
+        
+        for feat in feature_names[3:]:
+            if feat.startswith("tag_"):
+                vec.append(cfg["tags"].get(feat, 0.0))
+            elif feat.startswith("tfidf_"):
+                vec.append(cfg["words"].get(feat, 0.0) * peso_nlp)
+            else:
+                vec.append(0.0)
+                
+        perfiles_vectores[nombre] = np.array(vec, dtype=float)
+        
+    return perfiles_vectores
+
+
+def etiquetar_por_centroides_escalados(
+    kmeans: KMeans,
+    feature_names: List[str],
+    scaler: Any = None,
+    peso_nlp: float = 1.2
+) -> Dict[int, str]:
+    """
+    Asigna arquetipos a los clusters evaluando la distancia euclidiana entre los centroides
+    reales del modelo (en el espacio transformado de 25D) y los perfiles ideales de negocio.
+    
+    Aplica el algoritmo de asignación óptima 1 a 1 (Hungarian / Munkres) para garantizar
+    una correspondencia biyectiva estricta sin duplicidades ni heurísticas frágiles de ordenamiento.
+    """
+    centroids = kmeans.cluster_centers_
+    k = len(centroids)
+    
+    perfiles_dict = construir_perfiles_ideales_escalados(feature_names, scaler, peso_nlp=peso_nlp)
+    nombres_perfiles = list(perfiles_dict.keys())
+    perfiles_matriz = np.array([perfiles_dict[nom] for nom in nombres_perfiles])
+    
+    diff = centroids[:, np.newaxis, :] - perfiles_matriz[np.newaxis, :, :]
+    D = np.linalg.norm(diff, axis=2)
+    
+    row_ind, col_ind = linear_sum_assignment(D)
+    
+    mapping = {}
+    for c_id, p_id in zip(row_ind, col_ind):
+        mapping[int(c_id)] = nombres_perfiles[p_id]
+        
+    for c_id in range(k):
+        if c_id not in mapping:
+            best_p = int(np.argmin(D[c_id]))
+            mapping[c_id] = f"{nombres_perfiles[best_p]} (Variante #{c_id})"
+            
+    return mapping
+
+
+def asignar_arquetipos_demanda(
+    df_clustered: pd.DataFrame, 
+    col_cluster: str = "cluster",
+    kmeans: Optional[KMeans] = None,
+    feature_names: Optional[List[str]] = None,
+    scaler: Optional[Any] = None,
+    peso_nlp: float = 1.2
+) -> pd.DataFrame:
     """
     Interpreta los centroides de cada cluster en términos de precio relativo, peso de aforo y semántica,
     asignando nombres de arquetipos estandarizados de negocio.
+    Si se suministra el objeto kmeans y feature_names, utiliza el motor de asignación geométrica
+    en el espacio escalado 25D. En caso contrario, recurre al clasificador heurístico.
     """
     df_res = df_clustered.copy()
     
-    # Calcular resumen por cluster
+    # 1. Asignación geométrica basada en centroides escalados 25D
+    if kmeans is not None and feature_names is not None:
+        mapa_arquetipos = etiquetar_por_centroides_escalados(
+            kmeans=kmeans,
+            feature_names=feature_names,
+            scaler=scaler,
+            peso_nlp=peso_nlp
+        )
+        df_res["arquetipo_demanda"] = df_res[col_cluster].map(mapa_arquetipos)
+        return df_res
+        
+    # 2. Clasificador heurístico de fallback
     clusters_info = []
     for c_id in sorted(df_res[col_cluster].unique()):
         sub = df_res[df_res[col_cluster] == c_id]
@@ -197,16 +355,13 @@ def asignar_arquetipos_demanda(df_clustered: pd.DataFrame, col_cluster: str = "c
     df_info = pd.DataFrame(clusters_info)
     mapa_arquetipos = {}
     
-    # 1. Identificar cluster Grada General (mayor aforo relativo y mayor share de 'general')
     gen_c = df_info.sort_values(by=["aforo_prom", "general_share"], ascending=False).iloc[0]["cluster"]
     mapa_arquetipos[int(gen_c)] = "Grada General / Masiva"
     
-    # 2. Identificar cluster VIP / Palcos (mayor concentración de palco/vip y alto precio relativo)
     restantes = df_info[df_info["cluster"] != gen_c].copy()
     vip_c = restantes.sort_values(by=["palco_vip_share", "precio_prom"], ascending=False).iloc[0]["cluster"]
     mapa_arquetipos[int(vip_c)] = "VIP / Palcos / Premium"
     
-    # 3. Entre los restantes, separar Preferencial (mayor precio relativo) de Popular (menor precio relativo)
     restantes_2 = restantes[restantes["cluster"] != vip_c].sort_values(by="precio_prom", ascending=False)
     if len(restantes_2) > 0:
         pref_c = restantes_2.iloc[0]["cluster"]
@@ -215,7 +370,6 @@ def asignar_arquetipos_demanda(df_clustered: pd.DataFrame, col_cluster: str = "c
         pop_c = restantes_2.iloc[1]["cluster"]
         mapa_arquetipos[int(pop_c)] = "Popular / Visibilidad Parcial / Balcón"
         
-    # Asignar fallback para cualquier otro cluster si k > 4
     for _, row in df_info.iterrows():
         c = int(row["cluster"])
         if c not in mapa_arquetipos:
@@ -223,6 +377,60 @@ def asignar_arquetipos_demanda(df_clustered: pd.DataFrame, col_cluster: str = "c
             
     df_res["arquetipo_demanda"] = df_res[col_cluster].map(mapa_arquetipos)
     return df_res
+
+
+def pipeline_clustering_dos_etapas(
+    df: pd.DataFrame,
+    n_clusters_multizona: int = 4,
+    random_state: int = 42,
+    peso_nlp: float = 1.2,
+    max_tfidf_features: int = 15,
+    scaler_type: str = "robust"
+) -> Tuple[pd.DataFrame, KMeans, Any, Any, List[str], Dict[str, Any]]:
+    """
+    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.1):
+    1. Etapa 1 (Determinística): Aísla funciones monozona / tarifa plana (~45.5%).
+       Se asignan directamente a 'Admisión Única / Tarifa Plana' con cluster = -1.
+    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 25D sobre multi-zona (~54.5%),
+       ajusta K-Means y etiqueta los arquetipos mediante geometría de centroides en espacio escalado.
+    3. Integración: Reensambla el catálogo unificado asegurando cobertura exacta de filas.
+    """
+    # 1. Separación a nivel evento
+    df_monozona, df_multizona = separar_admision_unica_multizona(df)
+    
+    df_monozona["cluster"] = -1
+    df_monozona["arquetipo_demanda"] = "Admisión Única / Tarifa Plana"
+    
+    # 2. Espacio mixto sobre multi-zona
+    X_multizona, scaler, tfidf_vec, feature_names = construir_espacio_vectorial_mixto(
+        df_multizona,
+        max_tfidf_features=max_tfidf_features,
+        peso_nlp=peso_nlp,
+        scaler_type=scaler_type
+    )
+    
+    # 3. K-Means en multi-zona
+    kmeans, labels_multi, metricas = entrenar_modelo_clustering(
+        X_multizona,
+        n_clusters=n_clusters_multizona,
+        random_state=random_state
+    )
+    df_multizona["cluster"] = labels_multi
+    
+    # 4. Etiquetado por centroides escalados
+    mapa_arquetipos = etiquetar_por_centroides_escalados(
+        kmeans=kmeans,
+        feature_names=feature_names,
+        scaler=scaler,
+        peso_nlp=peso_nlp
+    )
+    df_multizona["arquetipo_demanda"] = df_multizona["cluster"].map(mapa_arquetipos)
+    
+    # 5. Reensamblaje y validación
+    df_final = pd.concat([df_monozona, df_multizona], axis=0).sort_index()
+    assert len(df_final) == len(df), f"Pérdida de filas: {len(df_final)} != {len(df)}"
+    
+    return df_final, kmeans, scaler, tfidf_vec, feature_names, metricas
 
 
 def ejecutar_benchmark_modelos(
@@ -319,9 +527,11 @@ def ejecutar_benchmark_modelos(
         "Tiempo (s)": round(t_agg, 2)
     })
 
-    # 4. HDBSCAN
+    # 4. HDBSCAN (con parámetros relativos al tamaño del conjunto de datos)
     t0 = time.time()
-    hdb = HDBSCAN(min_cluster_size=150, min_samples=30)
+    min_cluster_size_rel = max(30, int(0.01 * len(X)))
+    min_samples_rel = max(10, int(0.002 * len(X)))
+    hdb = HDBSCAN(min_cluster_size=min_cluster_size_rel, min_samples=min_samples_rel)
     labels_hdb = hdb.fit_predict(X)
     t_hdb = time.time() - t0
 

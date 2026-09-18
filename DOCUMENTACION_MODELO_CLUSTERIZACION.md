@@ -279,74 +279,119 @@ El análisis de correlaciones lineales (Pearson $r$) valida tres propiedades est
 
 ---
 
-### MÓDULO 3: Fusión Vectorial y Clustering ([`src/clustering.py`](src/clustering.py))
+### MÓDULO 3: Fusión Vectorial y Clustering en Dos Etapas ([`src/clustering.py`](src/clustering.py))
 
-Este módulo ensambla la matriz mixta, ajusta el modelo de Machine Learning y asigna los nombres estandarizados de negocio.
+Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para resolver el desacoplamiento de K-Means y aislar la distorsión del blob de tarifa plana:
+
+```
+                                 CATÁLOGO LIMPIO CERTIFICADO (33,775 Filas)
+                                                     │
+                                                     ▼
+                          Regla de Negocio a Nivel EVENTO (t_performance_id)
+                          (nunique == 1 localidad O max(peso_aforo) >= 0.99)
+                                                     │
+                            ┌────────────────────────┴────────────────────────┐
+                            ▼                                                 ▼
+               ETAPA 1: ADMISIÓN ÚNICA                           ETAPA 2: MULTI-ZONA
+                (15,375 filas, 45.5%)                             (18,400 filas, 54.5%)
+                            │                                                 │
+                 Asignación Determinística                         TF-IDF Reentrenado (15D)
+                (Sin distorsión de ML)                           + 3 Numéricas Ex-Ante
+                            │                                    + 7 Tags Estructurales
+                            ▼                                                 │
+               "Admisión Única / Tarifa Plana"                                ▼
+                                                                 Espacio Mixto 25D Escalado
+                                                                              │
+                                                                 K-Means Multi-Zona (k=4)
+                                                                              │
+                                                                              ▼
+                                                                 Etiquetado Geométrico 25D
+                                                                 (Hungarian Algorithm 1-a-1)
+                                                                              │
+                                                                              ▼
+                                                                 4 Arquetipos Multi-Zona
+                                                                              │
+                            └────────────────────────┬────────────────────────┘
+                                                     │
+                                                     ▼
+                                        CATÁLOGO FINAL INTEGRADO
+                               (33,775 filas, trazabilidad es_monozona: bool)
+                                         5 Arquetipos de Demanda
+```
 
 ---
 
-#### 3.1 `construir_espacio_vectorial_mixto(...) -> Tuple[np.ndarray, Scaler, Vectorizer, List[str]]`
-* **¿Para qué se crea?**: Combina las variables numéricas continuas con las discretas y las representaciones de texto en una única matriz $\mathbf{X}_{\text{mixto}}$.
-* **¿Por qué se usa?**: K-Means necesita todas las dimensiones en una escala comparable. Usa `RobustScaler` para no ser distorsionado por outliers de aforo o precios atípicos.
-* **Dimensiones generadas:** $\mathbf{X}_{\text{mixto}} \in \mathbb{R}^{33,775 \times 25}$ (3 numéricas relativas ex-ante + 7 tags estructurales densos + 15 vocabulario TF-IDF).
-* **Fundamentos metodológicos de la matriz de 25 dimensiones:**
-  1. **Exclusión de `tasa_ocupacion`:** La ocupación es una métrica *ex-post* de absorción de ventas. Incluirla en la segmentación induciría fuga de información y confundiría el éxito de comercialización de un evento con la jerarquía física y de valor intrínseco de la localidad. Por ende, solo se usan variables *ex-ante* (`ratio_precio_max`, `percentil_precio_evento`, `peso_aforo`).
-  2. **Selección de 7 tags estructurales densos:** De los 17 tags extraídos en el pipeline NLP (conservados en el DataFrame maestro para análisis exploratorio y reportes), para la matriz de clustering se seleccionan los 7 tags estructurales con suficiente densidad muestral (5 de jerarquía comercial y 2 de nivel vertical). Esto previene la dispersión matemática (*curse of dimensionality*) provocada por tags espaciales y de restricción ultra-escasos.
+#### 3.1 `separar_admision_unica_multizona(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]`
+* **¿Para qué se crea?**: Aísla a nivel evento las funciones de admisión única / tarifa plana ($15,375$ registros, $45.5\%$ del catálogo) de los recintos zonificados ($18,400$ registros, $54.5\%$).
+* **¿Por qué a nivel evento?**: Evita partir una función entre ambas etapas. Si una función tiene 1 sola localidad o concentra $\ge 99\%$ del aforo en un tiquete general, todo el evento se clasifica de forma determinística.
+* **Resultado:** Cobertura matemática exacta: $15,375 + 18,400 = 33,775$ filas certificadas.
 
 ---
 
-#### 3.2 `evaluar_rango_k(X: np.ndarray, k_min: int, k_max: int) -> pd.DataFrame`
-* **¿Para qué se crea?**: Evalúa matemáticamente cuál es el número óptimo de clusters ($k$) entre 3 y 7.
-* **Métricas evaluadas:**
-  * **Silhouette Score** (Mayor es mejor, mide cohesión y separación).
-  * **Inercia / Método del Codo** (Menor es mejor, mide compacidad interna).
-  * **Davies-Bouldin Index** (Menor es mejor).
-  * **Calinski-Harabasz Index** (Mayor es mejor).
+#### 3.2 `construir_espacio_vectorial_mixto(...) -> Tuple[np.ndarray, Scaler, Vectorizer, List[str]]`
+* **¿Para qué se crea?**: Ensambla la matriz $\mathbf{X}_{\text{multi}} \in \mathbb{R}^{18,400 \times 25}$ sobre el subconjunto multi-zona.
+* **Componentes del Espacio de 25 Dimensiones:**
+  1. **3 Variables Numéricas Relativas Ex-Ante:** `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo` (escaladas con `RobustScaler`).
+  2. **7 Tags Estructurales Densos:** 5 de jerarquía comercial (`palco`, `vip`, `platea`, `preferencial`, `general`) y 2 verticales (`balcon`, `piso_alto`) en escala $[0, 1]$.
+  3. **15 Términos TF-IDF Reentrenados:** Ajustados exclusivamente sobre los textos de eventos multi-zona (eliminando el ruido de cinemateca y museos), ponderados por $\omega_{\text{nlp}} = 1.2$.
 
 ---
 
-#### 3.3 `entrenar_modelo_clustering(X: np.ndarray, n_clusters: int) -> Tuple[KMeans, np.ndarray, Dict]`
-* **¿Para qué se crea?**: Entrena el modelo **K-Means** (con $k=4$ arquetipos estratégicos y 15 inicializaciones `n_init=15` para máxima estabilidad matemática).
-* **Salida:** Modelo ajustado, array de etiquetas de cluster `[0, 1, 2, 3]` y diccionario de métricas.
+#### 3.3 `evaluar_rango_k(X: np.ndarray, k_min: int, k_max: int) -> pd.DataFrame`
+* **Evaluación Empírica sobre Multi-Zona:**
+  * Al retirar los 15,375 puntos idénticos de tarifa plana, el espacio multi-zona muestra una estructura geométrica nítida:
+    * $k=3$: Silhouette $0.180$, Inercia $41,273$.
+    * $k=4$: Silhouette $0.208$, Davies-Bouldin $1.657$. Separa limpiamente: VIP, Platea Frontal, Grada Masiva y Popular/Balcón.
+    * $k=5$: Silhouette $0.237$, Davies-Bouldin $1.557$. Aísla adicionalmente un cluster exclusivo de Balcones (100% activación).
+  * **Decisión de Arquitectura:** Se selecciona $k=4$ multi-zona para consolidar un total de **5 arquetipos de negocio universales** (1 de admisión única + 4 multi-zona), facilitando la interpretabilidad comercial y la fijación dinámica de precios.
 
 ---
 
-#### 3.4 `asignar_arquetipos_demanda(df_clustered: pd.DataFrame) -> pd.DataFrame`
-* **¿Para qué se crea?**: Traduce los números abstractos de cluster (`0, 1, 2, 3`) a nombres con valor para las áreas de negocio y analítica de TuBoleta.
-* **Lógica del Clasificador Automático:**
-  1. Analiza el centroide de cada cluster en términos de `peso_aforo`, `ratio_precio_max`, `tag_palco`, `tag_vip`, `tag_general`.
-  2. Mapea al arquetipo correspondiente según su función de demanda.
-* **Transformación:** Agrega la columna categórica `arquetipo_demanda`.
+#### 3.4 `etiquetar_por_centroides_escalados(kmeans, feature_names, scaler, peso_nlp=1.2) -> Dict[int, str]`
+* **¿Para qué se crea?**: Resuelve el desacoplamiento geométrico entre K-Means y los nombres de arquetipos.
+* **¿Cómo opera?**:
+  1. Define perfiles ideales de negocio para cada arquetipo en el espacio escalado 25D.
+  2. Calcula la matriz de distancias euclidianas entre los centroides reales $\mathbf{c}_k \in \mathbb{R}^{25}$ y los perfiles ideales.
+  3. Ejecuta el **Algoritmo Húngaro (*linear sum assignment*)** para garantizar una correspondencia 1 a 1 biyectiva sin duplicidades ni ordenamientos frágiles.
 
 ---
 
-##  Los 4 Arquetipos Universales de Demanda
+#### 3.5 `pipeline_clustering_dos_etapas(df: pd.DataFrame, ...) -> Tuple[...]`
+* Orquestador maestro que integra la separación por evento, el modelado multi-zona, el etiquetado por centroides y el reensamblaje del catálogo completo con trazabilidad (`es_monozona`, `segmento_etapa`).
 
-A partir del entrenamiento del modelo sobre los **33,775 registros**, el espacio vectorial mixto segmentó el catálogo en 4 arquetipos con comportamientos económicos perfectamente definidos:
+---
+
+##  Los 5 Arquetipos Universales de Demanda (Modelo v2.1)
+
+A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo se clasifica en 5 arquetipos transparentes, eliminando la anomalía histórica de Grada General:
 
 ```
                                     ▲ Ratio de Precio Relativo
                                     │
             VIP / PALCOS          │          PREFERENCIAL / PLATEA
-       (Alto Precio / Bajo Aforo)   │     (Medio-Alto Precio / Aforo Medio)
-       Ocupación: 69.8%             │     Ocupación: 42.2%
+       (Ratio: 0.84 / Aforo: 7.7%)  │     (Ratio: 0.81 / Aforo: 18.6%)
+       Ocupación: ~69%              │     Ocupación: ~42%
                                     │
    ─────────────────────────────────┼─────────────────────────────────► Peso de Aforo
                                     │                                  (% Capacidad)
-            POPULAR / BALCÓN      │          GRADA GENERAL
-       (Bajo Precio / Aforo Medio)  │     (Precio Máximo / Gran Aforo)
-       Ocupación: 9.4%              │     Ocupación: 9.3%
+            POPULAR / BALCÓN      │          GRADA GENERAL MASIVA
+       (Ratio: 0.38 / Aforo: 12.7%) │     (Ratio: 0.79 / Aforo: 59.2%)
+       Ocupación: ~10%              │     Ocupación: ~12%
                                     │
+════════════════════════════════════╪══════════════════════════════════════════════
+    ADMISIÓN ÚNICA / TARIFA PLANA (Cinemateca, Museos, Salas Monozona: 15,375 filas | 45.5%)
 ```
 
-###  Resumen Cuantitativo de los Clústeres:
+###  Resumen Cuantitativo Consolidado de los 5 Arquetipos:
 
-| Arquetipo Estandarizado | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Tasa Ocupación Media | Localidades Típicas Clasificadas |
+| Arquetipo Estandarizado | Etapa del Modelo | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-|  **VIP / Palcos / Premium** | 1,905 | **5.6%** | **0.72** | **19.2%** | **69.8%** | *Palcos, Mesas VIP, Platino, Boxes, Suite, Experiencia* |
-|  **Preferencial / Platea Frontal** | 5,548 | **16.4%** | **0.70** | **21.1%** | **42.2%** | *Platea 1, Platea 2, Preferencial Delantera, Sillas Centrales* |
-|  **Popular / Visibilidad Parcial / Balcón** | 11,361 | **33.6%** | **0.61** | **19.5%** | **9.4%** | *Platea Posterior, Balcón Mayor, 2do Balcón, Vista Parcial, Lateral* |
-|  **Grada General / Masiva** | 15,064 | **44.6%** | **1.00** | **98.8%** | **9.3%** | *General, Entrada Única, Tiquete Full, Admisión General* |
+|  **Admisión Única / Tarifa Plana** | Etapa 1 (Determinística) | 15,375 | **45.5%** | **1.00** | **100.0%** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
+|  **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 5,400 | **16.0%** | **0.84** | **7.7%** | *Palcos, Mesas VIP, Platino, Boxes, Suite, Experiencia* |
+|  **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 3,604 | **10.7%** | **0.81** | **18.6%** | *Platea 1, Platea 2, Preferencial Delantera, Sillas Centrales* |
+|  **Popular / Visibilidad Parcial / Balcón** | Etapa 2 (Multi-Zona ML) | 7,311 | **21.6%** | **0.38** | **12.7%** | *Platea Posterior, Balcón Mayor, 2do Balcón, Vista Parcial* |
+|  **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 2,085 | **6.2%** | **0.79** | **59.2%** | *Graderías masivas de estadios, Grada Norte, Cancha General* |
+| **TOTAL CATÁLOGO** | **Integración v2.1** | **33,775** | **100.0%** | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 

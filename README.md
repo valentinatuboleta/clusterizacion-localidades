@@ -98,23 +98,25 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
      * **Orientación Espacial:** `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
      * **Restricciones de Acceso:** `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
 
-3. **Espacio Vectorial Mixto y Clustering (`src/clustering.py`):**
-   * **Matriz $\mathbf{X}_{\text{mixto}} \in \mathbb{R}^{33,775 \times 25}$:**
-     * $3$ métricas numéricas relativas continuas (`RobustScaler`).
-     * $7$ tags estructurales densos (5 comerciales + 2 verticales) en escala natural $[0, 1]$.
-     * $15$ características TF-IDF sobre texto limpio ponderadas por $\omega_{\text{nlp}} = 1.2$.
-   * **Algoritmo:** K-Means ($k=4$, `n_init=15`) validado por Silueta, Inercia y Davies-Bouldin.
+3. **Arquitectura en Dos Etapas y Espacio Mixto 25D (`src/clustering.py` - Modelo v2.1):**
+   * **Etapa 1 (Determinística):** Aislamiento de funciones de admisión única / tarifa plana a nivel evento ($15,375$ registros, $45.5\%$ del catálogo: Cinemateca, Maloka, museos). Asignación directa a *Admisión Única / Tarifa Plana*.
+   * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 25 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
+     * $3$ métricas numéricas relativas *ex-ante* (`RobustScaler`).
+     * $7$ tags estructurales densos (5 comerciales + 2 verticales) en escala $[0, 1]$.
+     * $15$ características TF-IDF reentrenadas exclusivamente sobre multi-zona ($\omega_{\text{nlp}} = 1.2$).
+   * **Algoritmo & Etiquetado:** K-Means ($k=4$, `n_init=15`) con mapeo de centroides geométricos 1-a-1 en el espacio escalado (Algoritmo Húngaro).
 
 ---
 
-## 🏷️ Los 4 Arquetipos de Demanda
+## 🏷️ Los 5 Arquetipos de Demanda (Modelo v2.1)
 
-| Arquetipo | Registros | % Catálogo | Ratio Precio | Peso Aforo | Ocupación Media | Localidades Típicas |
+| Arquetipo | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Localidades Típicas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **VIP / Palcos / Premium** | 1,905 | 5.6% | 0.72 | 19.2% | 69.8% | *Palcos, Mesas VIP, Platino, Boxes, Suite* |
-| **Preferencial / Platea Frontal** | 5,548 | 16.4% | 0.70 | 21.1% | 42.2% | *Platea 1, Platea 2, Preferencial, Sillas Centrales* |
-| **Popular / Visibilidad Parcial / Balcón** | 11,361 | 33.6% | 0.61 | 19.5% | 9.4% | *Platea Posterior, Balcón Mayor, Vista Parcial* |
-| **Grada General / Masiva** | 15,064 | 44.6% | 1.00 | 98.8% | 9.3% | *General, Entrada Única, Tiquete Full, Admisión* |
+| **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | 45.5% | 1.00 | 100.0% | *Cinemateca, Maloka, YAWA, funciones monozona* |
+| **VIP / Palcos / Premium** | Etapa 2 | 5,400 | 16.0% | 0.84 | 7.7% | *Palcos, Mesas VIP, Platino, Boxes, Suite* |
+| **Preferencial / Platea Frontal** | Etapa 2 | 3,604 | 10.7% | 0.81 | 18.6% | *Platea 1, Platea 2, Preferencial Delantera* |
+| **Popular / Visibilidad Parcial / Balcón** | Etapa 2 | 7,311 | 21.6% | 0.38 | 12.7% | *Platea Posterior, Balcón Mayor, Vista Parcial* |
+| **Grada General / Masiva** | Etapa 2 | 2,085 | 6.2% | 0.79 | 59.2% | *Graderías masivas de estadios, Cancha General* |
 
 ---
 
