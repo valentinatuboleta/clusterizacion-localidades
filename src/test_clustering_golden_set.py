@@ -31,9 +31,9 @@ class TestClusteringGoldenSet(unittest.TestCase):
         df_rel = calcular_metricas_relativas(df_clean)
         cls.df_enriquecido = pipeline_procesamiento_nlp(df_rel)
 
-        # Ejecutar pipeline en dos etapas
+        # Ejecutar pipeline en dos etapas con k óptimo (k=5 en multi-zona + 1 tarifa plana)
         cls.df_final, cls.kmeans, cls.scaler, cls.tfidf_vec, cls.feature_names, cls.metricas = (
-            pipeline_clustering_dos_etapas(cls.df_enriquecido, n_clusters_multizona=4, random_state=42)
+            pipeline_clustering_dos_etapas(cls.df_enriquecido, n_clusters_multizona=5, random_state=42)
         )
 
     def test_01_cobertura_exacta_y_no_particion_de_eventos(self):

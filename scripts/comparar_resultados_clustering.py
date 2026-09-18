@@ -57,9 +57,9 @@ def ejecutar_comparativa():
     # -------------------------------------------------------------------------
     # 3. MODELO NUEVO (v2.1: Dos etapas con split evento + centroides escalados)
     # -------------------------------------------------------------------------
-    print("3. Ejecutando Modelo Nuevo v2.1 (Aislamiento de tarifa plana + K-Means multi-zona)...")
+    print("3. Ejecutando Modelo Nuevo v2.1 Optimizado (Aislamiento de tarifa plana + K-Means k=5 multi-zona)...")
     df_new, km_new, scaler_new, tfidf_new, feats_new, _ = pipeline_clustering_dos_etapas(
-        df_enriquecido, n_clusters_multizona=4, random_state=42, peso_nlp=1.2
+        df_enriquecido, n_clusters_multizona=5, random_state=42, peso_nlp=0.2
     )
 
     resumen_new = df_new.groupby("arquetipo_demanda").agg(

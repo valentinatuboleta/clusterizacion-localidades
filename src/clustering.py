@@ -10,7 +10,7 @@ Este módulo se encarga de:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Union
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.cluster import KMeans, AgglomerativeClustering, HDBSCAN
 from sklearn.mixture import GaussianMixture
@@ -80,7 +80,7 @@ def construir_espacio_vectorial_mixto(
     columnas_tags: List[str] = DEFAULT_TAG_FEATURES,
     usar_tfidf_texto: bool = True,
     max_tfidf_features: int = 15,
-    peso_nlp: float = 1.0,
+    peso_nlp: float = 0.2,
     scaler_type: str = "robust",
     scaler: Optional[Any] = None,
     tfidf_vectorizer: Optional[Any] = None
@@ -209,7 +209,8 @@ def entrenar_modelo_clustering(
 def construir_perfiles_ideales_escalados(
     feature_names: List[str],
     scaler: Any = None,
-    peso_nlp: float = 1.2
+    peso_nlp: float = 0.2,
+    n_clusters: int = 5
 ) -> Dict[str, np.ndarray]:
     """
     Construye las representaciones vectoriales ideales para cada arquetipo multi-zona
@@ -218,42 +219,64 @@ def construir_perfiles_ideales_escalados(
     1. Bloque numérico (3 variables): Se especifica en unidades relativas naturales y se transforma
        mediante scaler.transform() para proyectarlo al espacio RobustScaler.
     2. Bloque tags (7 variables): Se especifica la tasa de activación ideal en [0, 1].
-    3. Bloque TF-IDF (15 variables): Se ponderan los términos afines por peso_nlp.
+    3. Bloque TF-IDF (15 variables): Se ponderan los términos afines por peso_nlp (calibrado en 0.2
+       para evitar dilución dimensional sobre el bloque continuo).
     """
-    arquetipos_multi = [
-        "VIP / Palcos / Premium",
-        "Preferencial / Platea Frontal",
-        "Popular / Visibilidad Parcial / Balcón",
-        "Grada General / Masiva"
-    ]
-    
-    perfiles_config = {
-        "VIP / Palcos / Premium": {
-            "num": [0.90, 0.85, 0.08],
-            "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
-            "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
-        },
-        "Preferencial / Platea Frontal": {
-            "num": [0.80, 0.75, 0.20],
-            "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
-            "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
-        },
-        "Popular / Visibilidad Parcial / Balcón": {
-            "num": [0.35, 0.30, 0.15],
-            "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
-            "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
-        },
-        "Grada General / Masiva": {
-            "num": [0.60, 0.50, 0.60],
-            "tags": {"tag_general": 0.6},
-            "words": {"tfidf_general": 0.5}
+    if n_clusters == 4:
+        perfiles_config = {
+            "VIP / Palcos / Premium": {
+                "num": [0.90, 0.85, 0.08],
+                "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
+                "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
+            },
+            "Preferencial / Platea Frontal": {
+                "num": [0.80, 0.75, 0.20],
+                "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
+                "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
+            },
+            "Popular / Visibilidad Parcial / Balcón": {
+                "num": [0.35, 0.30, 0.15],
+                "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
+                "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
+            },
+            "Grada General / Masiva": {
+                "num": [0.60, 0.50, 0.60],
+                "tags": {"tag_general": 0.6},
+                "words": {"tfidf_general": 0.5}
+            }
         }
-    }
+    else:
+        # Configuración para k=5 (óptimo de codo y mínimo Davies-Bouldin en multi-zona)
+        perfiles_config = {
+            "VIP / Palcos / Premium": {
+                "num": [0.90, 0.85, 0.08],
+                "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
+                "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
+            },
+            "Preferencial / Platea Frontal": {
+                "num": [0.85, 0.82, 0.10],
+                "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
+                "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
+            },
+            "Platea General / Intermedia": {
+                "num": [0.80, 0.70, 0.35],
+                "tags": {"tag_platea": 0.4},
+                "words": {"tfidf_platea": 0.3}
+            },
+            "Grada General / Masiva": {
+                "num": [0.75, 0.60, 0.75],
+                "tags": {"tag_general": 0.6},
+                "words": {"tfidf_general": 0.5}
+            },
+            "Popular / Balcón / Visibilidad Parcial": {
+                "num": [0.35, 0.30, 0.12],
+                "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
+                "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
+            }
+        }
     
     perfiles_vectores = {}
-    for nombre in arquetipos_multi:
-        cfg = perfiles_config[nombre]
-        
+    for nombre, cfg in perfiles_config.items():
         if scaler is not None and hasattr(scaler, "transform"):
             num_scaled = scaler.transform([cfg["num"]])[0]
         else:
@@ -278,7 +301,7 @@ def etiquetar_por_centroides_escalados(
     kmeans: KMeans,
     feature_names: List[str],
     scaler: Any = None,
-    peso_nlp: float = 1.2
+    peso_nlp: float = 0.2
 ) -> Dict[int, str]:
     """
     Asigna arquetipos a los clusters evaluando la distancia euclidiana entre los centroides
@@ -290,7 +313,7 @@ def etiquetar_por_centroides_escalados(
     centroids = kmeans.cluster_centers_
     k = len(centroids)
     
-    perfiles_dict = construir_perfiles_ideales_escalados(feature_names, scaler, peso_nlp=peso_nlp)
+    perfiles_dict = construir_perfiles_ideales_escalados(feature_names, scaler, peso_nlp=peso_nlp, n_clusters=k)
     nombres_perfiles = list(perfiles_dict.keys())
     perfiles_matriz = np.array([perfiles_dict[nom] for nom in nombres_perfiles])
     
@@ -317,7 +340,7 @@ def asignar_arquetipos_demanda(
     kmeans: Optional[KMeans] = None,
     feature_names: Optional[List[str]] = None,
     scaler: Optional[Any] = None,
-    peso_nlp: float = 1.2
+    peso_nlp: float = 0.2
 ) -> pd.DataFrame:
     """
     Interpreta los centroides de cada cluster en términos de precio relativo, peso de aforo y semántica,
@@ -381,19 +404,21 @@ def asignar_arquetipos_demanda(
 
 def pipeline_clustering_dos_etapas(
     df: pd.DataFrame,
-    n_clusters_multizona: int = 4,
+    n_clusters_multizona: Union[int, str] = 5,
     random_state: int = 42,
-    peso_nlp: float = 1.2,
+    peso_nlp: float = 0.2,
     max_tfidf_features: int = 15,
     scaler_type: str = "robust"
 ) -> Tuple[pd.DataFrame, KMeans, Any, Any, List[str], Dict[str, Any]]:
     """
-    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.1):
+    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.1 optimizado):
     1. Etapa 1 (Determinística): Aísla funciones monozona / tarifa plana (~45.5%).
        Se asignan directamente a 'Admisión Única / Tarifa Plana' con cluster = -1.
-    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 25D sobre multi-zona (~54.5%),
-       ajusta K-Means y etiqueta los arquetipos mediante geometría de centroides en espacio escalado.
-    3. Integración: Reensambla el catálogo unificado asegurando cobertura exacta de filas.
+    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 25D sobre multi-zona (~54.5%)
+       con peso_nlp calibrado en 0.2 para evitar dilución dimensional.
+       Ajusta K-Means con k óptimo (k=5 por defecto, determinado por codo ortogonal y mínimo Davies-Bouldin,
+       o selección automática mediante n_clusters_multizona='auto') y etiqueta mediante geometría húngara.
+    3. Integración: Reensambla el catálogo unificado asegurando cobertura exacta del 100% de filas.
     """
     # 1. Separación a nivel evento
     df_monozona, df_multizona = separar_admision_unica_multizona(df)
@@ -408,6 +433,21 @@ def pipeline_clustering_dos_etapas(
         peso_nlp=peso_nlp,
         scaler_type=scaler_type
     )
+    
+    # Selección automática de k si se solicita 'auto'
+    if isinstance(n_clusters_multizona, str) and n_clusters_multizona.lower() == "auto":
+        db_best = float("inf")
+        best_k = 5
+        for cand_k in [4, 5, 6, 7]:
+            km_cand = KMeans(n_clusters=cand_k, random_state=random_state, n_init=10)
+            lbls = km_cand.fit_predict(X_multizona)
+            db_cand = davies_bouldin_score(X_multizona, lbls)
+            if db_cand < db_best:
+                db_best = db_cand
+                best_k = cand_k
+        n_clusters_multizona = best_k
+    else:
+        n_clusters_multizona = int(n_clusters_multizona)
     
     # 3. K-Means en multi-zona
     kmeans, labels_multi, metricas = entrenar_modelo_clustering(
@@ -435,7 +475,7 @@ def pipeline_clustering_dos_etapas(
 
 def ejecutar_benchmark_modelos(
     X: np.ndarray,
-    n_clusters: int = 4,
+    n_clusters: int = 5,
     random_state: int = 42,
     sample_size: int = 10000
 ) -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
@@ -445,6 +485,9 @@ def ejecutar_benchmark_modelos(
     2. Gaussian Mixture Models (GMM - Probabilístico / Soft)
     3. Clustering Jerárquico Aglomerativo (Ward)
     4. HDBSCAN (Basado en densidad y detección de ruido)
+
+    Metodología rigurosa: Todas las métricas (Silhouette, Davies-Bouldin, Calinski-Harabasz)
+    se calculan sobre la misma submuestra idéntica X_eval para garantizar comparabilidad estricta.
 
     Retorna:
     - df_metricas: Tabla comparativa de métricas de calidad de clustering.
@@ -469,9 +512,10 @@ def ejecutar_benchmark_modelos(
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=15)
     labels_km = kmeans.fit_predict(X)
     t_km = time.time() - t0
-    sil_km = float(silhouette_score(X_eval, labels_km[idx_eval]))
-    db_km = float(davies_bouldin_score(X, labels_km))
-    ch_km = float(calinski_harabasz_score(X, labels_km))
+    labels_km_eval = labels_km[idx_eval]
+    sil_km = float(silhouette_score(X_eval, labels_km_eval))
+    db_km = float(davies_bouldin_score(X_eval, labels_km_eval))
+    ch_km = float(calinski_harabasz_score(X_eval, labels_km_eval))
 
     dict_modelos["kmeans"] = {"modelo": kmeans, "labels": labels_km}
     metricas.append({
@@ -490,9 +534,10 @@ def ejecutar_benchmark_modelos(
     gmm = GaussianMixture(n_components=n_clusters, random_state=random_state, n_init=5, covariance_type="diag")
     labels_gmm = gmm.fit_predict(X)
     t_gmm = time.time() - t0
-    sil_gmm = float(silhouette_score(X_eval, labels_gmm[idx_eval]))
-    db_gmm = float(davies_bouldin_score(X, labels_gmm))
-    ch_gmm = float(calinski_harabasz_score(X, labels_gmm))
+    labels_gmm_eval = labels_gmm[idx_eval]
+    sil_gmm = float(silhouette_score(X_eval, labels_gmm_eval))
+    db_gmm = float(davies_bouldin_score(X_eval, labels_gmm_eval))
+    ch_gmm = float(calinski_harabasz_score(X_eval, labels_gmm_eval))
 
     dict_modelos["gmm"] = {"modelo": gmm, "labels": labels_gmm}
     metricas.append({
@@ -535,15 +580,15 @@ def ejecutar_benchmark_modelos(
     labels_hdb = hdb.fit_predict(X)
     t_hdb = time.time() - t0
 
-    mask_no_noise = labels_hdb != -1
+    labels_hdb_eval = labels_hdb[idx_eval]
+    mask_eval_hdb = labels_hdb_eval != -1
     n_clusters_hdb = len(set(labels_hdb)) - (1 if -1 in labels_hdb else 0)
     outliers_pct = float((labels_hdb == -1).mean() * 100)
 
-    idx_eval_hdb = [i for i in idx_eval if labels_hdb[i] != -1]
-    if len(idx_eval_hdb) > 100 and n_clusters_hdb > 1:
-        sil_hdb = float(silhouette_score(X[idx_eval_hdb], labels_hdb[idx_eval_hdb]))
-        db_hdb = float(davies_bouldin_score(X[mask_no_noise], labels_hdb[mask_no_noise]))
-        ch_hdb = float(calinski_harabasz_score(X[mask_no_noise], labels_hdb[mask_no_noise]))
+    if mask_eval_hdb.sum() > 100 and n_clusters_hdb > 1:
+        sil_hdb = float(silhouette_score(X_eval[mask_eval_hdb], labels_hdb_eval[mask_eval_hdb]))
+        db_hdb = float(davies_bouldin_score(X_eval[mask_eval_hdb], labels_hdb_eval[mask_eval_hdb]))
+        ch_hdb = float(calinski_harabasz_score(X_eval[mask_eval_hdb], labels_hdb_eval[mask_eval_hdb]))
     else:
         sil_hdb, db_hdb, ch_hdb = np.nan, np.nan, np.nan
 

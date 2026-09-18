@@ -302,21 +302,21 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
                "Admisión Única / Tarifa Plana"                                ▼
                                                                  Espacio Mixto 25D Escalado
                                                                               │
-                                                                 K-Means Multi-Zona (k=4)
+                                                                 K-Means Multi-Zona (k=5)
                                                                               │
                                                                               ▼
                                                                  Etiquetado Geométrico 25D
                                                                  (Hungarian Algorithm 1-a-1)
                                                                               │
                                                                               ▼
-                                                                 4 Arquetipos Multi-Zona
+                                                                 5 Arquetipos Multi-Zona
                                                                               │
                             └────────────────────────┬────────────────────────┘
                                                      │
                                                      ▼
                                         CATÁLOGO FINAL INTEGRADO
                                (33,775 filas, trazabilidad es_monozona: bool)
-                                         5 Arquetipos de Demanda
+                                         6 Arquetipos de Demanda
 ```
 
 ---
@@ -333,21 +333,23 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 * **Componentes del Espacio de 25 Dimensiones:**
   1. **3 Variables Numéricas Relativas Ex-Ante:** `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo` (escaladas con `RobustScaler`).
   2. **7 Tags Estructurales Densos:** 5 de jerarquía comercial (`palco`, `vip`, `platea`, `preferencial`, `general`) y 2 verticales (`balcon`, `piso_alto`) en escala $[0, 1]$.
-  3. **15 Términos TF-IDF Reentrenados:** Ajustados exclusivamente sobre los textos de eventos multi-zona (eliminando el ruido de cinemateca y museos), ponderados por $\omega_{\text{nlp}} = 1.2$.
+  3. **15 Términos TF-IDF Reentrenados:** Ajustados exclusivamente sobre los textos de eventos multi-zona, ponderados por $\omega_{\text{nlp}} = 0.2$ (calibración óptima empírica que evita la dilución dimensional del bloque continuo).
 
 ---
 
 #### 3.3 `evaluar_rango_k(X: np.ndarray, k_min: int, k_max: int) -> pd.DataFrame`
-* **Evaluación Empírica sobre Multi-Zona:**
-  * Al retirar los 15,375 puntos idénticos de tarifa plana, el espacio multi-zona muestra una estructura geométrica nítida:
-    * $k=3$: Silhouette $0.180$, Inercia $41,273$.
-    * $k=4$: Silhouette $0.208$, Davies-Bouldin $1.657$. Separa limpiamente: VIP, Platea Frontal, Grada Masiva y Popular/Balcón.
-    * $k=5$: Silhouette $0.237$, Davies-Bouldin $1.557$. Aísla adicionalmente un cluster exclusivo de Balcones (100% activación).
-  * **Decisión de Arquitectura:** Se selecciona $k=4$ multi-zona para consolidar un total de **5 arquetipos de negocio universales** (1 de admisión única + 4 multi-zona), facilitando la interpretabilidad comercial y la fijación dinámica de precios.
+* **Evaluación Empírica y Optimización Formal sobre Multi-Zona (`peso_nlp=0.2`):**
+  * Al retirar los 15,375 puntos idénticos de tarifa plana y calibrar el peso del texto, el espacio multi-zona muestra su estructura geométrica real:
+    * $k=3$: Silhouette $0.244$, Davies-Bouldin $1.412$, Inercia $24,366$.
+    * $k=4$: Silhouette $0.248$, Davies-Bouldin $1.318$, Inercia $21,022$.
+    * **$k=5$ (Óptimo Formal):** Silhouette $0.249$, **Davies-Bouldin $1.272$ (Mínimo Global)**, Inercia $18,749$. Es el **punto de codo ortogonal exacto** (máxima distancia a la cuerda = $1.28$).
+    * $k=6$: Silhouette $0.249$, Davies-Bouldin $1.387$, Inercia $17,046$.
+    * $k=7$: Silhouette $0.270$, Davies-Bouldin $1.296$, Inercia $15,461$.
+  * **Decisión de Arquitectura:** Se selecciona **$k=5$ multi-zona** (+1 Tarifa Plana = **6 arquetipos de demanda finales**), el cual maximiza la parsimonia, minimiza la dispersión de Davies-Bouldin y separa limpiamente los nichos de alta gama, plateas intermedias y gradas masivas.
 
 ---
 
-#### 3.4 `etiquetar_por_centroides_escalados(kmeans, feature_names, scaler, peso_nlp=1.2) -> Dict[int, str]`
+#### 3.4 `etiquetar_por_centroides_escalados(kmeans, feature_names, scaler, peso_nlp=0.2) -> Dict[int, str]`
 * **¿Para qué se crea?**: Resuelve el desacoplamiento geométrico entre K-Means y los nombres de arquetipos.
 * **¿Cómo opera?**:
   1. Define perfiles ideales de negocio para cada arquetipo en el espacio escalado 25D.
@@ -357,41 +359,45 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 ---
 
 #### 3.5 `pipeline_clustering_dos_etapas(df: pd.DataFrame, ...) -> Tuple[...]`
-* Orquestador maestro que integra la separación por evento, el modelado multi-zona, el etiquetado por centroides y el reensamblaje del catálogo completo con trazabilidad (`es_monozona`, `segmento_etapa`).
+* Orquestador maestro que integra la separación por evento, el modelado multi-zona con $k=5$ óptimo (o modo `"auto"`), el etiquetado por centroides y el reensamblaje del catálogo completo con trazabilidad (`es_monozona`, `arquetipo_demanda`).
 
 ---
 
-##  Los 5 Arquetipos Universales de Demanda (Modelo v2.1)
+## 🏛️ Los 6 Arquetipos de Demanda (Modelo v2.1 Optimizado)
 
-A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo se clasifica en 5 arquetipos transparentes, eliminando la anomalía histórica de Grada General:
+A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo se clasifica en 6 arquetipos nítidos:
 
 ```
-                                    ▲ Ratio de Precio Relativo
-                                    │
-            VIP / PALCOS          │          PREFERENCIAL / PLATEA
-       (Ratio: 0.84 / Aforo: 7.7%)  │     (Ratio: 0.81 / Aforo: 18.6%)
-       Ocupación: ~69%              │     Ocupación: ~42%
-                                    │
-   ─────────────────────────────────┼─────────────────────────────────► Peso de Aforo
-                                    │                                  (% Capacidad)
-            POPULAR / BALCÓN      │          GRADA GENERAL MASIVA
-       (Ratio: 0.38 / Aforo: 12.7%) │     (Ratio: 0.79 / Aforo: 59.2%)
-       Ocupación: ~10%              │     Ocupación: ~12%
-                                    │
-════════════════════════════════════╪══════════════════════════════════════════════
-    ADMISIÓN ÚNICA / TARIFA PLANA (Cinemateca, Museos, Salas Monozona: 15,375 filas | 45.5%)
+                                     ▲ Ratio de Precio Relativo
+                                     │
+             VIP / PALCOS          │          PREFERENCIAL / PLATEA FRONTAL
+        (Ratio: 0.76 / Aforo: 4.7%) │     (Ratio: 0.85 / Aforo: 9.3%)
+        Mediana: $135,000 COP        │     Mediana: $94,340 COP
+                                     │
+                                     │          PLATEA GENERAL / INTERMEDIA
+                                     │     (Ratio: 0.80 / Aforo: 37.2%)
+                                     │     Mediana: $65,150 COP
+    ─────────────────────────────────┼─────────────────────────────────► Peso de Aforo
+                                     │                                  (% Capacidad)
+             POPULAR / BALCÓN      │          GRADA GENERAL MASIVA
+        (Ratio: 0.35 / Aforo: 11.3%)│     (Ratio: 0.79 / Aforo: 81.4%)
+        Mediana: $50,000 COP         │     Mediana: $66,000 COP
+                                     │
+═════════════════════════════════════╪══════════════════════════════════════════════
+     ADMISIÓN ÚNICA / TARIFA PLANA (Cinemateca, Museos: 15,375 filas | 45.5% | Mediana: $13,572 COP)
 ```
 
-###  Resumen Cuantitativo Consolidado de los 5 Arquetipos:
+### 📊 Resumen Cuantitativo Consolidado de los 6 Arquetipos:
 
-| Arquetipo Estandarizado | Etapa del Modelo | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Localidades Típicas Clasificadas |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-|  **Admisión Única / Tarifa Plana** | Etapa 1 (Determinística) | 15,375 | **45.5%** | **1.00** | **100.0%** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-|  **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 5,400 | **16.0%** | **0.84** | **7.7%** | *Palcos, Mesas VIP, Platino, Boxes, Suite, Experiencia* |
-|  **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 3,604 | **10.7%** | **0.81** | **18.6%** | *Platea 1, Platea 2, Preferencial Delantera, Sillas Centrales* |
-|  **Popular / Visibilidad Parcial / Balcón** | Etapa 2 (Multi-Zona ML) | 7,311 | **21.6%** | **0.38** | **12.7%** | *Platea Posterior, Balcón Mayor, 2do Balcón, Vista Parcial* |
-|  **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 2,085 | **6.2%** | **0.79** | **59.2%** | *Graderías masivas de estadios, Grada Norte, Cancha General* |
-| **TOTAL CATÁLOGO** | **Integración v2.1** | **33,775** | **100.0%** | — | — | *Calidad y consistencia física 100% certificada* |
+| Arquetipo Estandarizado | Etapa del Modelo | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Precio Mediano COP | Localidades Típicas Clasificadas |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| 🎟️ **Admisión Única / Tarifa Plana** | Etapa 1 (Determinística) | 15,375 | **45.5%** | **0.99** | **100.0%** | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
+| ⭐ **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 2,912 | **8.6%** | **0.76** | **4.7%** | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+| 🎭 **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 4,697 | **13.9%** | **0.85** | **9.3%** | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+| 🪑 **Platea General / Intermedia** | Etapa 2 (Multi-Zona ML) | 3,432 | **10.2%** | **0.80** | **37.2%** | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+| 🏟️ **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 819 | **2.4%** | **0.79** | **81.4%** | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+| 🎟️ **Popular / Balcón / Visibilidad Parcial** | Etapa 2 (Multi-Zona ML) | 6,540 | **19.4%** | **0.35** | **11.3%** | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+| **TOTAL CATÁLOGO** | **Integración v2.1** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
