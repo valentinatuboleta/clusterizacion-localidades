@@ -221,7 +221,7 @@ def build_presentation_from_template(
             "tema": "MODULO 1: DESCOMPOSICION NLP",
             "desc": "Grafico 1: Frecuencia de Atributos Estructurales, Espaciales y Restricciones Extraidos",
             "fig": "reports/figures/fig1_tags_frecuencia.png",
-            "analysis": "De las 33,775 localidades evaluadas, la etiqueta mas frecuente es GENERAL con 15,383 apariciones (45.5%), seguida de niveles de teatro y recintos cerrados como PLATEA (4,015), PALCO (3,547), PISO_ALTO (2,933) y BALCON (2,679). En el ambito espacial, las orientaciones predominantes son LATERAL (1,377) y OCCIDENTAL (1,134).",
+            "analysis": "De las 33,775 localidades evaluadas, la etiqueta mas frecuente es GENERAL con 15,383 apariciones (45.5%), seguida de niveles de teatro y venues cerrados como PLATEA (4,015), PALCO (3,547), PISO_ALTO (2,933) y BALCON (2,679). En el ambito espacial, las orientaciones predominantes son LATERAL (1,377) y OCCIDENTAL (1,134).",
             "conclusions": [
                 "Predominio de Localidades Masivas: Casi la mitad del inventario corresponde a admision general, lo que exige diferenciar una general de estadio frente a una de teatro.",
                 "Alta Especializacion en Teatros y Arenas: Mas de 14,400 registros corresponden a balcones, plateas, pisos altos y palcos con distribucion vertical escalonada.",
@@ -248,7 +248,7 @@ def build_presentation_from_template(
             "analysis": "Los eventos con una sola localidad (peso_aforo = 100%) representan el 82.5% de todos los eventos del catalogo. Los datos demuestran que estan concentrados masivamente en funciones culturales y ciclos continuos de cine, centros interactivos de ciencia, planetarios y comedia en vivo.",
             "conclusions": [
                 "Concentracion en Salas de Cine: Mas de 7,000 funciones (45.6% del total) se realizan en las salas de la Cinemateca de Bogota (Sala 3: 2,392, Sala Capital: 2,379, Sala 2: 2,235).",
-                "Centros de Ciencia y Museos: Recintos interactivos como YAWA Cali (1,476 funciones), Maloka (864), Planetario (421) y Museo La Tertulia (303) operan con tarifa plana.",
+                "Centros de Ciencia y Museos: Venues interactivos como YAWA Cali (1,476 funciones), Maloka (864), Planetario (421) y Museo La Tertulia (303) operan con tarifa plana.",
                 "Comedia y Teatros de Camara: Espacios como Boom Stand Up Bar (810) y Teatro Petra (471) manejan acceso general no zonificado."
             ]
         },
@@ -257,10 +257,10 @@ def build_presentation_from_template(
             "tema": "DISTRIBUCIONES EN EVENTOS MULTI-ZONA",
             "desc": "Grafico 2B: Descompresion de Variables Relativas sin Admision Unica (N = 18,400)",
             "fig": "reports/figures/fig2d_distribuciones_multizona.png",
-            "analysis": "Al aislar las 18,400 localidades en 3,252 eventos multi-zona (peso_aforo < 0.99), se elimina el sesgo del 45.5% de tarifas planas. La mediana de ratio_precio_max se reduce de 1.00 a 0.671 y la mediana de peso_aforo baja de 1.00 a 0.111 (11.1% del recinto).",
+            "analysis": "Al aislar las 18,400 localidades en 3,252 eventos multi-zona (peso_aforo < 0.99), se elimina el sesgo del 45.5% de tarifas planas. La mediana de ratio_precio_max se reduce de 1.00 a 0.671 y la mediana de peso_aforo baja de 1.00 a 0.111 (11.1% del venue).",
             "conclusions": [
                 "Descompresion Real de Precios: Emerge una distribucion continua donde gradas populares estan en 0.20-0.50, preferenciales en 0.60-0.85 y VIPs en 1.00.",
-                "Capacidad Fisica Realista: El 75% de las localidades multi-zona ocupan menos del 24.5% del aforo del recinto, reflejando la arquitectura real de arenas y estadios.",
+                "Capacidad Fisica Realista: El 75% de las localidades multi-zona ocupan menos del 24.5% del aforo del venue, reflejando la arquitectura real de arenas y estadios.",
                 "Simetria y Equilibrio del Percentil: El percentil relativo se convierte en una curva simetrica y balanceada (mediana 0.600) ideal para optimizacion en K-Means."
             ]
         },
@@ -285,7 +285,7 @@ def build_presentation_from_template(
             "conclusions": [
                 "Confirmacion de Jerarquia Fisica: La semantica NLP se alinea con la capacidad fisica: los palcos ocupan fracciones minimas de aforo y las generales absorben el volumen.",
                 "Validacion de la Platea como Zona Preferente: Las plateas se ubican en el rango superior de precios ($95k), consolidandose como el escalon intermedio-alto.",
-                "El Balcon como Opcion Accesible de Recinto Cerrado: Los balcones registran sistematicamente precios moderados ($56k), validando su rol accesible en teatro."
+                "El Balcon como Opcion Accesible de Venue Cerrado: Los balcones registran sistematicamente precios moderados ($56k), validando su rol accesible en teatro."
             ]
         },
         # Slide 10: Gráfico 4 - Correlaciones

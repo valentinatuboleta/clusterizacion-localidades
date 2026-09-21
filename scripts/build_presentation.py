@@ -167,7 +167,7 @@ charts_info = [
         "num": "Grafico 1",
         "title": "Descomposicion NLP y Extraccion de Atributos Estructurales",
         "fig": "reports/figures/fig1_tags_frecuencia.png",
-        "analysis": "De las 33,878 localidades evaluadas, la etiqueta mas frecuente es tag_general con 15,386 apariciones (45.4%), seguida de niveles de teatro y recintos cerrados como tag_balcon (4,319), tag_platea (4,037) y tag_palco (3,581). En el ambito espacial, las orientaciones predominantes son tag_occidental (1,004) y tag_norte (810).",
+        "analysis": "De las 33,878 localidades evaluadas, la etiqueta mas frecuente es tag_general con 15,386 apariciones (45.4%), seguida de niveles de teatro y venues cerrados como tag_balcon (4,319), tag_platea (4,037) y tag_palco (3,581). En el ambito espacial, las orientaciones predominantes son tag_occidental (1,004) y tag_norte (810).",
         "conclusions": [
             "Predominio de Localidades Masivas: Casi la mitad del inventario corresponde a admision general, lo que exige diferenciar una general de estadio frente a una de teatro.",
             "Alta Especializacion en Teatros y Arenas: Mas de 11,900 registros corresponden a balcones, plateas y palcos con distribucion vertical escalonada.",
@@ -193,7 +193,7 @@ charts_info = [
         "conclusions": [
             "Confirmacion de Jerarquia Fisica: La semantica NLP se alinea con la capacidad fisica: los palcos ocupan fracciones minimas de aforo y las generales absorben el volumen.",
             "Validacion de la Platea como Zona Preferente: Las plateas se ubican en el rango superior de precios, consolidandose como el escalon intermedio-alto de demanda.",
-            "El Balcon como Opcion Popular de Recinto Cerrado: Los balcones registran sistematicamente un precio 50% menor a la platea del mismo show, validando su rol accesible."
+            "El Balcon como Opcion Popular de Venue Cerrado: Los balcones registran sistematicamente un precio 50% menor a la platea del mismo show, validando su rol accesible."
         ]
     },
     {

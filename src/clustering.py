@@ -42,6 +42,28 @@ DEFAULT_TAG_FEATURES = [
     "tag_piso_alto"
 ]
 
+VARIABLES_MONITOREO_DRIFT = [
+    "ratio_precio_max",
+    "percentil_precio_evento",
+    "peso_aforo",
+    "tag_palco",
+    "tag_vip",
+    "tag_platea",
+    "tag_preferencial",
+    "tag_general",
+    "tag_balcon",
+    "tag_piso_alto"
+]
+
+DISTRIBUCION_ESPERADA_ARQUETIPOS = {
+    "Admisión Única / Tarifa Plana": 15375 / 33775,
+    "Popular / Balcón / Visibilidad Parcial": 6540 / 33775,
+    "Preferencial / Platea Frontal": 4697 / 33775,
+    "Platea General / Intermedia": 3432 / 33775,
+    "VIP / Palcos / Premium": 2912 / 33775,
+    "Grada General / Masiva": 819 / 33775,
+}
+
 
 def separar_admision_unica_multizona(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -55,12 +77,13 @@ def separar_admision_unica_multizona(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd
     """
     df_work = df.copy()
     
-    # 1. Métricas agrupadas a nivel evento
-    n_localidades_evento = df_work.groupby("t_performance_id")["dn_quota"].transform("count")
-    max_peso_aforo_evento = df_work.groupby("t_performance_id")["peso_aforo"].transform("max")
-    
-    # 2. Criterio primario: nunique == 1 por evento. Red de seguridad: max_peso_aforo >= 0.99
-    es_monozona = (n_localidades_evento == 1) | (max_peso_aforo_evento >= 0.99)
+    # 1. Metricas agrupadas a nivel evento
+    if "peso_aforo" in df_work.columns:
+        max_peso_aforo_evento = df_work.groupby("t_performance_id")["peso_aforo"].transform("max")
+        es_monozona = (df_work["peso_aforo"] >= 0.99) | (max_peso_aforo_evento >= 0.99)
+    else:
+        n_localidades_evento = df_work.groupby("t_performance_id")["dn_quota"].transform("count")
+        es_monozona = (n_localidades_evento == 1)
     
     df_work["es_monozona"] = es_monozona
     df_work["segmento_etapa"] = np.where(es_monozona, "admision_unica", "multizona")
@@ -512,7 +535,57 @@ def pipeline_clustering_dos_etapas(
         peso_nlp=peso_nlp
     )
     df_multizona["arquetipo_demanda"] = df_multizona["cluster"].map(mapa_arquetipos)
-    
+
+    # 4b. Ajuste de GMM para probabilidades posteriores alineadas a los centroides
+    gmm = GaussianMixture(
+        n_components=n_clusters_multizona,
+        random_state=random_state,
+        covariance_type="diag",
+        means_init=kmeans.cluster_centers_
+    )
+    gmm.fit(X_multizona)
+    metricas["gmm"] = gmm
+    metricas["mapa_arquetipos"] = mapa_arquetipos
+
+    # Distancias a centroides para margen geometrico, frontera y segundo arquetipo
+    distancias = kmeans.transform(X_multizona)
+    orden_dist = np.argsort(distancias, axis=1)
+    d1 = distancias[np.arange(len(distancias)), orden_dist[:, 0]]
+    d2 = distancias[np.arange(len(distancias)), orden_dist[:, 1]]
+    margen = (d2 - d1) / (d2 + 1e-9)
+
+    df_multizona["score_confianza"] = margen
+    df_multizona["es_frontera"] = margen < 0.15
+    df_multizona["segundo_arquetipo"] = [mapa_arquetipos.get(c, str(c)) for c in orden_dist[:, 1]]
+
+    # Cobertura de vocabulario TF-IDF (tokens en minusculas contra vocabulario congelado)
+    vocab = set(tfidf_vec.get_feature_names_out()) if hasattr(tfidf_vec, "get_feature_names_out") else set()
+    def _calc_cobertura(texto):
+        tokens = str(texto).lower().split()
+        if not tokens:
+            return 0.0
+        return sum(t in vocab for t in tokens) / len(tokens)
+
+    if "texto_limpio" in df_multizona.columns:
+        df_multizona["cobertura_texto"] = df_multizona["texto_limpio"].apply(_calc_cobertura)
+    else:
+        df_multizona["cobertura_texto"] = 0.0
+    df_multizona["texto_casi_vacio"] = df_multizona["cobertura_texto"] < 0.20
+
+    probs_gmm = gmm.predict_proba(X_multizona)
+    df_multizona["probabilidad_gmm"] = probs_gmm.max(axis=1)
+
+    # Variables de observabilidad para monozona (determinísticas por diseño de evento)
+    df_monozona["score_confianza"] = 1.0
+    df_monozona["es_frontera"] = False
+    df_monozona["segundo_arquetipo"] = None
+    if "texto_limpio" in df_monozona.columns:
+        df_monozona["cobertura_texto"] = df_monozona["texto_limpio"].apply(_calc_cobertura)
+    else:
+        df_monozona["cobertura_texto"] = 0.0
+    df_monozona["texto_casi_vacio"] = df_monozona["cobertura_texto"] < 0.20
+    df_monozona["probabilidad_gmm"] = 1.0
+
     # 5. Reensamblaje y validación
     df_final = pd.concat([df_monozona, df_multizona], axis=0).sort_index()
     assert len(df_final) == len(df), f"Pérdida de filas: {len(df_final)} != {len(df)}"
@@ -680,6 +753,61 @@ def ejecutar_benchmark_modelos(
 # PERSISTENCIA E INFERENCIA DE PRODUCCIÓN (JOB_LIB + ETAPA 1 DETERMINÍSTICA)
 # ==============================================================================
 
+def generar_referencia_drift(
+    df_referencia: pd.DataFrame,
+    variables: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """
+    Genera los histogramas de referencia (bin_edges y esperado_pct) para monitoreo de drift (PSI).
+    """
+    vars_to_monitor = variables or VARIABLES_MONITOREO_DRIFT
+    referencia = {
+        "variables": {},
+        "distribucion_arquetipos": DISTRIBUCION_ESPERADA_ARQUETIPOS.copy()
+    }
+    for v in vars_to_monitor:
+        if v in df_referencia.columns:
+            valores = df_referencia[v].dropna().values
+            if len(valores) > 0:
+                v_max = float(valores.max())
+                rango = (0.0, 1.0) if v_max <= 1.05 else (0.0, float(np.percentile(valores, 99.5)))
+                counts, bin_edges = np.histogram(valores, bins=10, range=rango)
+                total = counts.sum()
+                esperado_pct = counts / total if total > 0 else np.ones(10) / 10.0
+                referencia["variables"][v] = {
+                    "esperado_pct": esperado_pct.tolist(),
+                    "bin_edges": bin_edges.tolist()
+                }
+    return referencia
+
+
+def calcular_psi(actual: np.ndarray, esperado: np.ndarray, eps: float = 1e-4) -> float:
+    """
+    Calcula el Population Stability Index (PSI) entre dos distribuciones (frecuencias o porcentajes).
+    Formula: sum((actual% - esperado%) * ln(actual% / esperado%))
+    """
+    act = np.asarray(actual, dtype=float)
+    esp = np.asarray(esperado, dtype=float)
+    
+    total_act = act.sum()
+    total_esp = esp.sum()
+    
+    if total_act == 0 or total_esp == 0:
+        return 0.0
+        
+    a = act / total_act
+    e = esp / total_esp
+    
+    a = np.clip(a, eps, None)
+    a = a / a.sum()
+    
+    e = np.clip(e, eps, None)
+    e = e / e.sum()
+    
+    psi_val = np.sum((a - e) * np.log(a / e))
+    return float(psi_val)
+
+
 def guardar_modelo_clustering(
     filepath: str,
     kmeans: KMeans,
@@ -688,15 +816,36 @@ def guardar_modelo_clustering(
     feature_names: List[str],
     mapa_arquetipos: Dict[int, str],
     metricas: Optional[Dict[str, Any]] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    gmm: Optional[GaussianMixture] = None,
+    referencia_drift: Optional[Dict[str, Any]] = None,
+    df_referencia: Optional[pd.DataFrame] = None
 ) -> None:
     """
-    Persiste el pipeline de clusterización entrenado en un archivo .joblib.
-    Incluye todos los transformadores, el modelo K-Means, el vocabulario de features,
-    el diccionario de mapeo a arquetipos y metadatos de versión.
+    Persiste el pipeline de clusterizacion entrenado en un archivo .joblib.
+    Incluye todos los transformadores, el modelo K-Means, el modelo GMM para probabilidades,
+    la referencia de drift para calculo de PSI, el vocabulario de features,
+    el diccionario de mapeo a arquetipos y metadatos de version.
     """
     import os
     os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+
+    metricas_dict = metricas or {}
+    
+    if gmm is None:
+        gmm = metricas_dict.get("gmm", None)
+
+    if referencia_drift is None:
+        if df_referencia is not None:
+            referencia_drift = generar_referencia_drift(df_referencia)
+        elif "referencia_drift" in metricas_dict:
+            referencia_drift = metricas_dict["referencia_drift"]
+        else:
+            referencia_drift = {
+                "variables": {},
+                "distribucion_arquetipos": DISTRIBUCION_ESPERADA_ARQUETIPOS.copy()
+            }
+
     payload = {
         "version": "2.2",
         "kmeans": kmeans,
@@ -704,8 +853,10 @@ def guardar_modelo_clustering(
         "tfidf_vectorizer": tfidf_vectorizer,
         "feature_names": feature_names,
         "mapa_arquetipos": mapa_arquetipos,
-        "metricas": metricas or {},
-        "metadata": metadata or {}
+        "metricas": metricas_dict,
+        "metadata": metadata or {},
+        "gmm": gmm,
+        "referencia_drift": referencia_drift
     }
     joblib.dump(payload, filepath)
 
@@ -723,13 +874,16 @@ def predecir_arquetipos_demanda(
     peso_nlp: float = 0.2
 ) -> pd.DataFrame:
     """
-    Función de inferencia bietápica para nuevos datos (o catálogo existente):
-    1. Etapa 1 (Determinística): Evalúa funciones a nivel evento (t_performance_id).
+    Funcion de inferencia bietapica con observabilidad completa para produccion:
+    1. Etapa 1 (Deterministica): Evalua funciones a nivel evento (t_performance_id).
        Si es monozona (1 sola localidad o aforo >= 99%), asigna 'Admisión Única / Tarifa Plana' (cluster = -1).
+       Score de confianza = 1.0, es_frontera = False, segundo_arquetipo = None, probabilidad_gmm = 1.0.
     2. Etapa 2 (Machine Learning): Transforma las localidades multi-zona usando el scaler,
-       vectorizador TF-IDF y feature_names persistidos, predice con el modelo K-Means
-       y mapea a su respectivo arquetipo mediante el diccionario biyectivo húngaro.
-    3. Reensamblaje: Retorna el DataFrame unificado preservando exactamente el índice original.
+       vectorizador TF-IDF y feature_names persistidos, predice con K-Means y GMM.
+       Calcula score_confianza (margen geometrico relativo entre los 2 centroides mas cercanos),
+       bandera es_frontera (margen < 0.15), segundo_arquetipo en disputa,
+       cobertura_texto y texto_casi_vacio (cobertura < 0.20).
+    3. Reensamblaje: Retorna el DataFrame unificado preservando exactamente el indice original.
     """
     if isinstance(modelo, str):
         modelo_dict = cargar_modelo_clustering(modelo)
@@ -740,12 +894,54 @@ def predecir_arquetipos_demanda(
     scaler = modelo_dict["scaler"]
     tfidf_vec = modelo_dict["tfidf_vectorizer"]
     mapa_arquetipos = modelo_dict["mapa_arquetipos"]
+    gmm: Optional[GaussianMixture] = modelo_dict.get("gmm", None)
 
-    # 1. Separación a nivel evento
-    df_mono, df_multi = separar_admision_unica_multizona(df)
+    df_input = df.copy()
+    if "texto_limpio" not in df_input.columns:
+        col_nlp = next(
+            (c for c in ["logical_seat_category", "product", "translation_name", "cd_name", "nombre_localidad"] if c in df_input.columns),
+            None
+        )
+        if col_nlp:
+            from src.nlp_utils import pipeline_procesamiento_nlp
+            df_input = pipeline_procesamiento_nlp(df_input, col_nombre=col_nlp)
+        else:
+            df_input["texto_limpio"] = ""
+
+    # Asegurar presencia de tags estructurales requeridos por el modelo
+    for tag_col in DEFAULT_TAG_FEATURES:
+        if tag_col not in df_input.columns:
+            df_input[tag_col] = 0
+
+    # Asegurar presencia de variables numericas continuas
+    if any(c not in df_input.columns for c in DEFAULT_NUMERIC_FEATURES):
+        if "t_performance_id" in df_input.columns and any(
+            c in df_input.columns for c in ["ave_unit_amt_itx", "med_unit_amt_itx", "net_sold_p_qty"]
+        ):
+            from src.feature_engineering import calcular_metricas_relativas
+            df_input = calcular_metricas_relativas(df_input)
+        for num_col in DEFAULT_NUMERIC_FEATURES:
+            if num_col not in df_input.columns:
+                df_input[num_col] = 0.0
+
+    vocab = set(tfidf_vec.get_feature_names_out()) if hasattr(tfidf_vec, "get_feature_names_out") else set()
+    def _calc_cobertura(texto):
+        tokens = str(texto).lower().split()
+        if not tokens:
+            return 0.0
+        return sum(t in vocab for t in tokens) / len(tokens)
+
+    # 1. Separacion a nivel evento
+    df_mono, df_multi = separar_admision_unica_multizona(df_input)
     df_mono = df_mono.copy()
     df_mono["cluster"] = -1
     df_mono["arquetipo_demanda"] = "Admisión Única / Tarifa Plana"
+    df_mono["score_confianza"] = 1.0
+    df_mono["es_frontera"] = False
+    df_mono["segundo_arquetipo"] = None
+    df_mono["cobertura_texto"] = df_mono["texto_limpio"].apply(_calc_cobertura)
+    df_mono["texto_casi_vacio"] = df_mono["cobertura_texto"] < 0.20
+    df_mono["probabilidad_gmm"] = 1.0
 
     # 2. Inferencia en multi-zona si existen registros
     if len(df_multi) > 0:
@@ -756,10 +952,122 @@ def predecir_arquetipos_demanda(
             tfidf_vectorizer=tfidf_vec,
             peso_nlp=peso_nlp
         )
-        labels_multi = kmeans.predict(X_multi)
+        
+        distancias = kmeans.transform(X_multi)
+        orden = np.argsort(distancias, axis=1)
+        d1 = distancias[np.arange(len(distancias)), orden[:, 0]]
+        d2 = distancias[np.arange(len(distancias)), orden[:, 1]]
+        margen = (d2 - d1) / (d2 + 1e-9)
+
+        labels_multi = orden[:, 0]
         df_multi["cluster"] = labels_multi
         df_multi["arquetipo_demanda"] = df_multi["cluster"].map(mapa_arquetipos)
+        df_multi["score_confianza"] = margen
+        df_multi["es_frontera"] = margen < 0.15
+        df_multi["segundo_arquetipo"] = [mapa_arquetipos.get(c, str(c)) for c in orden[:, 1]]
+        df_multi["cobertura_texto"] = df_multi["texto_limpio"].apply(_calc_cobertura)
+        df_multi["texto_casi_vacio"] = df_multi["cobertura_texto"] < 0.20
 
-    # 3. Reensamblaje preservando índice original
+        if gmm is not None:
+            probs = gmm.predict_proba(X_multi)
+            df_multi["probabilidad_gmm"] = probs.max(axis=1)
+        else:
+            df_multi["probabilidad_gmm"] = margen
+
+    # 3. Reensamblaje preservando indice original
+    if len(df_multi) == 0:
+        return df_mono.loc[df.index]
+    if len(df_mono) == 0:
+        return df_multi.loc[df.index]
+
     df_res = pd.concat([df_mono, df_multi], axis=0).loc[df.index]
     return df_res
+
+
+def evaluar_drift_lote(
+    df_nuevo: pd.DataFrame,
+    modelo: Union[str, Dict[str, Any]],
+    eps: float = 1e-4,
+    umbral_psi_alerta: float = 0.25
+) -> Dict[str, Any]:
+    """
+    Evalua el Population Stability Index (PSI) de variables y la distribucion de arquetipos
+    sobre un nuevo lote de localidades para detectar drift silencioso.
+    """
+    if isinstance(modelo, str):
+        payload = cargar_modelo_clustering(modelo)
+    else:
+        payload = modelo
+
+    df_pred = predecir_arquetipos_demanda(df_nuevo, payload)
+    
+    referencia_drift = payload.get("referencia_drift", {})
+    vars_ref = referencia_drift.get("variables", {})
+    arq_esperado = referencia_drift.get("distribucion_arquetipos", DISTRIBUCION_ESPERADA_ARQUETIPOS)
+
+    # Evaluar PSI de variables estructurales sobre el segmento multi-zona
+    df_eval_vars = df_pred[df_pred["cluster"] != -1] if (df_pred["cluster"] != -1).any() else df_pred
+
+    psi_por_variable = {}
+    alertas = []
+    
+    for v, info in vars_ref.items():
+        if v in df_eval_vars.columns:
+            bin_edges = np.array(info["bin_edges"])
+            esperado_pct = np.array(info["esperado_pct"])
+            valores = df_eval_vars[v].dropna().values
+            counts_nuevo, _ = np.histogram(valores, bins=bin_edges)
+            psi_val = calcular_psi(counts_nuevo, esperado_pct, eps=eps)
+            
+            if psi_val < 0.10:
+                estado = "ESTABLE"
+            elif psi_val <= umbral_psi_alerta:
+                estado = "REVISAR"
+            else:
+                estado = "DRIFT_CRITICO"
+                alertas.append(f"Drift critico en variable {v} (PSI = {psi_val:.4f})")
+                
+            psi_por_variable[v] = {
+                "psi": round(psi_val, 4),
+                "estado": estado
+            }
+
+    total_filas = len(df_pred)
+    conteo_arquetipos = df_pred["arquetipo_demanda"].value_counts().to_dict()
+    dist_observada = {k: conteo_arquetipos.get(k, 0) / max(total_filas, 1) for k in arq_esperado.keys()}
+    
+    desviaciones_arquetipos = {}
+    for arq, p_esp in arq_esperado.items():
+        p_obs = dist_observada.get(arq, 0.0)
+        diff = p_obs - p_esp
+        desviaciones_arquetipos[arq] = {
+            "esperado": round(p_esp, 4),
+            "observado": round(p_obs, 4),
+            "diferencia": round(diff, 4)
+        }
+        if abs(diff) > 0.05:
+            alertas.append(f"Desviacion de arquetipo {arq}: {diff:+.1%}")
+
+    pct_frontera = float(df_pred["es_frontera"].mean()) if "es_frontera" in df_pred.columns else 0.0
+    pct_texto_vacio = float(df_pred["texto_casi_vacio"].mean()) if "texto_casi_vacio" in df_pred.columns else 0.0
+    score_confianza_promedio = float(df_pred["score_confianza"].mean()) if "score_confianza" in df_pred.columns else 1.0
+
+    psi_maximo = max((info["psi"] for info in psi_por_variable.values()), default=0.0)
+    estado_general = "ESTABLE"
+    if psi_maximo > umbral_psi_alerta or len(alertas) > 0:
+        estado_general = "DRIFT_CRITICO" if psi_maximo > umbral_psi_alerta else "REVISAR"
+    elif psi_maximo >= 0.10:
+        estado_general = "REVISAR"
+
+    return {
+        "estado_general": estado_general,
+        "total_registros": total_filas,
+        "psi_maximo": psi_maximo,
+        "psi_por_variable": psi_por_variable,
+        "distribucion_arquetipos": desviaciones_arquetipos,
+        "pct_frontera": round(pct_frontera, 4),
+        "pct_texto_casi_vacio": round(pct_texto_vacio, 4),
+        "score_confianza_promedio": round(score_confianza_promedio, 4),
+        "alertas": alertas
+    }
+

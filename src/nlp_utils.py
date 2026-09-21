@@ -4,7 +4,7 @@ Módulo de Procesamiento de Lenguaje Natural (NLP) para Nombres de Localidades.
 Este módulo se encarga de:
 1. Limpiar el ruido publicitario y de marketing (nombres de giras, patrocinios, promociones).
 2. Extraer atributos estructurales de nivel (VIP, Palco, Platea, General, Balcón).
-3. Extraer orientación espacial y ubicación física dentro del recinto (Occidental, Oriental, Norte, Sur, etc.).
+3. Extraer orientación espacial y ubicación física dentro del venue (Occidental, Oriental, Norte, Sur, etc.).
 4. Detectar restricciones de acceso (Familiar, Menores, Sin Alcohol, Movilidad Reducida).
 5. Vectorizar semánticamente el texto limpio para enriquecer el espacio de clustering.
 """

@@ -1,4 +1,4 @@
-#  Documentación Arquitectónica y Metodológica: Clusterización y Estandarización de Localidades
+# Documentación Arquitectónica y Metodológica: Clusterización y Estandarización de Localidades
 
 > **Proyecto:** Segmentación y Clasificación Inteligente de Localidades de Boletería  
 > **Compañía:** TuBoleta  
@@ -7,9 +7,9 @@
 
 ---
 
-##  Prólogo: La "Torre de Babel" de la Boletería (Storytelling del Negocio)
+## Prólogo: La "Torre de Babel" de la Boletería (Storytelling del Negocio)
 
-Imagina que estás al frente de la estrategia comercial de **TuBoleta**, gestionando eventos en recintos completamente dispares: desde un **Estadio El Campín** con capacidad para más de **46,000 personas**, pasando por un **Movistar Arena** para **14,000**, hasta salas de teatro íntimas con aforos de **200 butacas**.
+Imagina que estás al frente de la estrategia comercial de **TuBoleta**, gestionando eventos en venues completamente dispares: desde un **Estadio El Campín** con capacidad para más de **46,000 personas**, pasando por un **Movistar Arena** para **14,000**, hasta salas de teatro íntimas con aforos de **200 butacas**.
 
 Cada promotor, productor de conciertos o venue nombra sus localidades con total libertad creativa y publicitaria:
 * En un concierto de vallenato, la localidad más exclusiva se bautiza como:  
@@ -21,7 +21,7 @@ Cada promotor, productor de conciertos o venue nombra sus localidades con total 
 * En un evento de estadio, una grada alta se etiqueta como:  
   `"OCCIDENTAL ALTA ORO"`, mientras que la fila contigua es `"OCCIDENTAL ALTA PLATA"`.
 
-###  Los Tres Grandes Desafíos del Análisis Tradicional:
+### Los Tres Grandes Desafíos del Análisis Tradicional:
 
 ```mermaid
 graph TD
@@ -34,7 +34,7 @@ graph TD
     D --> D1["'Occidental Alta Oro' y 'Plata' se parecen 90% en texto pero tienen jerarquías y precios distintos."]
 ```
 
-###  La Misión Heroica:
+### La Misión Heroica:
 Construir un **Espacio Vectorial Mixto** que:
 1. **Desmonte el maquillaje publicitario** mediante Procesamiento de Lenguaje Natural (NLP), extrayendo la arquitectura física y espacial real.
 2. **Contextualice matemáticamente cada boleta** en relación a su propio espectáculo (percentiles de precio y peso de aforo).
@@ -42,7 +42,7 @@ Construir un **Espacio Vectorial Mixto** que:
 
 ---
 
-##  Mapa del Flujo Arquitectónico
+## Mapa del Flujo Arquitectónico
 
 ```mermaid
 flowchart TD
@@ -74,7 +74,7 @@ flowchart TD
 
 ---
 
-##  Detalle Exhaustivo: Módulo por Módulo y Función por Función
+## Detalle Exhaustivo: Módulo por Módulo y Función por Función
 
 A continuación se detalla la razón de existencia, lógica algorítmica y el estado **Antes vs Después** de cada función desarrollada.
 
@@ -129,7 +129,7 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
      * `tag_balcon`: `BALCON`, `BALCONES`, `MEZZANINE`, `VOLADIZO` *(Exclusivo para estructuras de balcón de teatro; no solapa con pisos)*.
      * `tag_piso_alto`: `ALTA`, `ALTAS`, `PISO 2`, `PISO 3`, `PISO 4`, `PISO 5`, `SEGUNDO PISO`, `TERCER PISO`, `CUARTO PISO`, `POSTERIOR`, `ALTO`.
      * `tag_piso_bajo`: `BAJA`, `BAJAS`, `PISO 1`, `PRIMER PISO`, `PLANTA BAJA`, `DELANTERA`, `PRIMERA FILA`, `BAJO`.
-  3. **Dimensión 3 (Orientación Espacial y Geografía en el Recinto):**
+  3. **Dimensión 3 (Orientación Espacial y Geografía en el Venue):**
      * `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
   4. **Dimensión 4 (Restricciones de Acceso y Audiencia):**
      * `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
@@ -189,7 +189,7 @@ Este módulo resuelve la distorsión del dinero y el tamaño del venue calculand
 ---
 
 #### 2.1 `filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame`
-* **¿Para qué se crea?**: Limpia registros inconsistentes o transacciones anómalas (aforos negativos, eventos con aforo 0, montos negativos por devoluciones) y valida que la suma de localidades activas coincida con el aforo total del recinto.
+* **¿Para qué se crea?**: Limpia registros inconsistentes o transacciones anómalas (aforos negativos, eventos con aforo 0, montos negativos por devoluciones) y valida que la suma de localidades activas coincida con el aforo total del venue.
 * **¿Por qué se usa?**: Entrenar un modelo de clustering con datos inconsistentes desplazaría los centroides hacia valores espurios.
 * **Condición de filtrado**:
   ```python
@@ -244,7 +244,7 @@ En el catálogo limpio de $33{,}775$ localidades, el **$58.6\%$ ($19{,}782$ fila
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **`ratio_precio_max`** | $0.803$ | $1.000$ | **$0.646$** | **$0.671$** | Descompresión continua: gradas ($0.20 - 0.50$), preferenciales ($0.60 - 0.85$) y VIPs ($1.00$). |
 | **`percentil_precio_evento`** | $0.776$ | $1.000$ | **$0.588$** | **$0.600$** | Distribución simétrica y balanceada ideal para optimización de centroides en clustering. |
-| **`peso_aforo`** | $0.548$ | $1.000$ | **$0.177$** | **$0.111$** | El $75\%$ de las localidades ocupan menos del $24.5\%$ del aforo total del recinto. |
+| **`peso_aforo`** | $0.548$ | $1.000$ | **$0.177$** | **$0.111$** | El $75\%$ de las localidades ocupan menos del $24.5\%$ del aforo total del venue. |
 | **`tasa_ocupacion`** | $0.181$ | $0.090$ | **$0.234$** | **$0.149$** | Mayor absorción de ventas y dinámica comercial en espectáculos estructurados. |
 
 * **Transformación (Ejemplo comparativo real):**
@@ -320,7 +320,7 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 ---
 
 #### 3.1 `separar_admision_unica_multizona(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]`
-* **¿Para qué se crea?**: Aísla a nivel evento las funciones de admisión única / tarifa plana ($15,375$ registros, $45.5\%$ del catálogo) de los recintos zonificados ($18,400$ registros, $54.5\%$).
+* **¿Para qué se crea?**: Aísla a nivel evento las funciones de admisión única / tarifa plana ($15,375$ registros, $45.5\%$ del catálogo) de los venues zonificados ($18,400$ registros, $54.5\%$).
 * **¿Por qué a nivel evento?**: Evita partir una función entre ambas etapas. Si una función tiene 1 sola localidad o concentra $\ge 99\%$ del aforo en un tiquete general, todo el evento se clasifica de forma determinística.
 * **Resultado:** Cobertura matemática exacta: $15,375 + 18,400 = 33,775$ filas certificadas.
 
@@ -356,7 +356,7 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
   1. **Parsimonia y Codo:** $k=5$ es el **punto de codo matemático exacto** en la curva de inercia (distancia máxima a la secante $1.28$) y el punto donde se **minimiza globalmente el índice Davies-Bouldin ($1.2720$)**. A partir de $k=5$, Davies-Bouldin empeora hacia $1.2958$ en $k=7$.
   2. **Sobre-fragmentación sin valor de negocio en $k=7$:** Aunque $k=7$ eleva la silueta promedio a $0.270$ (efecto mecánico de fraccionar clusters masivos), una inspección de centroides revela que simplemente fractura la *Platea General* y la *Tribuna Popular* en sub-segmentos redundantes que no corresponden a categorías comerciales reales del ticketing (crea clusters de $4.5\%$ sin diferenciación funcional de pricing).
   3. **Naturaleza del Cluster *Grada General / Masiva* (819 filas, 2.4%):**
-     * En $k=5$, este cluster aísla con exactitud las localidades masivas de recintos de gran formato (Estadio El Campín, Atanasio Girardot, Movistar Arena en configuración masiva), donde una sola localidad absorbe un promedio del **$81.4\%$ del aforo total del evento** (hasta $35,000$ sillas).
+     * En $k=5$, este cluster aísla con exactitud las localidades masivas de venues de gran formato (Estadio El Campín, Atanasio Girardot, Movistar Arena en configuración masiva), donde una sola localidad absorbe un promedio del **$81.4\%$ del aforo total del evento** (hasta $35,000$ sillas).
      * No es un cluster degenerado ni vacío: es la captura física fiel de la asimetría de capacidad en espectáculos masivos frente a teatros y salas íntimas.
 
 * **Decisión de Diseño de Ponderación NLP ($\omega_{\text{nlp}} = 0.2$ vs $0.0$):**
@@ -379,17 +379,47 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 
 ---
 
-#### 3.6 Persistencia e Inferencia en Producción (`joblib`)
-* **`guardar_modelo_clustering(filepath, ...)`**: Serializa el estado completo del pipeline (K-Means, RobustScaler, TF-IDF Vectorizer, mapa de arquetipos y metadatos) en un artefacto portable `.joblib`.
-* **`cargar_modelo_clustering(filepath)`**: Carga el payload validando su versión de compatibilidad.
+#### 3.6 Persistencia e Inferencia en Producción (`joblib`) y Observabilidad de Confianza
+* **`guardar_modelo_clustering(filepath, ...)`**: Serializa el estado completo del pipeline en un artefacto portable `.joblib`:
+  * Modelo K-Means ($k=5$) y transformadores ajustados (`RobustScaler`, `TfidfVectorizer`).
+  * Modelo probabilístico `GaussianMixture` (con componentes anclados a los centroides K-Means mediante `means_init`).
+  * Diccionario de mapeo de arquetipos estandarizados.
+  * Histograma de referencia de variables para cálculo de drift (`referencia_drift`) y distribución esperada de arquetipos.
+* **`cargar_modelo_clustering(filepath)`**: Carga el payload validando su versión de compatibilidad (`v2.2`).
 * **`predecir_arquetipos_demanda(df, modelo, peso_nlp=0.2) -> pd.DataFrame`**:
-  * Aplica obligatoriamente la **Etapa 1 Determinística** (partición monozona a nivel evento).
-  * Aplica la **Etapa 2 Inferencia ML** sobre las localidades multi-zona usando los transformadores guardados.
-  * Reensambla el catálogo preservando exactamente el orden de índices original sin necesidad de reentrenar.
+  * Ejecuta la inferencia bietápica completa y enriquece cada localidad con métricas de observabilidad:
+    1. **`cluster`**: ID del segmento ($-1$ monozona, $0 \dots 4$ multi-zona).
+    2. **`arquetipo_demanda`**: Nombre del arquetipo predicho.
+    3. **`score_confianza`**: Margen geométrico relativo $m = (d_2 - d_1) / (d_2 + 10^{-9}) \in [0, 1]$ evaluando la separación entre los dos centroides más cercanos ($1.0$ para monozona).
+    4. **`es_frontera`**: Booleano indicando ambigüedad inter-cluster ($m < 0.15$; aísla el $16.0\%$ de casos más disputados).
+    5. **`segundo_arquetipo`**: Nombre del arquetipo competidor alternativo en disputa (`None` para monozona).
+    6. **`cobertura_texto`**: Proporción de tokens del nombre presentes en el vocabulario congelado del vectorizador ($\in [0, 1]$).
+    7. **`texto_casi_vacio`**: Booleano de alerta ($cobertura < 0.20$) cuando la asignación carece de señal léxica relevante.
+    8. **`probabilidad_gmm`**: Certeza posterior evaluada por la mezcla de gaussianas ($1.0$ para monozona).
 
 ---
 
-## 🏛️ Los 6 Arquetipos de Demanda (Modelo v2.1 Optimizado)
+#### 3.7 Protocolo de Monitoreo de Drift Estadístico (PSI) y Criterios de Re-entrenamiento
+Para prevenir la degradación silenciosa del modelo ante cambios en la oferta de eventos, políticas de precios o reconfiguraciones de silletería de los venues, el pipeline implementa auditoría continua mediante el **Population Stability Index (PSI)**:
+
+$$	ext{PSI} = \sum_{b=1}^{B} \left( 	ext{actual}_b\% - 	ext{esperado}_b\% 
+ight) 	imes \ln\left(rac{	ext{actual}_b\%}{	ext{esperado}_b\%}
+ight)$$
+
+* **Variables de Entrada Monitoreadas:**
+  * Cardinales y Ordinales: `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo`.
+  * Tags Estructurales: `tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`.
+  * Distribución de Salida: Porcentaje observado de cada uno de los 6 arquetipos.
+* **Matriz de Decisión y Umbrales Operativos:**
+  * **PSI < 0.10 [ESTABLE]:** Distribución consistente con el catálogo histórico. No requiere intervención.
+  * **0.10 <= PSI <= 0.25 [REVISAR]:** Desviación moderada en variables específicas. Amerita auditoría de venues o eventos novedosos.
+  * **PSI > 0.25 [DRIFT CRITICO]:** Desplazamiento severo de distribución. Alerta prioritaria para re-entrenar el modelo, reajustar el escalador o actualizar el vocabulario.
+* **Ejecución Automatizada:**
+  El script versionado `scripts/monitorear_drift.py` permite auditar periódicamente lotes nuevos de ingestión emitiendo reportes formateados y códigos de salida para orquestadores.
+
+---
+
+##  Los 6 Arquetipos de Demanda (Modelo v2.1 Optimizado)
 
 A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo se clasifica en 6 arquetipos nítidos:
 
@@ -413,21 +443,21 @@ A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo
      ADMISIÓN ÚNICA / TARIFA PLANA (Cinemateca, Museos: 15,375 filas | 45.5% | Mediana: $13,572 COP)
 ```
 
-### 📊 Resumen Cuantitativo Consolidado de los 6 Arquetipos:
+### Resumen Cuantitativo Consolidado de los 6 Arquetipos:
 
 | Arquetipo Estandarizado | Etapa del Modelo | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| 🎟️ **Admisión Única / Tarifa Plana** | Etapa 1 (Determinística) | 15,375 | **45.5%** | **0.99** | **100.0%** | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-| ⭐ **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 2,912 | **8.6%** | **0.76** | **4.7%** | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
-| 🎭 **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 4,697 | **13.9%** | **0.85** | **9.3%** | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
-| 🪑 **Platea General / Intermedia** | Etapa 2 (Multi-Zona ML) | 3,432 | **10.2%** | **0.80** | **37.2%** | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
-| 🏟️ **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 819 | **2.4%** | **0.79** | **81.4%** | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
-| 🎟️ **Popular / Balcón / Visibilidad Parcial** | Etapa 2 (Multi-Zona ML) | 6,540 | **19.4%** | **0.35** | **11.3%** | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
-| **TOTAL CATÁLOGO** | **Integración v2.1** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
+|  **Admisión Única / Tarifa Plana** | Etapa 1 (Determinística) | 15,375 | **45.5%** | **0.99** | **100.0%** | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
+|  **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 2,912 | **8.6%** | **0.76** | **4.7%** | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+|  **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 4,697 | **13.9%** | **0.85** | **9.3%** | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+|  **Platea General / Intermedia** | Etapa 2 (Multi-Zona ML) | 3,432 | **10.2%** | **0.80** | **37.2%** | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+|  **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 819 | **2.4%** | **0.79** | **81.4%** | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 (Multi-Zona ML) | 6,540 | **19.4%** | **0.35** | **11.3%** | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+| **TOTAL CATÁLOGO** | **Integración v2.2** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
-##  Validación de Casos Complejos del Negocio
+## Validación de Casos Complejos del Negocio
 
 El espacio mixto demostró resolver con precisión los problemas de ambigüedad planteados:
 
@@ -442,7 +472,7 @@ El espacio mixto demostró resolver con precisión los problemas de ambigüedad 
 
 ---
 
-##  Guía Rápida de Ejecución
+## Guía Rápida de Ejecución
 
 ### 1. Activar el entorno virtual
 ```bash
@@ -472,7 +502,7 @@ df_final, kmeans, scaler, tfidf_vec, feature_names, metricas = pipeline_clusteri
 
 # 3. Guardar catálogo segmentado con los 6 arquetipos certificados
 df_final.to_parquet("data/processed/localidades_clusterizadas.parquet", index=False)
-print(f"✅ Segmentación completada exitosamente: {len(df_final):,} filas clasificadas.")
+print(f" Segmentación completada exitosamente: {len(df_final):,} filas clasificadas.")
 ```
 
 ### 3. Ejecutar los Cuadernos Interactivos
@@ -481,7 +511,7 @@ print(f"✅ Segmentación completada exitosamente: {len(df_final):,} filas clasi
 
 ---
 
-## 📜 Historial de Versiones del Pipeline
+## Historial de Versiones del Pipeline
 
 | Versión | Arquitectura | Espacio Dimensional | Selección de $k$ | Arquetipos Resultantes |
 | :--- | :--- | :--- | :--- | :--- |

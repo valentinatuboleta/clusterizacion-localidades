@@ -405,7 +405,7 @@ def build_full_presentation(
         "MODULO 1: DESCOMPOSICION NLP",
         "Grafico 1: Frecuencia de Atributos Estructurales, Espaciales y Restricciones Extraidos",
         "reports/figures/fig1_tags_frecuencia.png",
-        "De las 33,775 localidades evaluadas, la etiqueta mas frecuente es GENERAL con 15,383 apariciones (45.5%), seguida de niveles de teatro y recintos cerrados como PLATEA (4,015), PALCO (3,547), PISO_ALTO (2,933) y BALCON (2,679). En el ambito espacial, las orientaciones predominantes son LATERAL (1,377) y OCCIDENTAL (1,134).",
+        "De las 33,775 localidades evaluadas, la etiqueta mas frecuente es GENERAL con 15,383 apariciones (45.5%), seguida de niveles de teatro y venues cerrados como PLATEA (4,015), PALCO (3,547), PISO_ALTO (2,933) y BALCON (2,679). En el ambito espacial, las orientaciones predominantes son LATERAL (1,377) y OCCIDENTAL (1,134).",
         [
             "Predominio de Localidades Masivas: Casi la mitad del inventario corresponde a admision general, lo que exige diferenciar una general de estadio frente a una de teatro.",
             "Alta Especializacion en Teatros y Arenas: Mas de 14,400 registros corresponden a balcones, plateas, pisos altos y palcos con distribucion vertical escalonada.",
@@ -457,7 +457,7 @@ def build_full_presentation(
             ("percentil_precio_evento (Ordinal de Jerarquía)",
              "rank(P_evento) / K_localidades\nMide el escalon jerarquico de la boleta dentro del show, independiente de si la brecha en dinero es de $10k o $1M COP."),
             ("peso_aforo (Escala de Capacidad Física)",
-             "dn_quota / performance_quota\nCaptura la fraccion fisica del recinto que ocupa la localidad (ej. Palco 5% vs Grada 40%)."),
+             "dn_quota / performance_quota\nCaptura la fraccion fisica del venue que ocupa la localidad (ej. Palco 5% vs Grada 40%)."),
             ("tasa_ocupacion y tasa_venta_paga",
              "tickets_vendidos / dn_quota\nMiden la velocidad de absorcion y demanda historica del publico por localidad.")
         ],
@@ -506,7 +506,7 @@ def build_full_presentation(
         "Los eventos con una sola localidad (peso_aforo = 100%) representan el 82.5% de todos los eventos del catalogo. Los datos demuestran que estan concentrados masivamente en funciones culturales y ciclos continuos de cine, centros interactivos de ciencia, planetarios y comedia en vivo.",
         [
             "Concentracion en Salas de Cine: Mas de 7,000 funciones (45.6% del total) se realizan en las salas de la Cinemateca de Bogota (Sala 3: 2,392, Sala Capital: 2,379, Sala 2: 2,235).",
-            "Centros de Ciencia y Museos: Recintos interactivos como YAWA Cali (1,476 funciones), Maloka (864), Planetario (421) y Museo La Tertulia (303) operan con tarifa plana.",
+            "Centros de Ciencia y Museos: Venues interactivos como YAWA Cali (1,476 funciones), Maloka (864), Planetario (421) y Museo La Tertulia (303) operan con tarifa plana.",
             "Comedia y Teatros de Camara: Espacios como Boom Stand Up Bar (810) y Teatro Petra (471) manejan acceso general no zonificado."
         ]
     )
@@ -520,7 +520,7 @@ def build_full_presentation(
         "reports/figures/fig2c_multizona_tags_top.png",
         "Al evaluar las 4,407 localidades con ratio_precio_max = 1.0 en eventos multi-zona (peso_aforo < 0.99), el 61.5% activa tags explicitos de gama alta: PLATEA (1,450 reg | 32.9%), PALCO (842 reg | 19.1%), PREFERENCIAL (474 reg | 10.8%) y VIP (401 reg | 9.1%).",
         [
-            "Tipologia por Tipo de Recinto: En teatros y auditorios, la localidad mas costosa es Platea / Luneta; en estadios y arenas son Palcos / VIPs; en festivales son Zonas Fan / Coche.",
+            "Tipologia por Tipo de Venue: En teatros y auditorios, la localidad mas costosa es Platea / Luneta; en estadios y arenas son Palcos / VIPs; en festivales son Zonas Fan / Coche.",
             "Dominio de Etiquetas de Lujo: Las 4 etiquetas de mayor precio suman 3,167 registros de las 4,407 localidades tope.",
             "Nombres Creativos Clasificados por Precio: Localidades con nombres de fantasia sin palabra VIP se clasifican por su ratio = 1.0 y bajo aforo."
         ]
@@ -533,10 +533,10 @@ def build_full_presentation(
         "DISTRIBUCIONES EN EVENTOS MULTI-ZONA",
         "Grafico 2B: Descompresion de Variables Relativas sin Admision Unica (N = 18,400)",
         "reports/figures/fig2d_distribuciones_multizona.png",
-        "Al aislar las 18,400 localidades en 3,252 eventos multi-zona (peso_aforo < 0.99), se elimina el sesgo del 45.5% de tarifas planas. La mediana de ratio_precio_max se reduce de 1.00 a 0.671 y la mediana de peso_aforo baja de 1.00 a 0.111 (11.1% del recinto).",
+        "Al aislar las 18,400 localidades en 3,252 eventos multi-zona (peso_aforo < 0.99), se elimina el sesgo del 45.5% de tarifas planas. La mediana de ratio_precio_max se reduce de 1.00 a 0.671 y la mediana de peso_aforo baja de 1.00 a 0.111 (11.1% del venue).",
         [
             "Descompresion Real de Precios: Emerge una distribucion continua donde gradas populares estan en 0.20-0.50, preferenciales en 0.60-0.85 y VIPs en 1.00.",
-            "Capacidad Fisica Realista: El 75% de las localidades multi-zona ocupan menos del 24.5% del aforo del recinto, reflejando la arquitectura real de arenas y estadios.",
+            "Capacidad Fisica Realista: El 75% de las localidades multi-zona ocupan menos del 24.5% del aforo del venue, reflejando la arquitectura real de arenas y estadios.",
             "Simetria y Equilibrio del Percentil: El percentil relativo se convierte en una curva simetrica y balanceada (mediana 0.600) ideal para optimizacion en K-Means."
         ]
     )
@@ -601,7 +601,7 @@ def build_full_presentation(
         [
             "Confirmacion de Jerarquia Fisica: La semantica NLP se alinea con la capacidad fisica: los palcos ocupan fracciones minimas de aforo y las generales absorben el volumen.",
             "Validacion de la Platea como Zona Preferente: Las plateas se ubican en el rango superior de precios ($95k), consolidandose como el escalon intermedio-alto.",
-            "El Balcon como Opcion Accesible de Recinto Cerrado: Los balcones registran sistematicamente precios moderados ($56k), validando su rol accesible en teatro."
+            "El Balcon como Opcion Accesible de Venue Cerrado: Los balcones registran sistematicamente precios moderados ($56k), validando su rol accesible en teatro."
         ]
     )
 

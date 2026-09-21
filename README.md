@@ -2,11 +2,11 @@
 
 Proyecto integral de Data Science y Machine Learning para la segmentación y clasificación automatizada de localidades en espectáculos públicos a partir de datos transaccionales almacenados en formato `.parquet` en Azure Blob Storage.
 
-El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (características numéricas relativas *ex-ante*, tags estructurales de recinto extraídos mediante NLP y representaciones vectoriales TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
+El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (características numéricas relativas *ex-ante*, tags estructurales de venue extraídos mediante NLP y representaciones vectoriales TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
 
 ---
 
-## 📁 Estructura del Repositorio
+## Estructura del Repositorio
 
 ```text
 clusterizacion-localidades/
@@ -60,7 +60,7 @@ clusterizacion-localidades/
 
 ---
 
-## ⚙️ Configuración Inicial
+##  Configuración Inicial
 
 ### 1. Clonar el repositorio y configurar entorno
 ```bash
@@ -97,7 +97,7 @@ AZURE_BLOB_NAME="ruta/al/archivo_datos.parquet"
 
 ---
 
-## 🧠 Arquitectura de Datos y Modelado
+## Arquitectura de Datos y Modelado
 
 El pipeline transforma $33,775$ registros certificados a través de 3 componentes:
 
@@ -114,7 +114,7 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
      * **Orientación Espacial:** `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
      * **Restricciones de Acceso:** `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
 
-3. **Arquitectura en Dos Etapas y Espacio Mixto 25D (`src/clustering.py` - Modelo v2.1 Optimizado):**
+3. **Arquitectura en Dos Etapas y Espacio Mixto 25D (`src/clustering.py` - Modelo v2.2 Optimizado):**
    * **Etapa 1 (Determinística):** Aislamiento de funciones de admisión única / tarifa plana a nivel evento ($15,375$ registros, $45.5\%$ del catálogo: Cinemateca, Maloka, museos). Asignación directa a *Admisión Única / Tarifa Plana*.
    * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 25 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
      * $3$ métricas numéricas relativas *ex-ante* (`RobustScaler`).
@@ -124,21 +124,21 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
 
 ---
 
-## 🏷️ Los 6 Arquetipos de Demanda (Modelo v2.2 Optimizado)
+##  Los 6 Arquetipos de Demanda (Modelo v2.2 Optimizado)
 
 | Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| 🎟️ **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.5%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-| ⭐ **VIP / Palcos / Premium** | Etapa 2 | 2,912 | **8.6%** | 0.76 | 4.7% | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
-| 🎭 **Preferencial / Platea Frontal** | Etapa 2 | 4,697 | **13.9%** | 0.85 | 9.3% | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
-| 🪑 **Platea General / Intermedia** | Etapa 2 | 3,432 | **10.2%** | 0.80 | 37.2% | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
-| 🏟️ **Grada General / Masiva** | Etapa 2 | 819 | **2.4%** | 0.79 | 81.4% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
-| 🎟️ **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,540 | **19.4%** | 0.35 | 11.3% | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+|  **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.5%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
+|  **VIP / Palcos / Premium** | Etapa 2 | 2,912 | **8.6%** | 0.76 | 4.7% | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+| **Preferencial / Platea Frontal** | Etapa 2 | 4,697 | **13.9%** | 0.85 | 9.3% | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+| **Platea General / Intermedia** | Etapa 2 | 3,432 | **10.2%** | 0.80 | 37.2% | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+|  **Grada General / Masiva** | Etapa 2 | 819 | **2.4%** | 0.79 | 81.4% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,540 | **19.4%** | 0.35 | 11.3% | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
 | **TOTAL CATÁLOGO** | **v2.2** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
-## 🚀 Flujo de Ejecución
+## Flujo de Ejecución
 
 ### Opción A: Exploración Interactiva en Jupyter
 ```bash
@@ -163,7 +163,7 @@ python -m unittest discover tests/ -v
 pytest tests/ -v
 ```
 
-### Opción D: Inferencia en Producción con Modelo Persistido
+### Opción D: Inferencia en Producción con Observabilidad de Confianza
 ```python
 import pandas as pd
 from src.clustering import cargar_modelo_clustering, predecir_arquetipos_demanda
@@ -171,12 +171,27 @@ from src.clustering import cargar_modelo_clustering, predecir_arquetipos_demanda
 # Cargar modelo serializado
 modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
 
-# Predecir arquetipos con separación bietápica garantizada (monozona vs multi-zona)
+# Predecir arquetipos con observabilidad completa (score de confianza, frontera, OOV)
 df_segmentado = predecir_arquetipos_demanda(df_nuevas_localidades, modelo)
+
+# Columnas de observabilidad devueltas:
+# - arquetipo_demanda: Etiqueta de negocio asignada
+# - score_confianza: Margen geometrico relativo [0, 1] (1.0 = certeza maxima)
+# - es_frontera: True si score_confianza < 0.15 (requiere revision en pricing)
+# - segundo_arquetipo: Arquetipo competidor mas cercano en frontera
+# - cobertura_texto: Ratio de tokens en vocabulario TF-IDF [0, 1]
+# - texto_casi_vacio: True si cobertura_texto < 0.20 (sin senal lexica)
+# - probabilidad_gmm: Certeza posterior por mezcla de gaussianas
+```
+
+### Opción E: Auditoría Periódica de Drift Estadístico (PSI)
+```bash
+# Monitoreo por lote o ejecucion mensual en pipelines de datos
+python scripts/monitorear_drift.py --datos data/raw/localidades_eda.parquet --output reports/drift_report.json
 ```
 
 ---
 
-## 📚 Documentación Técnica Detallada
+## Documentación Técnica Detallada
 Para consultar la justificación matemática, fórmulas de normalización, descomposiciones de varianza PCA y pseudocódigo, consulta:
-👉 **[DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md)**
+ **[DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md)**

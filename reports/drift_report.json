@@ -1,0 +1,83 @@
+{
+  "estado_general": "ESTABLE",
+  "total_registros": 33775,
+  "psi_maximo": 0.0,
+  "psi_por_variable": {
+    "ratio_precio_max": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "percentil_precio_evento": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "peso_aforo": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_palco": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_vip": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_platea": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_preferencial": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_general": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_balcon": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    },
+    "tag_piso_alto": {
+      "psi": 0.0,
+      "estado": "ESTABLE"
+    }
+  },
+  "distribucion_arquetipos": {
+    "Admisión Única / Tarifa Plana": {
+      "esperado": 0.4552,
+      "observado": 0.4552,
+      "diferencia": 0.0
+    },
+    "Popular / Balcón / Visibilidad Parcial": {
+      "esperado": 0.1936,
+      "observado": 0.1936,
+      "diferencia": 0.0
+    },
+    "Preferencial / Platea Frontal": {
+      "esperado": 0.1391,
+      "observado": 0.1391,
+      "diferencia": 0.0
+    },
+    "Platea General / Intermedia": {
+      "esperado": 0.1016,
+      "observado": 0.1016,
+      "diferencia": 0.0
+    },
+    "VIP / Palcos / Premium": {
+      "esperado": 0.0862,
+      "observado": 0.0862,
+      "diferencia": 0.0
+    },
+    "Grada General / Masiva": {
+      "esperado": 0.0242,
+      "observado": 0.0242,
+      "diferencia": 0.0
+    }
+  },
+  "pct_frontera": 0.0871,
+  "pct_texto_casi_vacio": 0.1697,
+  "score_confianza_promedio": 0.6554,
+  "alertas": []
+}
