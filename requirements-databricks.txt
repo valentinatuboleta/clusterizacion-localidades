@@ -1,0 +1,6 @@
+# --- Dependencias Exclusivas para Databricks / Entornos Spark Distribuidos ---
+# Instalar únicamente cuando se ejecute el pipeline de extracción y ETL distribuido en Databricks:
+# pip install -r requirements-databricks.txt
+
+-r requirements.txt
+pyspark>=3.4.0

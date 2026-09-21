@@ -80,7 +80,7 @@ def ejecutar_comparativa():
     print(resumen_old.to_string(index=False))
 
     print("\n" + "="*80)
-    print("TABLA 2: MODELO NUEVO (v2.1 - 5 Arquetipos en Dos Etapas)")
+    print("TABLA 2: MODELO NUEVO (v2.2 - 6 Arquetipos en Dos Etapas)")
     print("="*80)
     print(resumen_new.to_string(index=False))
 

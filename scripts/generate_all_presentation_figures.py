@@ -82,7 +82,7 @@ sns.histplot(df_multi["percentil_precio_evento"], bins=30, kde=True, ax=axes[1, 
 axes[1, 1].set_title("Percentil de Precio (Solo Multi-Zona)", fontsize=10, fontweight="bold")
 plt.suptitle("Distribuciones en Eventos Multi-Zona (N=18,400)", fontsize=13, fontweight="bold")
 plt.tight_layout()
-plt.savefig("reports/figures/fig2c_distribuciones_multizona.png", dpi=200)
+plt.savefig("reports/figures/fig2d_distribuciones_multizona.png", dpi=200)
 plt.close()
 
 # 5. FIG 3A: Demostración 17 Tags (Volumen y Discriminación)
@@ -143,7 +143,7 @@ axes[1].set_title("Peso de Aforo (%) por Tag NLP", fontsize=10, fontweight="bold
 axes[1].tick_params(axis="x", rotation=30)
 plt.suptitle("Comparación Bivariada de Precio y Aforo por Atributo Estructural", fontsize=12, fontweight="bold")
 plt.tight_layout()
-plt.savefig("reports/figures/fig3_boxplots_bivariados.png", dpi=200)
+plt.savefig("reports/figures/fig3b_boxplots_bivariados.png", dpi=200)
 plt.close()
 
 # 7. FIG 4: Correlaciones

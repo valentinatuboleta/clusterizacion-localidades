@@ -11,6 +11,7 @@ Este módulo se encarga de:
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Any, Optional, Union
+import joblib
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.cluster import KMeans, AgglomerativeClustering, HDBSCAN
 from sklearn.mixture import GaussianMixture
@@ -459,22 +460,38 @@ def pipeline_clustering_dos_etapas(
         scaler_type=scaler_type
     )
     
-    # Selección automática de k si se solicita 'auto' mediante score compuesto (Silueta + Davies-Bouldin)
+    # Selección automática de k si se solicita 'auto' mediante Score Compuesto Codo-DB
+    # Combina la distancia ortogonal a la cuerda en la curva de inercia (codo) y la minimización de Davies-Bouldin
     if isinstance(n_clusters_multizona, str) and n_clusters_multizona.lower() == "auto":
-        cand_ks = [4, 5, 6, 7]
-        sil_cands = []
+        cand_ks = [3, 4, 5, 6, 7]
+        inertias = []
         db_cands = []
-        sample_eval_sz = min(5000, len(X_multizona))
         for cand_k in cand_ks:
             km_cand = KMeans(n_clusters=cand_k, random_state=random_state, n_init=10)
             lbls = km_cand.fit_predict(X_multizona)
-            sil_cands.append(silhouette_score(X_multizona[:sample_eval_sz], lbls[:sample_eval_sz]))
+            inertias.append(km_cand.inertia_)
             db_cands.append(davies_bouldin_score(X_multizona, lbls))
-        s_arr = np.array(sil_cands)
+            
+        # Distancia ortogonal a la secante (codo)
+        P1 = np.array([cand_ks[0], inertias[0], 0.0])
+        P2 = np.array([cand_ks[-1], inertias[-1], 0.0])
+        vec_secante = P2 - P1
+        norm_secante = np.linalg.norm(vec_secante)
+        
+        codo_dists = []
+        for i, k_val in enumerate(cand_ks):
+            P0 = np.array([k_val, inertias[i], 0.0])
+            d = np.linalg.norm(np.cross(vec_secante, P1 - P0)) / norm_secante
+            codo_dists.append(d)
+            
+        codo_arr = np.array(codo_dists)
         d_arr = np.array(db_cands)
-        norm_s = (s_arr - s_arr.min()) / (s_arr.max() - s_arr.min() + 1e-8)
-        norm_d = (d_arr.max() - d_arr) / (d_arr.max() - d_arr.min() + 1e-8)
-        best_idx = int(np.argmax(norm_s + norm_d))
+        
+        norm_codo = (codo_arr - codo_arr.min()) / (codo_arr.max() - codo_arr.min() + 1e-8)
+        norm_db = (d_arr.max() - d_arr) / (d_arr.max() - d_arr.min() + 1e-8)
+        
+        score_compuesto = norm_codo + norm_db
+        best_idx = int(np.argmax(score_compuesto))
         n_clusters_multizona = cand_ks[best_idx]
     else:
         n_clusters_multizona = int(n_clusters_multizona)
@@ -657,3 +674,92 @@ def ejecutar_benchmark_modelos(
     )
 
     return df_metricas, ari_matrix, dict_modelos
+
+
+# ==============================================================================
+# PERSISTENCIA E INFERENCIA DE PRODUCCIÓN (JOB_LIB + ETAPA 1 DETERMINÍSTICA)
+# ==============================================================================
+
+def guardar_modelo_clustering(
+    filepath: str,
+    kmeans: KMeans,
+    scaler: Any,
+    tfidf_vectorizer: Any,
+    feature_names: List[str],
+    mapa_arquetipos: Dict[int, str],
+    metricas: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None
+) -> None:
+    """
+    Persiste el pipeline de clusterización entrenado en un archivo .joblib.
+    Incluye todos los transformadores, el modelo K-Means, el vocabulario de features,
+    el diccionario de mapeo a arquetipos y metadatos de versión.
+    """
+    import os
+    os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+    payload = {
+        "version": "2.2",
+        "kmeans": kmeans,
+        "scaler": scaler,
+        "tfidf_vectorizer": tfidf_vectorizer,
+        "feature_names": feature_names,
+        "mapa_arquetipos": mapa_arquetipos,
+        "metricas": metricas or {},
+        "metadata": metadata or {}
+    }
+    joblib.dump(payload, filepath)
+
+
+def cargar_modelo_clustering(filepath: str) -> Dict[str, Any]:
+    """
+    Carga un pipeline de clusterización previamente persistido con joblib.
+    """
+    return joblib.load(filepath)
+
+
+def predecir_arquetipos_demanda(
+    df: pd.DataFrame,
+    modelo: Union[str, Dict[str, Any]],
+    peso_nlp: float = 0.2
+) -> pd.DataFrame:
+    """
+    Función de inferencia bietápica para nuevos datos (o catálogo existente):
+    1. Etapa 1 (Determinística): Evalúa funciones a nivel evento (t_performance_id).
+       Si es monozona (1 sola localidad o aforo >= 99%), asigna 'Admisión Única / Tarifa Plana' (cluster = -1).
+    2. Etapa 2 (Machine Learning): Transforma las localidades multi-zona usando el scaler,
+       vectorizador TF-IDF y feature_names persistidos, predice con el modelo K-Means
+       y mapea a su respectivo arquetipo mediante el diccionario biyectivo húngaro.
+    3. Reensamblaje: Retorna el DataFrame unificado preservando exactamente el índice original.
+    """
+    if isinstance(modelo, str):
+        modelo_dict = cargar_modelo_clustering(modelo)
+    else:
+        modelo_dict = modelo
+
+    kmeans: KMeans = modelo_dict["kmeans"]
+    scaler = modelo_dict["scaler"]
+    tfidf_vec = modelo_dict["tfidf_vectorizer"]
+    mapa_arquetipos = modelo_dict["mapa_arquetipos"]
+
+    # 1. Separación a nivel evento
+    df_mono, df_multi = separar_admision_unica_multizona(df)
+    df_mono = df_mono.copy()
+    df_mono["cluster"] = -1
+    df_mono["arquetipo_demanda"] = "Admisión Única / Tarifa Plana"
+
+    # 2. Inferencia en multi-zona si existen registros
+    if len(df_multi) > 0:
+        df_multi = df_multi.copy()
+        X_multi, _, _, _ = construir_espacio_vectorial_mixto(
+            df_multi,
+            scaler=scaler,
+            tfidf_vectorizer=tfidf_vec,
+            peso_nlp=peso_nlp
+        )
+        labels_multi = kmeans.predict(X_multi)
+        df_multi["cluster"] = labels_multi
+        df_multi["arquetipo_demanda"] = df_multi["cluster"].map(mapa_arquetipos)
+
+    # 3. Reensamblaje preservando índice original
+    df_res = pd.concat([df_mono, df_multi], axis=0).loc[df.index]
+    return df_res

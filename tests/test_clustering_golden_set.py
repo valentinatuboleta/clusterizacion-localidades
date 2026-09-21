@@ -1,12 +1,15 @@
 """
-Suite de Pruebas Automatizadas y Golden Set para el Pipeline de Clusterización en Dos Etapas (v2.1).
+Suite de Pruebas Automatizadas y Golden Set para el Pipeline de Clusterización en Dos Etapas (v2.2).
 
 Valida:
 1. Partición estricta a nivel evento (sin funciones partidas, cobertura exacta de 33,775 filas).
 2. Coherencia matemática de centroides multi-zona (VIP con bajo aforo y alto precio, Grada con aforo masivo).
 3. Clasificación correcta del Golden Set de 20 localidades representativas.
+4. Persistencia e inferencia bietápica con joblib (guardar, cargar y predecir de forma idéntica).
+5. Selección automática de k=5 mediante Score Compuesto Codo-DB (modo 'auto').
 """
 
+import os
 import unittest
 import pandas as pd
 import numpy as np
@@ -17,7 +20,10 @@ from src.clustering import (
     pipeline_clustering_dos_etapas,
     construir_espacio_vectorial_mixto,
     etiquetar_por_centroides_escalados,
-    entrenar_modelo_clustering
+    entrenar_modelo_clustering,
+    guardar_modelo_clustering,
+    cargar_modelo_clustering,
+    predecir_arquetipos_demanda
 )
 
 
@@ -31,7 +37,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
         df_rel = calcular_metricas_relativas(df_clean)
         cls.df_enriquecido = pipeline_procesamiento_nlp(df_rel)
 
-        # Ejecutar pipeline en dos etapas con k óptimo (k=5 en multi-zona + 1 tarifa plana)
+        # Ejecutar pipeline en dos etapas con k óptimo (k=5 en multi-zona + 1 tarifa plana = 6 arquetipos)
         cls.df_final, cls.kmeans, cls.scaler, cls.tfidf_vec, cls.feature_names, cls.metricas = (
             pipeline_clustering_dos_etapas(cls.df_enriquecido, n_clusters_multizona=5, random_state=42)
         )
@@ -79,7 +85,6 @@ class TestClusteringGoldenSet(unittest.TestCase):
 
     def test_03_golden_set_20_localidades_representativas(self):
         """Verifica la clasificación adecuada de 20 localidades canónicas del negocio."""
-        # Casos Golden Set conocidos en el catálogo:
         golden_cases = [
             # 1. Admisión Única / Tarifa Plana (Cinemateca, museos, monozona)
             ("CINEMATECA BOGOTA", "Admisión Única / Tarifa Plana", True),
@@ -100,10 +105,10 @@ class TestClusteringGoldenSet(unittest.TestCase):
             ("PLATEA 2", "Preferencial / Platea Frontal", False),
 
             # 4. Popular / Visibilidad Parcial / Balcón
-            ("BALCON 2DO PISO", "Popular / Visibilidad Parcial / Balcón", False),
-            ("BALCON TERCER PISO", "Popular / Visibilidad Parcial / Balcón", False),
-            ("VISTA PARCIAL LATERAL", "Popular / Visibilidad Parcial / Balcón", False),
-            ("PISO ALTO POSTERIOR", "Popular / Visibilidad Parcial / Balcón", False),
+            ("BALCON 2DO PISO", "Popular / Balcón / Visibilidad Parcial", False),
+            ("BALCON TERCER PISO", "Popular / Balcón / Visibilidad Parcial", False),
+            ("VISTA PARCIAL LATERAL", "Popular / Balcón / Visibilidad Parcial", False),
+            ("PISO ALTO POSTERIOR", "Popular / Balcón / Visibilidad Parcial", False),
 
             # 5. Grada General / Masiva (Graderías masivas de estadios y arenas)
             ("GRADA GENERAL", "Grada General / Masiva", False),
@@ -112,22 +117,64 @@ class TestClusteringGoldenSet(unittest.TestCase):
             ("ENTRADA GENERAL", "Grada General / Masiva", False),
         ]
 
-        # Validar en el catálogo final filtrando por patrones
         fallos = []
         for term, arq_esperado, es_mono_esperado in golden_cases:
             matches = self.df_final[self.df_final["logical_seat_category"].str.upper().str.contains(term)]
             if len(matches) > 0:
                 pred_arqs = matches["arquetipo_demanda"].value_counts()
                 top_pred = pred_arqs.index[0]
-                # Si el top predicho no coincide y no es una categoría afín razonable
                 if top_pred != arq_esperado:
-                    # En algunos eventos pequeños, un término como 'GRADA' puede ser monozona si el evento fue monozona
                     if matches["es_monozona"].iloc[0] and arq_esperado != "Admisión Única / Tarifa Plana":
                         continue
                     fallos.append(f"Término '{term}': Esperado '{arq_esperado}', obtenido '{top_pred}'")
 
-        # Tolerancia: los términos contextuales de eventos reales pueden distribuirse entre categorías afines
         self.assertLessEqual(len(fallos), 2, f"Fallos en Golden Set: {fallos}")
+
+    def test_04_persistencia_e_inferencia(self):
+        """Verifica que guardar y cargar el modelo produzca exactamente las mismas predicciones."""
+        temp_model_path = "data/processed/modelo_clustering_test.joblib"
+        try:
+            # 1. Guardar modelo entrenado
+            mapa_arquetipos = etiquetar_por_centroides_escalados(
+                self.kmeans, self.feature_names, self.scaler, peso_nlp=0.2
+            )
+            guardar_modelo_clustering(
+                temp_model_path,
+                kmeans=self.kmeans,
+                scaler=self.scaler,
+                tfidf_vectorizer=self.tfidf_vec,
+                feature_names=self.feature_names,
+                mapa_arquetipos=mapa_arquetipos,
+                metricas=self.metricas,
+                metadata={"autor": "Data Science TuBoleta", "version": "2.2"}
+            )
+            self.assertTrue(os.path.exists(temp_model_path), "El archivo del modelo joblib debe existir")
+
+            # 2. Cargar modelo y realizar inferencia bietápica
+            modelo_cargado = cargar_modelo_clustering(temp_model_path)
+            self.assertEqual(modelo_cargado["version"], "2.2")
+
+            df_pred = predecir_arquetipos_demanda(self.df_enriquecido, modelo_cargado)
+            self.assertEqual(len(df_pred), len(self.df_final))
+            
+            # 3. Validar consistencia idéntica con el pipeline de entrenamiento
+            coincidencias = (df_pred["arquetipo_demanda"] == self.df_final["arquetipo_demanda"]).mean()
+            self.assertGreaterEqual(coincidencias, 0.999, f"Inferencia difiere del pipeline original: {coincidencias:.4f}")
+        finally:
+            if os.path.exists(temp_model_path):
+                os.remove(temp_model_path)
+
+    def test_05_selector_auto_k5(self):
+        """Valida que el selector automático 'auto' seleccione k=5 mediante Score Compuesto Codo-DB."""
+        # Evaluar pipeline en modo 'auto'
+        df_auto, km_auto, _, _, _, _ = pipeline_clustering_dos_etapas(
+            self.df_enriquecido, n_clusters_multizona="auto", random_state=42
+        )
+        self.assertEqual(km_auto.n_clusters, 5, f"El modo 'auto' debe seleccionar k=5, obtuvo k={km_auto.n_clusters}")
+        
+        # Verificar que el catálogo final contenga 6 arquetipos (1 Monozona + 5 Multi-Zona)
+        n_arquetipos = df_auto["arquetipo_demanda"].nunique()
+        self.assertEqual(n_arquetipos, 6, f"El catálogo final debe tener 6 arquetipos, tiene {n_arquetipos}")
 
 
 if __name__ == "__main__":

@@ -65,38 +65,41 @@ def optimizar_k():
             "Max Cluster (%)": f"{max_cluster_pct:.1f}%"
         })
 
-    # Codo ortogonal
-    P1 = np.array([k_range[0], inertias[0]])
-    P2 = np.array([k_range[-1], inertias[-1]])
+    # Codo ortogonal (usando vectores 3D para compatibilidad con NumPy 2.0+)
+    P1 = np.array([float(k_range[0]), float(inertias[0]), 0.0])
+    P2 = np.array([float(k_range[-1]), float(inertias[-1]), 0.0])
+    vec_secante = P2 - P1
+    norm_secante = np.linalg.norm(vec_secante)
     distancias_codo = []
     for i, k in enumerate(k_range):
-        P0 = np.array([k, inertias[i]])
-        d = np.abs(np.cross(P2 - P1, P1 - P0)) / np.linalg.norm(P2 - P1)
+        P0 = np.array([float(k), float(inertias[i]), 0.0])
+        d = np.linalg.norm(np.cross(vec_secante, P1 - P0)) / norm_secante
         distancias_codo.append(d)
 
     k_codo_idx = np.argmax(distancias_codo)
     k_codo = k_range[k_codo_idx]
 
+    # Ranking compuesto armónico: normalizar Codo Ortogonal (max) y Davies-Bouldin (min)
+    codo_arr = np.array(distancias_codo)
+    db_arr = np.array([r["Davies-Bouldin"] for r in results])
+    sil_arr = np.array([r["Silhouette"] for r in results])
+    
+    norm_codo = (codo_arr - codo_arr.min()) / (codo_arr.max() - codo_arr.min() + 1e-8)
+    norm_db = (db_arr.max() - db_arr) / (db_arr.max() - db_arr.min() + 1e-8)
+    norm_sil = (sil_arr - sil_arr.min()) / (sil_arr.max() - sil_arr.min() + 1e-8)
+    score_compuesto = norm_codo + norm_db
+
     df_res = pd.DataFrame(results)
     df_res["Distancia Codo"] = np.round(distancias_codo, 2)
+    df_res["Score Compuesto (Codo+DB)"] = np.round(score_compuesto, 3)
+
     print("==================================================================")
     print("RESULTADOS DE OPTIMIZACIÓN DE K EN MULTI-ZONA (peso_nlp = 0.2)")
     print("==================================================================")
     print(df_res.to_string(index=False))
-    print(f"\n-> Punto de Codo Matemático (Distancia máxima a la cuerda): k = {k_codo}")
-    
-    # Ranking compuesto: normalizar Silueta (max) y Davies-Bouldin (min)
-    sil_arr = np.array([r["Silhouette"] for r in results])
-    db_arr = np.array([r["Davies-Bouldin"] for r in results])
-    
-    # Score combinado normalizado: (Sil - min)/(max - min) + (max_db - DB)/(max_db - min_db)
-    norm_sil = (sil_arr - sil_arr.min()) / (sil_arr.max() - sil_arr.min())
-    norm_db = (db_arr.max() - db_arr) / (db_arr.max() - db_arr.min())
-    score_compuesto = norm_sil + norm_db
-    
-    df_res["Score Compuesto"] = np.round(score_compuesto, 3)
-    k_optimo_score = k_range[np.argmax(score_compuesto)]
-    print(f"-> K Óptimo por Score Compuesto (Silueta + Davies-Bouldin): k = {k_optimo_score}")
+    print(f"\n-> Punto de Codo Matemático (Distancia máxima a la cuerda): k = {k_codo} (distancia = {distancias_codo[k_codo_idx]:.2f})")
+    print(f"-> Mínimo Global Davies-Bouldin: k = {k_range[np.argmin(db_arr)]} (DB = {db_arr.min():.4f})")
+    print(f"-> K Óptimo por Score Compuesto (Codo + Davies-Bouldin): k = {k_range[np.argmax(score_compuesto)]} (Score = {score_compuesto.max():.3f})")
 
 if __name__ == "__main__":
     optimizar_k()

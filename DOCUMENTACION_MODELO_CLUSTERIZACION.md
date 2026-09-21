@@ -2,7 +2,7 @@
 
 > **Proyecto:** Segmentación y Clasificación Inteligente de Localidades de Boletería  
 > **Compañía:** TuBoleta  
-> **Versión del Pipeline:** 2.0 (Espacio Vectorial Mixto: NLP + Métricas Relativas por Evento)  
+> **Versión del Pipeline:** 2.2 (Pipeline Bietápico: Partición Monozona + Espacio Mixto 25D, ω=0.2, k=5)  
 > **Autor / Equipo:** Data Science & Machine Learning  
 
 ---
@@ -38,40 +38,38 @@ graph TD
 Construir un **Espacio Vectorial Mixto** que:
 1. **Desmonte el maquillaje publicitario** mediante Procesamiento de Lenguaje Natural (NLP), extrayendo la arquitectura física y espacial real.
 2. **Contextualice matemáticamente cada boleta** en relación a su propio espectáculo (percentiles de precio y peso de aforo).
-3. **Agrupe y estandarice automáticamente** cualquier localidad del catálogo en **4 Arquetipos Universales de Demanda**.
+3. **Agrupe y estandarice automáticamente** cualquier localidad del catálogo en **6 Arquetipos Estandarizados de Demanda (1 Admisión Única + 5 Multi-Zona)**.
 
 ---
 
 ##  Mapa del Flujo Arquitectónico
 
 ```mermaid
-flowchart LR
+flowchart TD
     A[("Azure Blob Storage\n(GOLD/SECUTIX Parquet)")] --> B["data/raw/localidades_eda.parquet\n(34,030 registros)"]
     
-    subgraph S1 ["1. Filtrado de Consistencia"]
-        B --> C["src.feature_engineering\nfiltrar_consistencia_localidades()"]
+    subgraph S1 ["1. Consistencia y Feature Engineering"]
+        B --> C["src.feature_engineering\nfiltrar_consistencia_localidades() (33,775 filas)"]
+        C --> D["src.feature_engineering\ncalcular_metricas_relativas() (26 columnas)"]
+        D --> E["src.nlp_utils\npipeline_procesamiento_nlp() (44 columnas)"]
     end
 
-    subgraph S2 ["2. Descomposición NLP"]
-        C --> D1["src.nlp_utils\nlimpiar_ruido_marketing()"]
-        C --> D2["src.nlp_utils\nextraer_atributos_estructurales()"]
-        D1 --> D3["src.nlp_utils\nvectorizar_texto_limpio (TF-IDF)"]
+    subgraph S2 ["2. Partición Bietápica a Nivel Evento"]
+        E --> F{"src.clustering\nseparar_admision_unica_multizona()"}
+        F -->|"Monozona / Tarifa Plana (45.5%)\n1 sola localidad o aforo ≥ 99%"| G["ETAPA 1 (Determinística)\ncluster = -1\n'Admisión Única / Tarifa Plana'"]
+        F -->|"Multi-Zona Estratificada (54.5%)\nLocalidades en competencia"| H["ETAPA 2 (Machine Learning)\nEspacio Mixto 25D (ω_nlp = 0.2)"]
     end
 
-    subgraph S3 ["3. Métricas Relativas por Evento"]
-        C --> E1["percentil_precio_evento (0 a 1)"]
-        C --> E2["ratio_precio_max (P / P_max)"]
-        C --> E3["peso_aforo (dn_quota / perf_quota)"]
-        C --> E4["tasa_ocupacion (ventas / aforo)"]
+    subgraph S3 ["3. Modelado y Etiquetado Multi-Zona"]
+        H --> I["K-Means (k=5 Óptimo Formal / 'auto')\nEvaluado con Codo + Davies-Bouldin"]
+        I --> J["src.clustering\netiquetar_por_centroides_escalados()\n(Asignación Biyectiva Húngara 25D)"]
     end
 
-    subgraph S4 ["4. Fusión Vectorial y Clustering"]
-        D2 & D3 & E1 & E2 & E3 & E4 --> F["src.clustering\nconstruir_espacio_vectorial_mixto()"]
-        F --> G["K-Means (k=4) / GMM"]
-        G --> H["src.clustering\nasignar_arquetipos_demanda()"]
+    subgraph S4 ["4. Integración y Persistencia"]
+        G & J --> K["src.clustering\npipeline_clustering_dos_etapas()\n(Reensamblaje 100% Cobertura: 33,775 filas)"]
+        K --> L[("data/processed/\nlocalidades_clusterizadas.parquet\n(6 Arquetipos de Demanda)")]
+        K --> M["src.clustering\nguardar_modelo_clustering()\n(models/modelo_clustering_v2_2.joblib)"]
     end
-
-    H --> I[("data/processed/\nlocalidades_clusterizadas.parquet")]
 ```
 
 ---
@@ -172,8 +170,8 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 #### 1.4 `pipeline_procesamiento_nlp(df: pd.DataFrame, col_nombre: str) -> pd.DataFrame`
 * **¿Para qué se crea?**: Es el orquestador que toma el DataFrame y añade la columna `texto_limpio` y las 17 columnas `tag_*`.
 * **Transformación del DataFrame:**
-  * **Antes:** DataFrame con 19 columnas.
-  * **Después:** DataFrame con 37 columnas (19 originales + `texto_limpio` + 17 `tag_*`).
+  * **Antes:** DataFrame con 26 columnas relativas (`df_rel`).
+  * **Después:** DataFrame con 44 columnas (26 relativas + `texto_limpio` + 17 `tag_*`).
 
 ---
 
@@ -339,18 +337,24 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 
 #### 3.3 `evaluar_rango_k(X: np.ndarray, k_min: int, k_max: int) -> pd.DataFrame`
 * **Evaluación Empírica y Optimización Formal sobre Multi-Zona (`peso_nlp=0.2`):**
-  * Al retirar los 15,375 puntos idénticos de tarifa plana y calibrar el peso del texto, el espacio multi-zona muestra su estructura geométrica real:
-    * $k=3$: Silhouette $0.244$, Davies-Bouldin $1.412$, Inercia $24,366$, Score Compuesto: $0.00$.
-    * $k=4$: Silhouette $0.248$, Davies-Bouldin $1.318$, Inercia $21,022$, Score Compuesto: $0.78$.
-    * **$k=5$ (Óptimo Formal):** Silhouette $0.249$, **Davies-Bouldin $1.272$ (Mínimo Global)**, Inercia $18,749$, **Codo Máximo (distancia ortogonal = $1.28$)**, Score Compuesto: **$1.13$**.
-    * $k=6$: Silhouette $0.249$, Davies-Bouldin $1.387$, Inercia $17,046$, Score Compuesto: $0.28$.
-    * $k=7$: Silhouette $0.270$, Davies-Bouldin $1.296$, Inercia $15,461$, Score Compuesto: $1.45$.
-    * $k=8$: Silhouette $0.277$, Davies-Bouldin $1.302$, Inercia $14,195$.
-    * $k=10$: Silhouette $0.284$, Davies-Bouldin $1.301$, Inercia $12,377$.
+  * Al retirar los 15,375 registros idénticos de tarifa plana y calibrar el peso del texto en $\omega=0.2$, el espacio multi-zona revela su estructura geométrica real:
+    * $k=3$: Silhouette $0.2444$, Davies-Bouldin $1.4120$, Inercia $24,366$, Distancia Codo: $0.00$, Score Compuesto (Codo+DB): $0.000$.
+    * $k=4$: Silhouette $0.2485$, Davies-Bouldin $1.3181$, Inercia $21,022$, Distancia Codo: $0.95$, Score Compuesto (Codo+DB): $1.415$.
+    * **$k=5$ (Óptimo Formal y de Negocio):** Silhouette $0.2495$, **Davies-Bouldin $1.2720$ (Mínimo Global)**, Inercia $18,749$, **Codo Máximo (distancia ortogonal = $1.28$)**, Score Compuesto (Codo+DB): **$2.000$ (Máximo Absoluto)**.
+    * $k=6$: Silhouette $0.2492$, Davies-Bouldin $1.3870$, Inercia $17,046$, Distancia Codo: $1.27$, Score Compuesto (Codo+DB): $1.174$.
+    * $k=7$: Silhouette $0.2702$, Davies-Bouldin $1.2958$, Inercia $15,461$, Distancia Codo: $1.20$, Score Compuesto (Codo+DB): $1.767$.
+    * $k=8$: Silhouette $0.2766$, Davies-Bouldin $1.3024$, Inercia $14,195$, Distancia Codo: $0.94$, Score Compuesto (Codo+DB): $1.516$.
+    * $k=10$: Silhouette $0.2841$, Davies-Bouldin $1.3011$, Inercia $12,377$, Distancia Codo: $0.00$, Score Compuesto (Codo+DB): $0.792$.
+
+* **Fórmula del Selector Multi-Criterio (Modo `'auto'`):**
+  $$\text{Score Compuesto}(k) = \text{norm\_codo}(k) + \text{norm\_db}(k)$$
+  donde:
+  $$\text{norm\_codo}(k) = \frac{d_{\text{codo}}(k) - \min(d)}{\max(d) - \min(d)}, \quad \text{norm\_db}(k) = \frac{\max(\text{DB}) - \text{DB}(k)}{\max(\text{DB}) - \min(\text{DB})}$$
+  En $k=5$, tanto la distancia ortogonal a la cuerda de inercia ($1.28$) como la minimización de Davies-Bouldin ($1.2720$) alcanzan simultáneamente su cota máxima normalizada ($1.000 + 1.000 = 2.000$), garantizando una decisión matemática determinística y en pleno acuerdo con el negocio.
 
 * **Análisis Crítico: ¿Por qué $k=5$ y no $k=7$?**
-  1. **Parsimonia y Codo:** $k=5$ es el **punto de codo matemático exacto** en la curva de inercia (distancia máxima a la secante $1.28$) y el punto donde se **minimiza globalmente el índice Davies-Bouldin ($1.2720$)**.
-  2. **Sobre-fragmentación sin valor de negocio en $k=7$:** Aunque $k=7$ eleva la silueta a $0.270$, una inspección de centroides revela que simplemente fractura la *Platea General* y la *Tribuna Popular* en sub-segmentos redundantes que no corresponden a categorías comerciales reales del ticketing (crea clusters de $4.5\%$ sin diferenciación funcional de pricing).
+  1. **Parsimonia y Codo:** $k=5$ es el **punto de codo matemático exacto** en la curva de inercia (distancia máxima a la secante $1.28$) y el punto donde se **minimiza globalmente el índice Davies-Bouldin ($1.2720$)**. A partir de $k=5$, Davies-Bouldin empeora hacia $1.2958$ en $k=7$.
+  2. **Sobre-fragmentación sin valor de negocio en $k=7$:** Aunque $k=7$ eleva la silueta promedio a $0.270$ (efecto mecánico de fraccionar clusters masivos), una inspección de centroides revela que simplemente fractura la *Platea General* y la *Tribuna Popular* en sub-segmentos redundantes que no corresponden a categorías comerciales reales del ticketing (crea clusters de $4.5\%$ sin diferenciación funcional de pricing).
   3. **Naturaleza del Cluster *Grada General / Masiva* (819 filas, 2.4%):**
      * En $k=5$, este cluster aísla con exactitud las localidades masivas de recintos de gran formato (Estadio El Campín, Atanasio Girardot, Movistar Arena en configuración masiva), donde una sola localidad absorbe un promedio del **$81.4\%$ del aforo total del evento** (hasta $35,000$ sillas).
      * No es un cluster degenerado ni vacío: es la captura física fiel de la asimetría de capacidad en espectáculos masivos frente a teatros y salas íntimas.
@@ -371,7 +375,17 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 ---
 
 #### 3.5 `pipeline_clustering_dos_etapas(df: pd.DataFrame, ...) -> Tuple[...]`
-* Orquestador maestro que integra la separación por evento, el modelado multi-zona con $k=5$ óptimo (o modo `"auto"`), el etiquetado por centroides y el reensamblaje del catálogo completo con trazabilidad (`es_monozona`, `arquetipo_demanda`).
+* Orquestador maestro que integra la separación por evento, el modelado multi-zona con $k=5$ óptimo (o modo `"auto"` evaluado con Codo-DB), el etiquetado por centroides y el reensamblaje del catálogo completo con trazabilidad (`es_monozona`, `arquetipo_demanda`).
+
+---
+
+#### 3.6 Persistencia e Inferencia en Producción (`joblib`)
+* **`guardar_modelo_clustering(filepath, ...)`**: Serializa el estado completo del pipeline (K-Means, RobustScaler, TF-IDF Vectorizer, mapa de arquetipos y metadatos) en un artefacto portable `.joblib`.
+* **`cargar_modelo_clustering(filepath)`**: Carga el payload validando su versión de compatibilidad.
+* **`predecir_arquetipos_demanda(df, modelo, peso_nlp=0.2) -> pd.DataFrame`**:
+  * Aplica obligatoriamente la **Etapa 1 Determinística** (partición monozona a nivel evento).
+  * Aplica la **Etapa 2 Inferencia ML** sobre las localidades multi-zona usando los transformadores guardados.
+  * Reensambla el catálogo preservando exactamente el orden de índices original sin necesidad de reentrenar.
 
 ---
 
@@ -464,3 +478,15 @@ print(f"✅ Segmentación completada exitosamente: {len(df_final):,} filas clasi
 ### 3. Ejecutar los Cuadernos Interactivos
 * **Exploración:** [`notebooks/01_eda_clusterizacion.ipynb`](notebooks/01_eda_clusterizacion.ipynb)
 * **Modelado y Clustering:** [`notebooks/02_clustering_espacio_mixto.ipynb`](notebooks/02_clustering_espacio_mixto.ipynb)
+
+---
+
+## 📜 Historial de Versiones del Pipeline
+
+| Versión | Arquitectura | Espacio Dimensional | Selección de $k$ | Arquetipos Resultantes |
+| :--- | :--- | :--- | :--- | :--- |
+| **v1.0** | Monolítica básica | Texto crudo + precio COP | Heurística visual | Agrupaciones sin normalización por evento |
+| **v2.0** | Espacio Vectorial Mixto Monolítico | 37D ($\omega_{\text{nlp}}=1.2$) | $k=4$ (distorsionado por 45.5% tarifa plana) | 4 Arquetipos con colapso en Grada General |
+| **v2.1** | Pipeline en Dos Etapas | 25D ($\omega_{\text{nlp}}=0.2$) | $k=5$ documentado pero selector en $k=7$ | 6 Arquetipos (separación monozona) |
+| **v2.2** | **Bietápica con Persistencia e Inferencia** | **25D ($\omega_{\text{nlp}}=0.2$, RobustScaler)** | **$k=5$ unificado por Codo-DB ($2.000$)** | **6 Arquetipos Estandarizados certificados con Golden Set, CI y Joblib** |
+

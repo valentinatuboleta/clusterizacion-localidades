@@ -12,9 +12,16 @@ El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (caracter�
 clusterizacion-localidades/
 ├── .env.example                                # Plantilla segura de variables de entorno (Azure)
 ├── .gitignore                                  # Exclusión de credenciales, datos y entornos
+├── .pre-commit-config.yaml                     # Hook pre-commit con nbstripout
+├── LICENSE                                     # Licencia MIT del proyecto
 ├── README.md                                   # Guía general de uso y arquitectura
-├── requirements.txt                            # Dependencias y librerías de Python
-├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva
+├── requirements.txt                            # Dependencias locales (sin PySpark)
+├── requirements-databricks.txt                 # Dependencias exclusivas para Databricks
+├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.2)
+│
+├── .github/                                    # Integración Continua (CI)
+│   └── workflows/
+│       └── ci.yml                              # Pipeline automatizado de GitHub Actions
 │
 ├── data/                                       # Datos locales (ignorado por Git)
 │   ├── raw/                                    # Parquets descargados de Azure
@@ -23,21 +30,25 @@ clusterizacion-localidades/
 ├── notebooks/                                  # Flujo interactivo paso a paso
 │   ├── 00_databricks_raw_data.ipynb            # Extracción y preparación inicial en Databricks
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
-│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (25D), K-Means/GMM y arquetipos
+│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (25D), K-Means/GMM y arquetipos (v2.2)
 │
-├── src/                                        # Módulos Python reutilizables y pruebas
+├── src/                                        # Módulos Python reutilizables de producción
 │   ├── __init__.py
 │   ├── azure_utils.py                          # Conexión y descarga segura desde Azure Blob Storage
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento y consistencia
-│   ├── clustering.py                           # Construcción de espacio mixto (25D) y clustering bietápico
-│   └── test_clustering_golden_set.py           # Suite de pruebas automatizadas y Golden Set (20 casos)
+│   └── clustering.py                           # Espacio mixto 25D, clustering bietápico, persistencia e inferencia
+│
+├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
+│   ├── __init__.py
+│   └── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
 │
 ├── scripts/                                    # Automatización, diagnóstico y análisis
-│   ├── comparar_resultados_clustering.py       # Comparativa cuantitativa y matriz de transición v2.0 vs v2.1
+│   ├── comparar_resultados_clustering.py       # Comparativa cuantitativa y matriz de transición v2.0 vs v2.2
 │   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
-│   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (codo ortogonal y Davies-Bouldin)
+│   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (Codo Ortogonal + Davies-Bouldin)
 │   ├── verificar_k5_perfiles.py                # Inspección de centroides y activación de tags
+│   ├── build_presentation.py                   # Generación de presentación ejecutiva de EDA (10 diapositivas)
 │   ├── build_presentation_from_template.py     # Inyección de insights en plantilla corporativa PPTX
 │   ├── build_full_notebook_presentation.py     # Generación de presentación ejecutiva completa
 │   ├── generate_all_presentation_figures.py    # Generación automatizada de figuras para reportes
@@ -113,7 +124,7 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
 
 ---
 
-## 🏷️ Los 6 Arquetipos de Demanda (Modelo v2.1 Optimizado)
+## 🏷️ Los 6 Arquetipos de Demanda (Modelo v2.2 Optimizado)
 
 | Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -123,7 +134,7 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
 | 🪑 **Platea General / Intermedia** | Etapa 2 | 3,432 | **10.2%** | 0.80 | 37.2% | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
 | 🏟️ **Grada General / Masiva** | Etapa 2 | 819 | **2.4%** | 0.79 | 81.4% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
 | 🎟️ **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,540 | **19.4%** | 0.35 | 11.3% | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
-| **TOTAL CATÁLOGO** | **v2.1** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
+| **TOTAL CATÁLOGO** | **v2.2** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
@@ -144,6 +155,25 @@ jupyter notebook notebooks/02_clustering_espacio_mixto.ipynb
    ```bash
    python scripts/build_presentation_from_template.py
    ```
+
+### Opción C: Ejecución de la Suite de Pruebas Automatizadas
+```bash
+python -m unittest discover tests/ -v
+# o bien, con pytest instalado:
+pytest tests/ -v
+```
+
+### Opción D: Inferencia en Producción con Modelo Persistido
+```python
+import pandas as pd
+from src.clustering import cargar_modelo_clustering, predecir_arquetipos_demanda
+
+# Cargar modelo serializado
+modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
+
+# Predecir arquetipos con separación bietápica garantizada (monozona vs multi-zona)
+df_segmentado = predecir_arquetipos_demanda(df_nuevas_localidades, modelo)
+```
 
 ---
 

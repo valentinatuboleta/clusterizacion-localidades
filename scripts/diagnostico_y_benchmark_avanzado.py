@@ -128,11 +128,13 @@ def run():
     print("\n==================================================================")
     print("EXPERIMENTO 4: K-PROTOTYPES (Tratamiento nativo mixto)")
     print("==================================================================")
-    # Columnas numéricas continuas: primeras 3 (ratio_precio_max, percentil_precio, peso_aforo)
-    # Columnas categóricas: los 7 tags binarios
-    # Tomamos submuestra para k-prototypes (por velocidad)
-    cols_cat_idx = list(range(3, 10)) # índices de los 7 tags
-    X_num_cat = X_std[:, :10] # 3 numéricas + 7 tags
+    # Derivación dinámica de columnas numéricas y tags categóricos a partir de feats_std
+    # (Evita fragilidad posicional si cambia el orden o número de features)
+    cols_num_idx = [i for i, f in enumerate(feats_std) if not f.startswith("tag_") and not f.startswith("tfidf_")]
+    cols_cat_idx_global = [i for i, f in enumerate(feats_std) if f.startswith("tag_")]
+    cols_num_cat = cols_num_idx + cols_cat_idx_global
+    X_num_cat = X_std[:, cols_num_cat]
+    cols_cat_idx = [i for i, idx in enumerate(cols_num_cat) if feats_std[idx].startswith("tag_")]
     
     kproto_res = []
     for gamma in [0.5, 1.0, 2.0]:

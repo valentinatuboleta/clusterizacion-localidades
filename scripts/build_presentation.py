@@ -188,7 +188,7 @@ charts_info = [
     {
         "num": "Grafico 3",
         "title": "Comparacion Bivariada de Precio Relativo y Aforo por Atributo NLP",
-        "fig": "reports/figures/fig3_boxplots_bivariados.png",
+        "fig": "reports/figures/fig3b_boxplots_bivariados.png",
         "analysis": "PALCO y VIP registran las medianas de peso_aforo mas reducidas del catalogo (4.0% y 4.4% del venue), manteniendo ratios de precio promedio de 0.685 y 0.676 con maximos en 1.0. PREFERENCIAL y PLATEA registran ratios de precio medianos de 0.923 y 0.875 con aforos medios (15.7% a 17.4%). BALCON presenta el precio mas accesible de teatro (ratio medio 0.503).",
         "conclusions": [
             "Confirmacion de Jerarquia Fisica: La semantica NLP se alinea con la capacidad fisica: los palcos ocupan fracciones minimas de aforo y las generales absorben el volumen.",

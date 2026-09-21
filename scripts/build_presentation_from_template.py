@@ -256,7 +256,7 @@ def build_presentation_from_template(
         {
             "tema": "DISTRIBUCIONES EN EVENTOS MULTI-ZONA",
             "desc": "Grafico 2B: Descompresion de Variables Relativas sin Admision Unica (N = 18,400)",
-            "fig": "reports/figures/fig2c_distribuciones_multizona.png",
+            "fig": "reports/figures/fig2d_distribuciones_multizona.png",
             "analysis": "Al aislar las 18,400 localidades en 3,252 eventos multi-zona (peso_aforo < 0.99), se elimina el sesgo del 45.5% de tarifas planas. La mediana de ratio_precio_max se reduce de 1.00 a 0.671 y la mediana de peso_aforo baja de 1.00 a 0.111 (11.1% del recinto).",
             "conclusions": [
                 "Descompresion Real de Precios: Emerge una distribucion continua donde gradas populares estan en 0.20-0.50, preferenciales en 0.60-0.85 y VIPs en 1.00.",
@@ -280,7 +280,7 @@ def build_presentation_from_template(
         {
             "tema": "VALIDACION SEMANTICA Y FISICA",
             "desc": "Grafico 3: Comparacion Bivariada de Precio Relativo y Aforo por Atributo NLP",
-            "fig": "reports/figures/fig3_boxplots_bivariados.png",
+            "fig": "reports/figures/fig3b_boxplots_bivariados.png",
             "analysis": "PALCO y VIP registran las medianas de peso_aforo mas reducidas del catalogo (9.8% y 15.9% del venue), manteniendo ratios de precio con maximos en 1.0 y precio mediano de $108k y $190k. PREFERENCIAL y PLATEA registran ratios de precio de 0.80 con aforos medios (19% a 23%). GENERAL concentra el 95.3% de aforo y $15k de precio.",
             "conclusions": [
                 "Confirmacion de Jerarquia Fisica: La semantica NLP se alinea con la capacidad fisica: los palcos ocupan fracciones minimas de aforo y las generales absorben el volumen.",

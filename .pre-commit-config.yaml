@@ -1,0 +1,8 @@
+# Configuración de pre-commit para repositorio de ciencia de datos
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        description: "Limpia outputs de cuadernos Jupyter para evitar commits masivos en Git"
+        files: ".ipynb$"
