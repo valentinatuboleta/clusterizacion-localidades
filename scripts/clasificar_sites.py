@@ -395,12 +395,15 @@ def consolidar_revision_humana(ruta_lookup: str = "data/lookup/site_type_lookup.
         "aforo_max": df_rev["aforo_max"].fillna(0).astype(int),
         "funciones": df_rev["funciones"].fillna(0).astype(int),
         "fecha_clasificacion": fecha_hoy,
-        "fuente": "revision_humana"
+        "fuente": "revision_humana",
+        "modelo_llm": None
     })
 
     # Cargar o crear site_type_lookup.csv
     if os.path.exists(ruta_lookup):
         df_existente = pd.read_csv(ruta_lookup)
+        if "modelo_llm" not in df_existente.columns:
+            df_existente["modelo_llm"] = None
         # Concatenar y dar prioridad a la revision humana sobre clasificaciones previas
         df_consolidado = pd.concat([df_existente, df_nuevos_humanos], ignore_index=True)
         df_consolidado = df_consolidado.drop_duplicates(subset=["site"], keep="last")
@@ -428,7 +431,14 @@ def main():
         consolidar_revision_humana()
         return
 
-    print("=== PASO 3 & 4: CLASIFICACIÓN LÉXICA DETERMINÍSTICA DE VENUES ===")
+    usar_llm = "--llm" in sys.argv or "--use-llm" in sys.argv
+    clasificador_llm = None
+    if usar_llm:
+        from src.llm_classifier import GeminiVenueClassifier
+        clasificador_llm = GeminiVenueClassifier()
+        print(f"=== MÓDULO LLM ACTIVADO (Modelo: {clasificador_llm.model_name}, temp={clasificador_llm.temperature}) ===")
+    else:
+        print("=== PASO 3 & 4: CLASIFICACIÓN LÉXICA DETERMINÍSTICA DE VENUES ===")
     
     ruta_unicos = "data/lookup/recintos_unicos.csv"
     if not os.path.exists(ruta_unicos):
@@ -465,7 +475,58 @@ def main():
         if recinto in ya_clasificados:
             continue
 
-        # Inferencia Doble Pasada
+        rec_norm = normalizar_recinto(recinto)
+        dicc_match = _buscar_en_diccionario_emblematico(rec_norm)
+
+        # Precedencia 1: DICCIONARIO_EMBLEMATICO con verificación LLM
+        if dicc_match:
+            tipo_dicc, conf_dicc = dicc_match
+            if clasificador_llm:
+                llm_res = clasificador_llm.clasificar_venue(recinto, aforo)
+                if llm_res and llm_res.get("type_site"):
+                    tipo_llm = llm_res["type_site"]
+                    if tipo_llm != tipo_dicc:
+                        lista_revision.append({
+                            "site": recinto,
+                            "propuesta_a": tipo_dicc,
+                            "propuesta_b": tipo_llm,
+                            "confianza_media": round((conf_dicc + llm_res.get("confianza", 0.85)) / 2.0, 3),
+                            "aforo_max": aforo,
+                            "funciones": funcs,
+                            "motivo_revision": f"Discrepancia Diccionario ({tipo_dicc}) vs LLM ({tipo_llm})",
+                            "type_site_sugerido": tipo_dicc
+                        })
+                        continue
+
+            lista_consenso.append({
+                "site": recinto,
+                "type_site": tipo_dicc,
+                "confianza": conf_dicc,
+                "aforo_max": aforo,
+                "funciones": funcs,
+                "fecha_clasificacion": fecha_hoy,
+                "fuente": "revision_humana",
+                "modelo_llm": clasificador_llm.model_name if clasificador_llm else None
+            })
+            continue
+
+        # Precedencia 2: Agente LLM para recintos fuera de curaduría
+        if clasificador_llm:
+            llm_res = clasificador_llm.clasificar_venue(recinto, aforo)
+            if llm_res and llm_res.get("type_site") and llm_res.get("confianza", 0) >= 0.80:
+                lista_consenso.append({
+                    "site": recinto,
+                    "type_site": llm_res["type_site"],
+                    "confianza": llm_res["confianza"],
+                    "aforo_max": aforo,
+                    "funciones": funcs,
+                    "fecha_clasificacion": fecha_hoy,
+                    "fuente": "llm",
+                    "modelo_llm": clasificador_llm.model_name
+                })
+                continue
+
+        # Precedencia 3: Fallback a doble pasada léxica determinística
         tipo_a, conf_a = pasaje_a_clasificar(recinto, aforo)
         tipo_b, conf_b = pasaje_b_clasificar(recinto, aforo)
 
@@ -481,7 +542,8 @@ def main():
                 "aforo_max": aforo,
                 "funciones": funcs,
                 "fecha_clasificacion": fecha_hoy,
-                "fuente": "reglas_heuristicas"
+                "fuente": "reglas_heuristicas",
+                "modelo_llm": None
             })
         else:
             motivo = "Desacuerdo entre pasadas" if not coinciden else "Baja confianza (< 0.85)"
@@ -500,12 +562,14 @@ def main():
     df_nuevos_consenso = pd.DataFrame(lista_consenso)
     if os.path.exists(ruta_lookup) and not force_reprocess:
         df_existente = pd.read_csv(ruta_lookup)
+        if "modelo_llm" not in df_existente.columns:
+            df_existente["modelo_llm"] = None
         df_final_lookup = pd.concat([df_existente, df_nuevos_consenso], ignore_index=True).drop_duplicates(subset=["site"])
     else:
         df_final_lookup = df_nuevos_consenso
 
     df_final_lookup.to_csv(ruta_lookup, index=False)
-    print(f"\n [OK] Guardados {len(df_final_lookup):,} recintos en '{ruta_lookup}' (Consenso Aprobado)")
+    print(f"\n [OK] Guardados {len(df_final_lookup):,} recintos en '{ruta_lookup}'")
 
     # Guardar site_type_revision_humana.csv
     df_revision = pd.DataFrame(lista_revision)

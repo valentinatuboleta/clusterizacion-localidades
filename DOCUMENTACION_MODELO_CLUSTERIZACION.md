@@ -80,15 +80,25 @@ A continuación se detalla la razón de existencia, lógica algorítmica y el es
 
 ---
 
-### MÓDULO 0: Clasificación Léxica Determinística y Estandarización de Venues (`scripts/clasificar_sites.py`)
+### MÓDULO 0: Clasificación de Venues y Estandarización de Tipología (`scripts/clasificar_sites.py` & `src/llm_classifier.py`)
 
-Para contextualizar el entorno físico de cada localidad, se implementó un sistema de clasificación estructurado para los 494 venues únicos registrados en TuBoleta.
+Para contextualizar el entorno físico de cada localidad, se implementó un sistema de clasificación estructurado para los 494 venues únicos registrados en TuBoleta, integrando curaduría experta, inferencia LLM y reglas léxicas determinísticas.
 
-* **Naturaleza del Clasificador:** Es un **clasificador léxico determinístico** basado en reglas toponímicas, estructurales y expresiones regulares con límites estrictos de palabra (`\b`), complementado con **curaduría experta humana**. **No es un modelo de IA ni LLM**.
-* **Esquema de Trazabilidad Transparente:**
-  * `fuente = "reglas_heuristicas"` (355 venues): Asignados automáticamente mediante consenso de doble pasada léxica con umbral de confianza $\ge 0.85$.
-  * `fuente = "revision_humana"` (139 venues): Casos de baja confianza o discrepancia revisados y validados manualmente uno a uno con certeza 1.0.
-* **Mecanismos de Protección ante Casos Borde:**
+* **Arquitectura Bietápica con Agente LLM (Gemini 3.8 Flash Medium):**
+  * **Modelo:** Gemini 3.8 Flash Medium (`temperature=0.0`, salida JSON estructurada con campos `type_site`, `confianza`, `justificacion_semantica`).
+  * **Inyección de Dependencias:** El cliente LLM está desacoplado mediante protocolo e inyección en `GeminiVenueClassifier`, permitiendo ejecución hermética mediante mocks en la suite de integración continua (CI) sin llamadas a red ni consumo de tokens.
+* **Jerarquía Estricta de Precedencia:**
+  $$\text{revision\_humana (1.0)} > \text{llm (0.80 - 0.99)} > \text{reglas\_heuristicas (fallback)}$$
+* **Verificación Cruzada del Diccionario Emblemático:**
+  * El LLM procesa también el `DICCIONARIO_EMBLEMATICO` como pasada de verificación de consistencia.
+  * Si el LLM discrepa de la asignación del diccionario, el caso se envía a `site_type_revision_humana.csv` para que la **curaduría humana decida**. El LLM **nunca sobrescribe** una asignación humana o curada por sí solo.
+* **Esquema de Trazabilidad y Columnas en Lookup (`site_type_lookup.csv`):**
+  * `fuente = "revision_humana"`: Asignaciones de curaduría experta validadas manualmente.
+  * `fuente = "llm"`: Asignaciones generadas por el agente LLM, acompañadas de la columna `modelo_llm = "gemini-3.8-flash-medium"`.
+  * `fuente = "reglas_heuristicas"`: Fallback determinístico con límites de palabra (`\b`) cuando no hay conexión LLM disponible.
+* **Persistencia de Auditoría:**
+  * Cada inferencia del LLM se persiste en `data/lookup/audit_llm_venues.jsonl` registrando timestamp, prompt exacto, respuesta cruda en JSON, confianza y justificación semántica.
+* **Mecanismos de Protección ante Casos Borde en Reglas:**
   1. **Límites de Palabra Estrictos (`\b`):** Evita falsos positivos por subcadenas (ej. `"BAR"` nunca se activa dentro del topónimo `"BARRANQUILLA"`).
   2. **Prevención de Falsas Raíces:** Términos como `"PARQUEADERO"` o `"PARKING"` se desvían a `"otro"` y nunca activan `"parque_aire_libre"`.
   3. **No Inclusión Inversa:** Un venue genérico como `"SALA 2"` no activa `"SALA 2 CINEMATECA"`; requiere la palabra explícita de cine o teatro, de lo contrario pasa a revisión humana.

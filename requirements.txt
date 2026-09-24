@@ -20,6 +20,10 @@ python-pptx>=0.6.21
 # --- Pruebas y Calidad de Código ---
 pytest>=7.4.0
 
+# --- Inteligencia Artificial y Agentes LLM (Gemini) ---
+google-genai>=0.1.0
+
 # --- Entorno, Variables de Entorno y Notebooks ---
 python-dotenv>=1.0.0
 jupyter>=1.0.0
+
