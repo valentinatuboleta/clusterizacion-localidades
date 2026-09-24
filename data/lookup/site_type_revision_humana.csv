@@ -1,0 +1,140 @@
+site,propuesta_a,propuesta_b,confianza_media,aforo_max,funciones,motivo_revision,type_site_sugerido
+BARRIO LAS FLORES TAJAMAR,bar_club,otro,0.73,3200,108,Desacuerdo entre pasadas,otro
+CENTRO COMERCIAL SERREZUELA,otro,otro,0.575,556,14,Baja confianza (< 0.85),otro
+SALON AUDIOVISUAL,otro,otro,0.685,100,60,Baja confianza (< 0.85),cine_sala_cultural
+LA GALLERA,otro,otro,0.575,300,44,Baja confianza (< 0.85),otro
+AVENIDA BOYACA CLL 78- 80,otro,parque_aire_libre,0.745,1002,10,Desacuerdo entre pasadas,parque_aire_libre
+CAPILLA SANTA CLARA,otro,otro,0.725,300,14,Baja confianza (< 0.85),otro
+CENTRO COMERCIAL LOS MOLINOS,otro,otro,0.575,700,15,Baja confianza (< 0.85),otro
+LA CASA DEL OSO,bar_club,otro,0.685,200,18,Desacuerdo entre pasadas,bar_club
+CARRUSEL DEL RIO,centro_eventos_carpa,otro,0.625,4140,9,Desacuerdo entre pasadas,parque_aire_libre
+LOTE FRENDE AL HOMCENTER,otro,otro,0.575,300,4,Baja confianza (< 0.85),parque_aire_libre
+CAPILLA SANTA TERESA,otro,otro,0.785,216,4,Baja confianza (< 0.85),otro
+CIUDADELA CUARTA REVOLUCION Y TRANSFORMACION DEL APRENDIZAJE,otro,otro,0.575,400,16,Baja confianza (< 0.85),otro
+LE TIENDE - CARRERA 24 # 37-44 BOGOTA,otro,parque_aire_libre,0.805,70,14,Desacuerdo entre pasadas,bar_club
+CITY HALL EL RODEO - MEDELLIN,otro,centro_eventos_carpa,0.76,3900,3,Desacuerdo entre pasadas,centro_eventos_carpa
+CITY HALL - PAUL VAN DYK MEDELLIN,otro,centro_eventos_carpa,0.76,3910,2,Desacuerdo entre pasadas,centro_eventos_carpa
+TUTAINA EJE CAFETERO - PEREIRA,bar_club,otro,0.685,150,12,Desacuerdo entre pasadas,bar_club
+CINCUENTENARIO,centro_eventos_carpa,centro_eventos_carpa,0.69,10450,3,Baja confianza (< 0.85),parque_aire_libre
+SALA MARIA ISABEL MURILLO,otro,teatro,0.77,70,12,Desacuerdo entre pasadas,teatro
+LAS TERRAZAS RIO LUNA,otro,otro,0.575,1089,2,Baja confianza (< 0.85),otro
+SALA BEETHOVEN - CALI,otro,teatro,0.7,653,11,Desacuerdo entre pasadas,teatro
+SALA ANTONIO MARIA VALENCIA  - CALI,otro,teatro,0.7,653,11,Desacuerdo entre pasadas,teatro
+PLAZA PRINCIPAL,otro,parque_aire_libre,0.745,650,2,Desacuerdo entre pasadas,parque_aire_libre
+FACULTAD DE ARTES – UNIVERSIDAD JAVERIANA,otro,auditorio,0.775,12,10,Desacuerdo entre pasadas,auditorio
+RUMBODROMO DE LA 22,centro_eventos_carpa,centro_eventos_carpa,0.69,8421,1,Baja confianza (< 0.85),centro_eventos_carpa
+VILLA OLIMPICA - AGUSTIN CODAZZI,otro,otro,0.575,1800,1,Baja confianza (< 0.85),otro
+PATIO CENTRAL DEL CENTRO CULTURAL DEL ORIENTE,otro,otro,0.575,980,1,Baja confianza (< 0.85),otro
+ASDESILLA RIONEGRO,otro,otro,0.575,3588,3,Baja confianza (< 0.85),parque_aire_libre
+HOTEL DANN CARLTON MEDELLIN,otro,otro,0.79,350,8,Baja confianza (< 0.85),cine_sala_cultural
+CENTRO CULTURAL METROPOLITANO DE CONVENCIONES - ARMENIA,centro_eventos_carpa,otro,0.74,1512,3,Desacuerdo entre pasadas,centro_eventos_carpa
+ESTACION DE SERVICIO SAN DIEGO,otro,otro,0.685,180,7,Baja confianza (< 0.85),otro
+CITY HALL EL RODEO,estadio_abierto,centro_eventos_carpa,0.835,50000,2,Desacuerdo entre pasadas,centro_eventos_carpa
+HOTEL TEQUENDAMA - SUITES TEQUENDAMA,centro_eventos_carpa,centro_eventos_carpa,0.79,1000,6,Baja confianza (< 0.85),cine_sala_cultural
+ITO RESTOBAR,bar_club,otro,0.73,1151,1,Desacuerdo entre pasadas,bar_club
+CENTRO DE DANZA - LA LICORERA,otro,otro,0.575,450,6,Baja confianza (< 0.85),auditorio
+IGLESIA DE SAN IGNACIO - BOGOTA,otro,otro,0.725,740,2,Baja confianza (< 0.85),otro
+FINCA LA BENDICION - SANTA ELENA,otro,otro,0.575,360,3,Baja confianza (< 0.85),otro
+FONDA TUTAINA -  POBLADO CALLE 10 # 43E – 72,bar_club,parque_aire_libre,0.9,100,6,Desacuerdo entre pasadas,bar_club
+ROYAL HOUSE,otro,otro,0.575,1200,5,Baja confianza (< 0.85),otro
+CENTRO DE CONVENCIONES ''JULIO VILLAZON BAQUERO'',centro_eventos_carpa,otro,0.74,1209,1,Desacuerdo entre pasadas,centro_eventos_carpa
+BEETHOVEN-BELLAS ARTES - CALI,otro,otro,0.575,653,1,Baja confianza (< 0.85),auditorio
+CENTRO COMERCIAL PASEO VILLA DEL RIO,otro,otro,0.575,2495,1,Baja confianza (< 0.85),otro
+CITY HALL EL RODEO - DRUMCODE,otro,centro_eventos_carpa,0.76,3654,1,Desacuerdo entre pasadas,centro_eventos_carpa
+CATEDRAL DE BARRANQUILLA,bar_club,otro,0.88,1589,3,Desacuerdo entre pasadas,otro
+ALUNA BEACH - SANTA MARTA,centro_eventos_carpa,parque_aire_libre,0.795,5150,1,Desacuerdo entre pasadas,parque_aire_libre
+DOUBLE TREE BY HILTON SALITRE,otro,otro,0.575,300,5,Baja confianza (< 0.85),otro
+HOTEL HILTON CARTAGENA,centro_eventos_carpa,centro_eventos_carpa,0.79,1350,1,Baja confianza (< 0.85),centro_eventos_carpa
+RIVANA BUSINESS PARK,otro,otro,0.685,100,3,Baja confianza (< 0.85),centro_eventos_carpa
+LA CENTRAL - CALI,otro,otro,0.685,81,4,Baja confianza (< 0.85),otro
+CASA BALI - ZONA E,otro,otro,0.575,1100,1,Baja confianza (< 0.85),centro_eventos_carpa
+MONUMENTO A LA MADRE TIERRA,otro,otro,0.575,2500,3,Baja confianza (< 0.85),parque_aire_libre
+SALA: TALLER DE LA IMAGEN,otro,teatro,0.77,15,3,Desacuerdo entre pasadas,cine_sala_cultural
+AVCIRCUNVALAR,otro,otro,0.575,1000,3,Baja confianza (< 0.85),otro
+HOTEL GRAND GHL - CRA 39C #19C 15 VILLAVICENCIO,centro_eventos_carpa,centro_eventos_carpa,0.79,1000,2,Baja confianza (< 0.85),centro_eventos_carpa
+EL CUBO COLSUBSIDIO,otro,otro,0.575,624,1,Baja confianza (< 0.85),centro_eventos_carpa
+EL CAMPINCITO,estadio_abierto,centro_eventos_carpa,0.815,14000,1,Desacuerdo entre pasadas,parque_aire_libre
+COLECTIVO TEATRAL INFINITO - CALI,otro,otro,0.685,65,3,Baja confianza (< 0.85),otro
+"COPA AMERICA - LEVI’S STADIUM, SANTA CLARA, CALIFORNIA",otro,estadio_abierto,0.835,100,1,Desacuerdo entre pasadas,estadio_abierto
+HACIENDA SAN RAFAEL,otro,otro,0.575,1000,3,Baja confianza (< 0.85),otro
+"HACIENDA FIZEBAD, EL RETIRO",otro,otro,0.575,1500,3,Baja confianza (< 0.85),otro
+CENTRO DE CONVENCIONES - CL 26 NTE #11-21,centro_eventos_carpa,otro,0.74,1200,1,Desacuerdo entre pasadas,centro_eventos_carpa
+CENTRO DE FELICIDAD SEDE CHAPINERO,otro,otro,0.685,12,3,Baja confianza (< 0.85),centro_eventos_carpa
+HANGAR PARK,centro_eventos_carpa,centro_eventos_carpa,0.69,7056,1,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL BARRANQUILLA PLAZA,bar_club,parque_aire_libre,0.9,300,2,Desacuerdo entre pasadas,centro_eventos_carpa
+PARQUE MANUEL MURILLO TORO,estadio_abierto,parque_aire_libre,0.92,1200,1,Desacuerdo entre pasadas,parque_aire_libre
+CENTRO COMERCIAL PLAZA CLARO,otro,parque_aire_libre,0.805,118,2,Desacuerdo entre pasadas,otro
+CENTRO CULTURAL HECTOR POLANIA SANCHEZ - PITALITO HUILA,otro,otro,0.685,160,2,Baja confianza (< 0.85),otro
+UNIVERSIDAD DISTRITAL - FACULTAD DE ARTES ASAB,otro,auditorio,0.775,20,2,Desacuerdo entre pasadas,auditorio
+COLEGIO BURECHE - KM 2 VIA GAIRA,otro,auditorio,0.715,700,2,Desacuerdo entre pasadas,auditorio
+EL GRAN CAFE - PEREIRA,bar_club,otro,0.685,100,2,Desacuerdo entre pasadas,bar_club
+EL TEMPLO DEL ROCK - CRA 44 #74-05 B/QUILLA,otro,otro,0.685,100,2,Baja confianza (< 0.85),bar_club
+HYATT PLACE,otro,otro,0.685,96,2,Baja confianza (< 0.85),otro
+NEOMUNDO CENTRO EVENTOS Y CONVENCIONES,centro_eventos_carpa,otro,0.74,2000,2,Desacuerdo entre pasadas,centro_eventos_carpa
+PLATAFORMA ZOOM,otro,otro,0.685,50,2,Baja confianza (< 0.85),otro
+MEZCAL MEXICAN CANTINA - BOGOTA,otro,otro,0.575,500,1,Baja confianza (< 0.85),bar_club
+MBS THEATER,otro,otro,0.575,880,1,Baja confianza (< 0.85),teatro
+"CASA DE LA CULTURA ""LUCELLY GARCIA DE MONTOYA"" - CALARCA",otro,otro,0.575,320,2,Baja confianza (< 0.85),cine_sala_cultural
+AVENIDA SANTANDER #59-10 - MANIZALES,otro,parque_aire_libre,0.805,100,2,Desacuerdo entre pasadas,otro
+BORO ROOM,otro,otro,0.575,700,2,Baja confianza (< 0.85),bar_club
+BARRIO FINO - CALLE 26 # 43G-30  MEDELLIN,bar_club,parque_aire_libre,0.9,150,2,Desacuerdo entre pasadas,otro
+PLAZOLETA CENTRO COMERCIAL GRAN ESTACION,otro,otro,0.635,220,2,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL OBELISCO CALI,otro,otro,0.79,10,2,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL LA FONTANA,otro,otro,0.79,115,2,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL DANN CARLTON,centro_eventos_carpa,centro_eventos_carpa,0.79,1400,2,Baja confianza (< 0.85),centro_eventos_carpa
+PLAZA CULTURAL SANTAMARIA,centro_eventos_carpa,parque_aire_libre,0.795,8000,2,Desacuerdo entre pasadas,parque_aire_libre
+GUITARRA & COFFEE - BARRIO LAURELES,bar_club,otro,0.78,90,2,Desacuerdo entre pasadas,bar_club
+CENTRO COMERCIAL MAYORCA,centro_eventos_carpa,centro_eventos_carpa,0.69,12000,1,Baja confianza (< 0.85),centro_eventos_carpa
+CASA PARAMO - PASTO,bar_club,otro,0.685,70,2,Desacuerdo entre pasadas,bar_club
+AVENIDA BOLIVAR #13N-07 - ARMENIA,otro,parque_aire_libre,0.805,80,2,Desacuerdo entre pasadas,parque_aire_libre
+"CARRERA 6 Nº 4-41 SEGUNDO PISO, VILLETA",otro,parque_aire_libre,0.805,150,1,Desacuerdo entre pasadas,parque_aire_libre
+CAMARA DE COMERCIO - CRA 12 NO 6-29B EL ROSARIO GARZON,otro,otro,0.685,200,1,Baja confianza (< 0.85),otro
+CALLE 42 # 1 - 02 TERRAZA COMEDY HOUSE - TUNJA,otro,parque_aire_libre,0.805,65,1,Desacuerdo entre pasadas,bar_club
+CAPILLA DE LOS SANTO APOSTOLES DEL GIMNASIO MODERNO,otro,otro,0.785,280,1,Baja confianza (< 0.85),otro
+INCOLBALLET SEDE CENTRAL,otro,otro,0.575,500,1,Baja confianza (< 0.85),otro
+MUDDY´S ROCK CAFE - CALLE 33B # 40 - 68,bar_club,parque_aire_libre,0.805,40,1,Desacuerdo entre pasadas,bar_club
+MUNICIPAL MUSICA VIVA - BUCARAMANGA,otro,otro,0.685,150,1,Baja confianza (< 0.85),otro
+PANACA QUINDIO,centro_eventos_carpa,centro_eventos_carpa,0.69,10000,1,Baja confianza (< 0.85),centro_eventos_carpa
+MR BEEF - FUSAGASUGA,otro,otro,0.685,160,1,Baja confianza (< 0.85),otro
+CAJACOPI PRADO,otro,otro,0.575,700,1,Baja confianza (< 0.85),otro
+JUANKA PUNTA DE ANCA - SOGAMOSO,otro,otro,0.685,190,1,Baja confianza (< 0.85),otro
+CENTRO SOCIAL DE AGENTES Y PATRULLEROS,otro,otro,0.575,500,1,Baja confianza (< 0.85),otro
+KIMERA FOOD AND DRINKS,otro,otro,0.575,500,1,Baja confianza (< 0.85),bar_club
+CENTRO COMERCIAL BAZAAR 80,otro,otro,0.685,130,1,Baja confianza (< 0.85),otro
+LA MILAGROSA - CALLE 8 #78-35 BARRIO CASTILLA,bar_club,parque_aire_libre,0.9,100,1,Desacuerdo entre pasadas,bar_club
+LA SALITA,otro,otro,0.685,45,1,Baja confianza (< 0.85),otro
+LICEO FRANCES - CARRERA 8 NO 86 - 50,otro,parque_aire_libre,0.805,200,1,Desacuerdo entre pasadas,auditorio
+THE CHURCH MEDELLIN,otro,otro,0.575,1000,1,Baja confianza (< 0.85),bar_club
+TIENDA DE TOO GEEK,otro,otro,0.575,500,1,Baja confianza (< 0.85),otro
+"TONIKA VIP - CHAPARRAL, TOLIMA",otro,otro,0.575,300,1,Baja confianza (< 0.85),otro
+CASA EL ROSAL,otro,otro,0.575,600,1,Baja confianza (< 0.85),otro
+"LOS CAPACHOS - KM 4 VIA ACACIAS, 472 (VILLAVICENCIO)",otro,otro,0.575,450,1,Baja confianza (< 0.85),bar_club
+CASA DANN CARLTON HOTEL - SALON BRITANIA CALLE 93B 19-44,centro_eventos_carpa,parque_aire_libre,0.845,690,1,Desacuerdo entre pasadas,centro_eventos_carpa
+CENTRO COMERCIAL EL TESORO,otro,otro,0.575,400,1,Baja confianza (< 0.85),otro
+EL GATO QUE LEE Y TOMA CAFE -  CALLE 70 11 48,bar_club,parque_aire_libre,0.805,30,1,Desacuerdo entre pasadas,bar_club
+AUTOPISTA NORTE #232-0 - EL PARCHE DE NAIRO,otro,parque_aire_libre,0.745,650,1,Desacuerdo entre pasadas,otro
+SEDE GABRIEL OCHOA URIBE (CASCAJAL),otro,otro,0.575,397,1,Baja confianza (< 0.85),otro
+SAN BONIFACIO,otro,otro,0.575,400,1,Baja confianza (< 0.85),otro
+BARRANQUILLA  CALLE 106 NO 50-11,bar_club,parque_aire_libre,0.9,200,1,Desacuerdo entre pasadas,otro
+CABARET ROSA,bar_club,otro,0.78,70,1,Desacuerdo entre pasadas,bar_club
+BORA BORA - CALLE 8 #19-32 - LA MESA,otro,parque_aire_libre,0.805,100,1,Desacuerdo entre pasadas,otro
+HOTEL HACARITAMA COLONIAL - VILLAVICENCIO,otro,otro,0.79,300,1,Baja confianza (< 0.85),centro_eventos_carpa
+"HOTEL EL PRADO (CARRERA 54 #70-10, NORTE CENTRO HISTORICO)",otro,parque_aire_libre,0.845,209,1,Desacuerdo entre pasadas,centro_eventos_carpa
+HOTEL HOLIDAY INN CL 11A #1E – 132 | CUCUTA,otro,otro,0.79,310,1,Baja confianza (< 0.85),centro_eventos_carpa
+"HOTEL JW MARRIOTT BOGOTA - CL 73 #8-60, CHAPINERO",otro,otro,0.79,300,1,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL ESTELAR CARTAGENA,centro_eventos_carpa,centro_eventos_carpa,0.79,828,1,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL SAN FERNANDO PLAZA,otro,parque_aire_libre,0.845,150,1,Desacuerdo entre pasadas,centro_eventos_carpa
+HOTEL SONESTA BOGOTA,otro,otro,0.79,160,1,Baja confianza (< 0.85),centro_eventos_carpa
+HOTEL SHERATON BOGOTA - CL 25B #Nº 69 C-80,centro_eventos_carpa,centro_eventos_carpa,0.79,700,1,Baja confianza (< 0.85),centro_eventos_carpa
+EL REY - CALLE 24C #75-69 - BOGOTA,otro,parque_aire_libre,0.805,150,1,Desacuerdo entre pasadas,bar_club
+ESPACIO VASTO - PEREIRA,otro,otro,0.685,112,1,Baja confianza (< 0.85),otro
+DISCOTECA DULCINEA CALLE 44 NO 69-96 LAURELES,bar_club,parque_aire_libre,0.9,600,1,Desacuerdo entre pasadas,bar_club
+DAVIARENA,otro,otro,0.685,20,1,Baja confianza (< 0.85),arena_cubierta
+FLOW MULTIESPACIO - DUITAMA,otro,otro,0.575,350,1,Baja confianza (< 0.85),otro
+"FOLK HOUSE - CALLE 25 #19-25, PISO 2 PAIPA",otro,parque_aire_libre,0.805,40,1,Desacuerdo entre pasadas,parque_aire_libre
+HACIENDA MARQUEZ,otro,otro,0.575,1656,1,Baja confianza (< 0.85),otro
+HACIENDA MAANITAS,otro,otro,0.575,2000,1,Baja confianza (< 0.85),otro
+FOUR SEASONS HOTEL AND RESIDENCES - SALON DE LA VERACRUZ,otro,otro,0.79,280,1,Baja confianza (< 0.85),centro_eventos_carpa
+CENTRO HISTORICO DE CALI - CALLE 6 #4-32,otro,parque_aire_libre,0.805,40,1,Desacuerdo entre pasadas,parque_aire_libre
+VORTICE -  CALI,otro,otro,0.685,30,1,Baja confianza (< 0.85),otro
+ZONA E MARRAKESH,otro,otro,0.575,950,1,Baja confianza (< 0.85),otro

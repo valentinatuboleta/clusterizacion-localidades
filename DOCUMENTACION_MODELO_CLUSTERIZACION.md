@@ -80,6 +80,22 @@ A continuación se detalla la razón de existencia, lógica algorítmica y el es
 
 ---
 
+### MÓDULO 0: Clasificación Léxica Determinística y Estandarización de Venues (`scripts/clasificar_sites.py`)
+
+Para contextualizar el entorno físico de cada localidad, se implementó un sistema de clasificación estructurado para los 494 venues únicos registrados en TuBoleta.
+
+* **Naturaleza del Clasificador:** Es un **clasificador léxico determinístico** basado en reglas toponímicas, estructurales y expresiones regulares con límites estrictos de palabra (`\b`), complementado con **curaduría experta humana**. **No es un modelo de IA ni LLM**.
+* **Esquema de Trazabilidad Transparente:**
+  * `fuente = "reglas_heuristicas"` (355 venues): Asignados automáticamente mediante consenso de doble pasada léxica con umbral de confianza $\ge 0.85$.
+  * `fuente = "revision_humana"` (139 venues): Casos de baja confianza o discrepancia revisados y validados manualmente uno a uno con certeza 1.0.
+* **Mecanismos de Protección ante Casos Borde:**
+  1. **Límites de Palabra Estrictos (`\b`):** Evita falsos positivos por subcadenas (ej. `"BAR"` nunca se activa dentro del topónimo `"BARRANQUILLA"`).
+  2. **Prevención de Falsas Raíces:** Términos como `"PARQUEADERO"` o `"PARKING"` se desvían a `"otro"` y nunca activan `"parque_aire_libre"`.
+  3. **No Inclusión Inversa:** Un venue genérico como `"SALA 2"` no activa `"SALA 2 CINEMATECA"`; requiere la palabra explícita de cine o teatro, de lo contrario pasa a revisión humana.
+  4. **Servicios Automotrices:** Locaciones comerciales como `"BIBLOS CAR WASH"` se catalogan como `"otro"`.
+
+---
+
 ### MÓDULO 1: Procesamiento de Lenguaje Natural ([`src/nlp_utils.py`](src/nlp_utils.py))
 
 Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la localidad.

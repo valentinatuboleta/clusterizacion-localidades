@@ -1,12 +1,13 @@
 """
-Script de clasificación inteligente de recintos (Paso 3 y 4 del Plan).
-Aplica doble chequeo de consistencia (Self-Consistency) sobre la lista de recintos únicos.
-Separa consensos en site_type_lookup.csv y discrepancias/baja confianza en site_type_revision_humana.csv.
+Script de clasificación léxica determinística de venues (reglas estructuradas + curaduría experta).
+Aplica doble pasada ortogonal léxica sobre la lista de venues únicos.
+Separa consensos en site_type_lookup.csv (fuente='reglas_heuristicas') y discrepancias en site_type_revision_humana.csv.
 """
 
 import os
 import re
 import datetime
+import unicodedata
 import pandas as pd
 
 CATEGORIAS_VALIDAS = [
@@ -20,6 +21,18 @@ CATEGORIAS_VALIDAS = [
     "parque_aire_libre",
     "otro"
 ]
+
+
+def normalizar_recinto(texto: str) -> str:
+    """
+    Normalización estricta: mayúsculas, sin tildes (Unicode NFD) y espacios colapsados.
+    """
+    if not texto or not str(texto).strip():
+        return ""
+    t = str(texto).upper().strip()
+    t = "".join(c for c in unicodedata.normalize("NFD", t) if unicodedata.category(c) != "Mn")
+    t = re.sub(r"\s+", " ", t)
+    return t
 
 # Diccionario maestro de recintos emblemáticos de Colombia con asignación certificada
 DICCIONARIO_EMBLEMATICO = {
@@ -159,7 +172,7 @@ DICCIONARIO_EMBLEMATICO = {
     "MUNDO AVENTURA": "parque_aire_libre",
     "AEROPARQUE JUAN PABLO SEGUNDO": "parque_aire_libre",
     "CARRERA 50 BARRANQUILLA": "parque_aire_libre",
-    "BIBLOS CAR WASH": "parque_aire_libre",
+    "BIBLOS CAR WASH": "otro",
     "PLAZA DE BOLIVAR": "parque_aire_libre",
     "PLAZA DE LA PAZ": "parque_aire_libre",
     "LA MEDIA TORTA": "parque_aire_libre",
@@ -184,53 +197,87 @@ DICCIONARIO_EMBLEMATICO = {
     "CAFE INTERNET - BOGOTA": "otro",
 }
 
+# Diccionario pre-normalizado para busquedas exactas y delimitadas
+DICCIONARIO_NORMALIZADO = {normalizar_recinto(k): v for k, v in DICCIONARIO_EMBLEMATICO.items()}
+
+
+def _buscar_en_diccionario_emblematico(rec_norm: str) -> tuple[str, float] | None:
+    """
+    Busqueda segura en diccionario maestro:
+    1. Coincidencia exacta total.
+    2. Coincidencia por subfrase completa del venue con limites de palabra.
+    NUNCA evalua rec_norm in k_norm para evitar que tokens genericos (ej: 'SALA 2')
+    activen erradamente venues compuestos (ej: 'SALA 2 CINEMATECA').
+    """
+    if rec_norm in DICCIONARIO_NORMALIZADO:
+        return DICCIONARIO_NORMALIZADO[rec_norm], 0.98
+
+    for k_norm, v in DICCIONARIO_NORMALIZADO.items():
+        tokens_k = k_norm.split()
+        if len(tokens_k) >= 2 and len(k_norm) >= 8:
+            if re.search(r"\b" + re.escape(k_norm) + r"\b", rec_norm):
+                return v, 0.98
+    return None
+
 
 def pasaje_a_clasificar(recinto: str, aforo_max: int) -> tuple[str, float]:
     """
-    Pasada A: Clasificador Semántico Primario (Toponímico + Arquitectónico).
+    Pasada A: Clasificador Léxico Primario (Toponímico + Arquitectónico).
+    Usa límites de palabra (\b) para evitar colisiones (ej. BAR en BARRANQUILLA).
     """
-    rec_upper = recinto.upper()
+    rec_norm = normalizar_recinto(recinto)
 
-    # 1. Chequeo en diccionario de alta certeza
-    for k, v in DICCIONARIO_EMBLEMATICO.items():
-        if k in rec_upper or rec_upper in k:
-            return v, 0.98
+    # 1. Chequeo en diccionario maestro validado
+    match_dicc = _buscar_en_diccionario_emblematico(rec_norm)
+    if match_dicc:
+        return match_dicc
 
-    # 2. Reglas estructurales léxicas primarias
-    if any(tok in rec_upper for tok in ["ESTADIO", "CAMPIN", "ATANASIO", "PASCUAL GUERRERO", "PALMASECA", "PALOGRANDE", "MURILLO TORO", "GIRARDOT"]):
-        return "estadio_abierto", 0.95
+    # 2. Casos especiales prioritarios: Parqueaderos, Car Wash, Vias publicas
+    if re.search(r"\b(PARQUEADERO|PARKING|ESTACIONAMIENTO)\b", rec_norm):
+        return "otro", 0.90
 
-    if any(tok in rec_upper for tok in ["MOVISTAR ARENA", "COLISEO", "ARENA ", "PALACIO DE LOS DEPORTES"]):
-        return "arena_cubierta", 0.92
+    if re.search(r"\b(CAR\s*WASH|LAVADERO)\b", rec_norm):
+        return "otro", 0.90
 
-    if any(tok in rec_upper for tok in ["TEATRO", "TEATRINO", "SALA TEATRO"]):
-        return "teatro", 0.95
-
-    if any(tok in rec_upper for tok in ["AUDITORIO", "AULA MAXIMA"]):
-        return "auditorio", 0.92
-
-    if any(tok in rec_upper for tok in ["CINEMATECA", "PLANETARIO", "MALOKA", "MUSEO", "BIBLIOTECA", "SALA DE CINE", "CINE COLOMBO"]):
-        return "cine_sala_cultural", 0.94
-
-    if any(tok in rec_upper for tok in ["CARPA", "CORFERIAS", "CHAMORRO", "CENTRO DE EVENTOS", "PABELLON", "CONVENCIONES", "EXPOFUTURO", "CENFER", "PUERTA DE ORO"]):
-        return "centro_eventos_carpa", 0.93
-
-    if any(tok in rec_upper for tok in ["BAR", "CLUB", "RESTAURANTE", "DISCOTECA", "PUB", "GASTROBAR", "CANTA BAR", "FONDA", "STAND UP"]):
-        return "bar_club", 0.91
-
-    if any(tok in rec_upper for tok in ["PARQUE", "MALECON", "BOTANICO", "AUTODROMO", "PLAZA DE TOROS", "CANCHA", "DIAMANTE DE BEISBOL", "POLIDEPORTIVO"]):
+    if re.search(r"\b(VIA\s*40|CARRERA\s*50)\b", rec_norm):
         return "parque_aire_libre", 0.90
 
-    if any(tok in rec_upper for tok in ["VIA 40", "CARRERA 50"]):  # Palcos Carnaval Barranquilla al aire libre
-        return "parque_aire_libre", 0.88
+    # 3. Reglas estructurales léxicas primarias con límites de palabra
+    if re.search(r"\b(ESTADIO|CAMPIN|ATANASIO|PASCUAL\s*GUERRERO|PALMASECA|PALOGRANDE|MURILLO\s*TORO|GIRARDOT|STADIUM)\b", rec_norm):
+        return "estadio_abierto", 0.95
 
-    if any(tok in rec_upper for tok in ["HOTEL"]):
-        return "centro_eventos_carpa" if aforo_max > 400 else "otro", 0.80
+    if re.search(r"\b(MOVISTAR\s*ARENA|COLISEO|ARENA\s+CA[NÑ]AVERALEJO|ARENA\s+BOGOTA|PALACIO\s+DE\s+LOS\s+DEPORTES)\b", rec_norm):
+        return "arena_cubierta", 0.92
 
-    if any(tok in rec_upper for tok in ["TREN", "TRANSPORTE", "AEROPUERTO", "FINAL COPA", "LABORARTORIO"]):
+    if re.search(r"\b(TEATRO|TEATRINO|SALA\s+TEATRO|SALA\s+TEATRAL)\b", rec_norm):
+        return "teatro", 0.95
+
+    if re.search(r"\b(AUDITORIO|AULA\s+MAXIMA)\b", rec_norm):
+        return "auditorio", 0.92
+
+    if re.search(r"\b(CINEMATECA|PLANETARIO|MALOKA|MUSEO|BIBLIOTECA|SALA\s+DE\s+CINE|CINE\s+COLOMBO)\b", rec_norm):
+        return "cine_sala_cultural", 0.94
+
+    if re.search(r"\b(CARPA|CORFERIAS|CHAMORRO|CENTRO\s+DE\s+EVENTOS|PABELLON|CONVENCIONES|EXPOFUTURO|CENFER|PUERTA\s+DE\s+ORO|CITY\s+HALL)\b", rec_norm):
+        return "centro_eventos_carpa", 0.93
+
+    if re.search(r"\b(BAR|CLUB|RESTAURANTE|DISCOTECA|PUB|GASTROBAR|CANTA\s*BAR|FONDA|STAND\s*UP)\b", rec_norm):
+        return "bar_club", 0.91
+
+    if re.search(r"\b(PARQUE|MALECON|BOTANICO|AUTODROMO|PLAZA\s+DE\s+TOROS|CANCHA|DIAMANTE\s+DE\s+BEISBOL|POLIDEPORTIVO)\b", rec_norm):
+        return "parque_aire_libre", 0.90
+
+    if re.search(r"\b(HOTEL)\b", rec_norm):
+        return ("centro_eventos_carpa" if aforo_max > 400 else "otro"), 0.80
+
+    if re.search(r"\b(TREN|TRANSPORTE|AEROPUERTO|FINAL\s+COPA|LABORATORIO)\b", rec_norm):
         return "otro", 0.92
 
-    # Si aforo masivo (>10000) y no identificado
+    # Salas genéricas sin cualificador de cinemateca o teatro van a bajo score
+    if re.search(r"\bSALA\b", rec_norm):
+        return "otro", 0.60
+
+    # Fallbacks de baja confianza por aforo
     if aforo_max >= 15000:
         return "estadio_abierto", 0.75
 
@@ -238,7 +285,7 @@ def pasaje_a_clasificar(recinto: str, aforo_max: int) -> tuple[str, float]:
         return "centro_eventos_carpa", 0.70
 
     if aforo_max < 300:
-        return "bar_club" if any(w in rec_upper for w in ["CAFE", "CASA"]) else "otro", 0.72
+        return ("bar_club" if re.search(r"\b(CAFE|CASA)\b", rec_norm) else "otro"), 0.72
 
     return "otro", 0.60
 
@@ -247,54 +294,65 @@ def pasaje_b_clasificar(recinto: str, aforo_max: int) -> tuple[str, float]:
     """
     Pasada B: Clasificador Secundario Ortogonal (Basado en Funcionalidad y Aforo).
     """
-    rec_upper = recinto.upper()
+    rec_norm = normalizar_recinto(recinto)
 
-    # 1. Coincidencia exacta o parcial con emblemáticos
-    for k, v in DICCIONARIO_EMBLEMATICO.items():
-        if k in rec_upper or rec_upper in k:
-            return v, 0.99
+    # 1. Coincidencia segura en diccionario maestro
+    match_dicc = _buscar_en_diccionario_emblematico(rec_norm)
+    if match_dicc:
+        return match_dicc[0], 0.99
 
-    # 2. Análisis por patrones de texto alternativos
-    if re.search(r"\b(ESTADIO|STADIUM|BEISBOL|DIAMANTE)\b", rec_upper):
+    # 2. Casos prioritarios: Parqueaderos, Car Wash, Vias públicas
+    if re.search(r"\b(PARQUEADERO|PARKING|ESTACIONAMIENTO)\b", rec_norm):
+        return "otro", 0.90
+
+    if re.search(r"\b(CAR\s*WASH|LAVADERO)\b", rec_norm):
+        return "otro", 0.90
+
+    if re.search(r"\b(VIA\s*40|CARRERA\s*50)\b", rec_norm):
+        return "parque_aire_libre", 0.90
+
+    # 3. Análisis por patrones de texto alternativos con límites estrictos de palabra
+    if re.search(r"\b(ESTADIO|STADIUM|BEISBOL|DIAMANTE)\b", rec_norm):
         return "estadio_abierto", 0.95
 
-    if re.search(r"\b(ARENA|COLISEO|POLIDEPORTIVO)\b", rec_upper):
-        return "arena_cubierta" if "POLIDEPORTIVO" not in rec_upper else "parque_aire_libre", 0.90
+    if re.search(r"\b(ARENA|COLISEO|POLIDEPORTIVO)\b", rec_norm):
+        return ("parque_aire_libre" if "POLIDEPORTIVO" in rec_norm else "arena_cubierta"), 0.90
 
-    if re.search(r"\b(TEATRO|TEATRINO|SALA TEATRAL)\b", rec_upper):
+    if re.search(r"\b(TEATRO|TEATRINO|SALA\s+TEATRAL)\b", rec_norm):
         return "teatro", 0.95
 
-    if re.search(r"\b(AUDITORIO|AULA)\b", rec_upper):
+    if re.search(r"\b(AUDITORIO|AULA)\b", rec_norm):
         return "auditorio", 0.94
 
-    if re.search(r"\b(CINE|CINEMATECA|MUSEO|PLANETARIO|BIBLIOTECA)\b", rec_upper):
+    if re.search(r"\b(CINE|CINEMATECA|MUSEO|PLANETARIO|BIBLIOTECA)\b", rec_norm):
         return "cine_sala_cultural", 0.93
 
-    if re.search(r"\b(CARPA|EXPO|FERIA|CONVENCION|PABELLON|CENTRO DE EVENTOS|CITY HALL)\b", rec_upper):
+    if re.search(r"\b(CARPA|EXPO|FERIA|CONVENCION|PABELLON|CENTRO\s+DE\s+EVENTOS|CITY\s+HALL)\b", rec_norm):
         return "centro_eventos_carpa", 0.92
 
-    if re.search(r"\b(BAR|CLUB|DISCO|LOUNGE|RESTAURANTE|PUB|GASTRO|TASCA|BARRIL|BEER)\b", rec_upper):
+    if re.search(r"\b(BAR|CLUB|DISCO|LOUNGE|RESTAURANTE|PUB|GASTRO|TASCA|BARRIL|BEER)\b", rec_norm):
         return "bar_club", 0.92
 
-    if re.search(r"\b(PARQUE|PLAZA|JARDIN|BOULEVARD|MALECON|PLAYA|BEACH|AVENIDA|CARRERA|AUTOPISTA|CALLE|VIA 40)\b", rec_upper):
+    if re.search(r"\b(PARQUE|PLAZA|JARDIN|BOULEVARD|MALECON|PLAYA|BEACH|AVENIDA|CARRERA|AUTOPISTA|CALLE)\b", rec_norm):
         return "parque_aire_libre", 0.89
 
-    if re.search(r"\b(HOTEL|RESORT)\b", rec_upper):
-        return "centro_eventos_carpa" if aforo_max >= 500 else "otro", 0.78
+    if re.search(r"\b(HOTEL|RESORT)\b", rec_norm):
+        return ("centro_eventos_carpa" if aforo_max >= 500 else "otro"), 0.78
 
-    if re.search(r"\b(TREN|BUS|TRANSPORTE|AEROPUERTO|VIAJE)\b", rec_upper):
+    if re.search(r"\b(TREN|BUS|TRANSPORTE|AEROPUERTO|VIAJE)\b", rec_norm):
         return "otro", 0.95
 
-    if "SALA" in rec_upper:
-        # Muchas salas en Bogotá son o de la Cinemateca o de Teatros o de conferencias
-        if aforo_max <= 100:
-            return "cine_sala_cultural" if "CINEMATECA" in rec_upper else "teatro", 0.82
-        return "teatro", 0.80
+    if re.search(r"\bSALA\b", rec_norm):
+        if re.search(r"\b(CINEMATECA|CINE)\b", rec_norm):
+            return "cine_sala_cultural", 0.88
+        if re.search(r"\b(TEATRO|TEATRAL)\b", rec_norm):
+            return "teatro", 0.85
+        return "otro", 0.60
 
-    if "CAPILLA" in rec_upper or "IGLESIA" in rec_upper or "CATEDRAL" in rec_upper:
+    if re.search(r"\b(CAPILLA|IGLESIA|CATEDRAL)\b", rec_norm):
         return "otro", 0.85
 
-    if "COLEGIO" in rec_upper or "UNIVERSIDAD" in rec_upper or "CAMPUS" in rec_upper:
+    if re.search(r"\b(COLEGIO|UNIVERSIDAD|CAMPUS)\b", rec_norm):
         return "auditorio", 0.83
 
     # Fallback contextual por aforo
@@ -370,7 +428,7 @@ def main():
         consolidar_revision_humana()
         return
 
-    print("=== PASO 3 & 4: CLASIFICACIÓN DE RECINTOS CON DOBLE PASADA (SELF-CONSISTENCY) ===")
+    print("=== PASO 3 & 4: CLASIFICACIÓN LÉXICA DETERMINÍSTICA DE VENUES ===")
     
     ruta_unicos = "data/lookup/recintos_unicos.csv"
     if not os.path.exists(ruta_unicos):
@@ -423,7 +481,7 @@ def main():
                 "aforo_max": aforo,
                 "funciones": funcs,
                 "fecha_clasificacion": fecha_hoy,
-                "fuente": "ia_consenso"
+                "fuente": "reglas_heuristicas"
             })
         else:
             motivo = "Desacuerdo entre pasadas" if not coinciden else "Baja confianza (< 0.85)"

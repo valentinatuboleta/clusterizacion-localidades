@@ -221,8 +221,11 @@ __marimo__/
 data/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/lookup/
+!data/lookup/*.csv
 *.parquet
 *.csv
+!data/lookup/*.csv
 
 # macOS y temporales de Office
 .DS_Store
