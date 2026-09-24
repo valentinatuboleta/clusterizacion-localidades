@@ -118,21 +118,28 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 * **¿Para qué se crea?**: Para desacoplar el texto en **17 variables binarias ($1$ o $0$)** organizadas en **4 dimensiones ortogonales independientes** (sin solapamientos léxicos ni tokens duplicados entre categorías).
 * **¿Por qué se usa?**: Los algoritmos matemáticos como K-Means procesan números, no cadenas de texto. Esta función convierte conceptos semánticos en dimensiones vectoriales estructuradas.
 * **Comportamiento Multi-Etiqueta (*Multi-hot Encoding*)**: Una misma localidad puede activar simultáneamente tags en dimensiones independientes (ej. Orientación + Nivel Vertical + Jerarquía Comercial + Restricción), lo cual describe con precisión su naturaleza sin forzarla a una sola etiqueta.
-* **Estructura de las 4 Dimensiones Ortogonales:**
-  1. **Dimensión 1 (Jerarquía Comercial / Tipo de Asiento):**
+* **Estructura de las 4 Dimensiones Ortogonales (17 variables en total):**
+  1. **Dimensión 1: Jerarquía Comercial / Tipo de Asiento (5 tags):**
      * `tag_palco`: `PALCO`, `PALCOS`, `BOX`, `BOXES`, `SUITE`, `SUITES`, `MESA`, `MESAS`
      * `tag_vip`: `VIP`, `PLATINUM`, `PLATINO`, `PREMIUM`, `GOLD`, `DIAMANTE`, `ORO`, `PLATA`
      * `tag_platea`: `PLATEA`, `SILLAS`, `SILLERIA`, `PISTA`, `CANCHA`
      * `tag_preferencial`: `PREFERENCIAL`, `PREFERENTE`, `CENTRAL`, `FRONTAL`
      * `tag_general`: `GENERAL`, `TIQUETE`, `ENTRADA`, `STANDARD`, `NORMAL`, `ADMISION`
-  2. **Dimensión 2 (Nivel Vertical y Arquitectura del Venue):**
+  2. **Dimensión 2: Nivel Vertical y Arquitectura del Venue (3 tags):**
      * `tag_balcon`: `BALCON`, `BALCONES`, `MEZZANINE`, `VOLADIZO` *(Exclusivo para estructuras de balcón de teatro; no solapa con pisos)*.
      * `tag_piso_alto`: `ALTA`, `ALTAS`, `PISO 2`, `PISO 3`, `PISO 4`, `PISO 5`, `SEGUNDO PISO`, `TERCER PISO`, `CUARTO PISO`, `POSTERIOR`, `ALTO`.
      * `tag_piso_bajo`: `BAJA`, `BAJAS`, `PISO 1`, `PRIMER PISO`, `PLANTA BAJA`, `DELANTERA`, `PRIMERA FILA`, `BAJO`.
-  3. **Dimensión 3 (Orientación Espacial y Geografía en el Venue):**
-     * `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
-  4. **Dimensión 4 (Restricciones de Acceso y Audiencia):**
-     * `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
+  3. **Dimensión 3: Orientación Espacial y Geografía en el Venue (6 tags):**
+     * `tag_occidental`: `OCCIDENTAL`, `OCC`, `OESTE`
+     * `tag_oriental`: `ORIENTAL`, `ORI`, `ESTE`
+     * `tag_norte`: `NORTE`, `NTE`
+     * `tag_sur`: `SUR`
+     * `tag_lateral`: `LATERAL`, `LATERALES`, `COSTADO`, `ESQUINA`
+     * `tag_vista_parcial`: `VISTA PARCIAL`, `VISIBILIDAD PARCIAL`, `RESTRINGIDA`, `REDUCIDA`, `OBSTRUIDA`, `PILARES`
+  4. **Dimensión 4: Restricciones de Acceso y Audiencia (3 tags):**
+     * `tag_familiar`: `FAMILIAR`, `FAMILIA`
+     * `tag_menores`: `MENORES`, `KIDS`, `NINOS`, `INFANTIL`, `LIBRE DE ALCOHOL`, `CERO ALCOHOL`
+     * `tag_movilidad_reducida`: `MOVILIDAD REDUCIDA`, `DISCAPACIDAD`, `PMR`, `SILLA DE RUEDAS`, `ACCESIBLE`
 * **Transformación (Ejemplo de registro real multi-dimensional):**
   * **Texto evaluado:** `"OCCIDENTAL ALTA VIP FAMILIAR"`
   * **Diccionario generado:**

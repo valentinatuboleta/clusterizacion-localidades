@@ -8,9 +8,35 @@ Este módulo se encarga de:
 4. Integrar la extracción de atributos NLP limpios para alimentar el espacio vectorial mixto.
 """
 
+import os
 import numpy as np
 import pandas as pd
 from src.nlp_utils import pipeline_procesamiento_nlp
+
+
+def adjuntar_tipo_venue(df: pd.DataFrame, ruta_lookup: str = "data/lookup/site_type_lookup.csv") -> pd.DataFrame:
+    """
+    Enriquece el DataFrame con la categoría estandarizada de venue (type_site).
+    Si ya existe la columna 'type_site', retorna una copia sin alterar.
+    """
+    df_res = df.copy()
+    if "type_site" in df_res.columns:
+        return df_res
+
+    # Permitir resolución de ruta relativa tanto desde raíz como desde notebooks/
+    if not os.path.exists(ruta_lookup):
+        alt_ruta = os.path.join("..", ruta_lookup)
+        if os.path.exists(alt_ruta):
+            ruta_lookup = alt_ruta
+
+    if os.path.exists(ruta_lookup):
+        df_lookup = pd.read_csv(ruta_lookup)
+        df_res = df_res.merge(df_lookup[["site", "type_site"]], on="site", how="left")
+        df_res["type_site"] = df_res["type_site"].fillna("otro")
+    else:
+        df_res["type_site"] = "otro"
+
+    return df_res
 
 
 def filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame:
@@ -93,16 +119,20 @@ def preparar_dataset_enriquecido(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ejecuta el pipeline de enriquecimiento completo:
     1. Filtrado de consistencia.
-    2. Cálculo de métricas relativas por evento.
-    3. Extracción de variables semánticas, espaciales y limpieza de texto NLP.
+    2. Adjuntar categoría estandarizada de venue (type_site).
+    3. Cálculo de métricas relativas por evento.
+    4. Extracción de variables semánticas, espaciales y limpieza de texto NLP.
     """
     print("1. Aplicando filtros de consistencia...")
     df_clean = filtrar_consistencia_localidades(df)
     
-    print("2. Calculando métricas numéricas relativas por evento...")
-    df_rel = calcular_metricas_relativas(df_clean)
+    print("2. Adjuntando tipología estandarizada de venue (type_site)...")
+    df_site = adjuntar_tipo_venue(df_clean)
+
+    print("3. Calculando métricas numéricas relativas por evento...")
+    df_rel = calcular_metricas_relativas(df_site)
     
-    print("3. Extrayendo variables estructurales y limpiando texto NLP...")
+    print("4. Extrayendo variables estructurales y limpiando texto NLP...")
     df_final = pipeline_procesamiento_nlp(df_rel, col_nombre="logical_seat_category")
     
     print(f" Dataset enriquecido listo: {len(df_final):,} filas y {len(df_final.columns)} columnas.")
