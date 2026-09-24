@@ -85,8 +85,13 @@ class GeminiVenueClassifier:
             from google import genai
             self._client = genai.Client(api_key=api_key)
             return self._client
-        except ImportError:
+        except Exception:
             return None
+
+    def esta_disponible(self) -> bool:
+        """Verifica una sola vez si el cliente LLM está disponible y operativo."""
+        return self._obtener_cliente() is not None
+
 
     def construir_prompt(self, site: str, aforo_max: int = 0) -> str:
         """Construye el prompt estructurado para clasificación del venue."""

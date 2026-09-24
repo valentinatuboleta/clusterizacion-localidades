@@ -435,10 +435,16 @@ def main():
     clasificador_llm = None
     if usar_llm:
         from src.llm_classifier import GeminiVenueClassifier
-        clasificador_llm = GeminiVenueClassifier()
-        print(f"=== MÓDULO LLM ACTIVADO (Modelo: {clasificador_llm.model_name}, temp={clasificador_llm.temperature}) ===")
+        candidato_llm = GeminiVenueClassifier()
+        if candidato_llm.esta_disponible():
+            clasificador_llm = candidato_llm
+            print(f"=== MÓDULO LLM ACTIVADO (Modelo: {clasificador_llm.model_name}, temp={clasificador_llm.temperature}) ===")
+        else:
+            print(" [ALERTA] LLM no disponible: clasificando con reglas (sin API key o SDK google-genai)")
+            clasificador_llm = None
     else:
         print("=== PASO 3 & 4: CLASIFICACIÓN LÉXICA DETERMINÍSTICA DE VENUES ===")
+
     
     ruta_unicos = "data/lookup/recintos_unicos.csv"
     if not os.path.exists(ruta_unicos):

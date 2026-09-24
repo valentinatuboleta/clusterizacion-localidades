@@ -153,6 +153,10 @@ class TestLLMVenueClassifier(unittest.TestCase):
             audit_file=self.audit_path
         )
 
+        res = classifier.clasificar_venue("SITIO RARO", 500)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["type_site"], "otro")
+
     def test_verificacion_diccionario_y_discrepancias_llm(self):
         """
         Valida que si el LLM difiere del DICCIONARIO_EMBLEMATICO, se detecte la discrepancia

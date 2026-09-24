@@ -23,7 +23,11 @@ clusterizacion-localidades/
 │   └── workflows/
 │       └── ci.yml                              # Pipeline automatizado de GitHub Actions
 │
-├── data/                                       # Datos locales (ignorado por Git)
+├── data/                                       # Datos locales y tablas maestras
+│   ├── lookup/                                 # Tablas maestras de venues y trazabilidad
+│   │   ├── recintos_unicos.csv                 # 494 venues únicos extraídos del catálogo
+│   │   ├── site_type_lookup.csv                # Tabla de verdad consolidada (type_site)
+│   │   └── site_type_revision_humana.csv       # Discrepancias enviadas a curaduría humana
 │   ├── raw/                                    # Parquets descargados de Azure
 │   └── processed/                              # Datasets con features y clusters asignados
 │
@@ -36,14 +40,18 @@ clusterizacion-localidades/
 │   ├── __init__.py
 │   ├── azure_utils.py                          # Conexión y descarga segura desde Azure Blob Storage
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
-│   ├── feature_engineering.py                  # Normalización relativa por evento y consistencia
+│   ├── feature_engineering.py                  # Normalización relativa por evento, consistencia y venue
+│   ├── llm_classifier.py                       # Clasificador de venues con Gemini 3.8 Flash Medium y auditoría
 │   └── clustering.py                           # Espacio mixto 25D, clustering bietápico, persistencia e inferencia
 │
 ├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
 │   ├── __init__.py
-│   └── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
+│   ├── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
+│   ├── test_clasificacion_sites.py             # Casos borde toponímicos, límites de palabra y trazabilidad
+│   └── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
 │
 ├── scripts/                                    # Automatización, diagnóstico y análisis
+│   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
 │   ├── comparar_resultados_clustering.py       # Comparativa cuantitativa y matriz de transición v2.0 vs v2.2
 │   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
 │   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (Codo Ortogonal + Davies-Bouldin)
@@ -60,7 +68,7 @@ clusterizacion-localidades/
 
 ---
 
-##  Configuración Inicial
+## Configuración Inicial
 
 ### 1. Clonar el repositorio y configurar entorno
 ```bash
@@ -78,7 +86,7 @@ pip install -r requirements.txt
 ```
 
 ### 3. Configurar credenciales en `.env`
-Copia la plantilla de ejemplo y completa con las credenciales de tu cuenta de Azure:
+Copia la plantilla de ejemplo y completa con las credenciales de tu cuenta de Azure y Gemini:
 ```bash
 cp .env.example .env
 ```
@@ -90,7 +98,31 @@ AZURE_STORAGE_ACCOUNT_KEY="tu_account_key"
 AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=tu_cuenta_de_almacenamiento;AccountKey=tu_account_key;EndpointSuffix=core.windows.net"
 AZURE_CONTAINER_NAME="nombre_del_contenedor"
 AZURE_BLOB_NAME="ruta/al/archivo_datos.parquet"
+
+# Agente LLM Gemini (Opcional para inferencia con IA)
+GEMINI_API_KEY="tu_gemini_api_key"
+GEMINI_MODEL="gemini-3.8-flash-medium"
 ```
+
+### 4. Clasificación y Estandarización de Venues (`type_site`)
+El sistema cuenta con un esquema de precedencia de 3 niveles: `revision_humana > llm > reglas_heuristicas`.
+
+* **Modo Léxico Determinístico (por defecto / sin consumo de API):**
+  ```bash
+  python scripts/clasificar_sites.py
+  ```
+  Ejecuta la doble pasada ortogonal con límites estrictos de palabra (`\b`).
+
+* **Modo Agente LLM (Gemini 3.8 Flash Medium, temp=0, salida JSON):**
+  ```bash
+  python scripts/clasificar_sites.py --llm
+  ```
+  Si no se encuentra configurada `GEMINI_API_KEY`, el script alertará en consola y aplicará el fallback determinístico de forma segura.
+
+* **Consolidar revisiones manuales hacia la tabla maestra:**
+  ```bash
+  python scripts/clasificar_sites.py --aplicar-revision
+  ```
 
 > [!NOTE]
 > `src/azure_utils.py` cuenta con validaciones preventivas (*guards*) que alertarán inmediatamente si las variables conservan los nombres de placeholder sin configurar.
