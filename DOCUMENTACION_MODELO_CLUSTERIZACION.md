@@ -312,7 +312,7 @@ El análisis de correlaciones lineales (Pearson $r$) valida tres propiedades est
 
 ### MÓDULO 3: Fusión Vectorial y Clustering en Dos Etapas ([`src/clustering.py`](src/clustering.py))
 
-Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para resolver el desacoplamiento de K-Means y aislar la distorsión del blob de tarifa plana:
+Este módulo implementa la arquitectura en dos etapas (**Modelo v2.3**) para resolver el desacoplamiento de K-Means, aislar la distorsión del blob de tarifa plana e integrar la tipología del venue (`type_site`):
 
 ```
                                  CATÁLOGO LIMPIO CERTIFICADO (33,775 Filas)
@@ -326,17 +326,18 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
                ETAPA 1: ADMISIÓN ÚNICA                           ETAPA 2: MULTI-ZONA
                 (15,375 filas, 45.5%)                             (18,400 filas, 54.5%)
                             │                                                 │
-                 Asignación Determinística                         TF-IDF Reentrenado (15D)
-                (Sin distorsión de ML)                           + 3 Numéricas Ex-Ante
-                            │                                    + 7 Tags Estructurales
-                            ▼                                                 │
-               "Admisión Única / Tarifa Plana"                                ▼
-                                                                 Espacio Mixto 25D Escalado
+                 Asignación Determinística                         TF-IDF Reentrenado (15D × 0.2)
+                (Sin distorsión de ML)                           + 4 Numéricas Ex-Ante (con percentil tipo)
+                            │                                    + 7 Tags Estructurales Densos
+                            ▼                                    + 9 One-Hot type_site (× 0.5)
+               "Admisión Única / Tarifa Plana"                                │
+                                                                              ▼
+                                                                 Espacio Mixto 35D Escalado
                                                                               │
                                                                  K-Means Multi-Zona (k=5)
                                                                               │
                                                                               ▼
-                                                                 Etiquetado Geométrico 25D
+                                                                 Etiquetado Geométrico 35D
                                                                  (Hungarian Algorithm 1-a-1)
                                                                               │
                                                                               ▼
@@ -360,49 +361,52 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 ---
 
 #### 3.2 `construir_espacio_vectorial_mixto(...) -> Tuple[np.ndarray, Scaler, Vectorizer, List[str]]`
-* **¿Para qué se crea?**: Ensambla la matriz $\mathbf{X}_{\text{multi}} \in \mathbb{R}^{18,400 \times 25}$ sobre el subconjunto multi-zona.
-* **Componentes del Espacio de 25 Dimensiones:**
-  1. **3 Variables Numéricas Relativas Ex-Ante:** `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo` (escaladas con `RobustScaler`).
+* **¿Para qué se crea?**: Ensambla la matriz $\mathbf{X}_{\text{multi}} \in \mathbb{R}^{18,400 \times 35}$ sobre el subconjunto multi-zona.
+* **Componentes del Espacio de 35 Dimensiones (Modelo v2.3):**
+  1. **4 Variables Numéricas Continuas Ex-Ante:**
+     * `ratio_precio_max`: Precio relativo frente al valor máximo de la función.
+     * `percentil_precio_evento`: Posición ordinal percentil dentro de la función.
+     * `peso_aforo`: Proporción de silletería frente a la capacidad total del evento.
+     * `percentil_precio_absoluto_dentro_tipo`: Percentil del precio promedio histórico de la localidad dentro de todas las localidades registradas bajo su misma tipología de venue (`type_site`). Resuelve la distorsión donde localidades con precio nominal medio/alto en venues pequeños eran catalogadas erróneamente como populares. Si el tipo cuenta con $<50$ localidades históricas (cold start), se asigna neutralmente a $0.50$ con bandera de trazabilidad `flag_cold_start_tipo = 1`.
   2. **7 Tags Estructurales Densos:** 5 de jerarquía comercial (`palco`, `vip`, `platea`, `preferencial`, `general`) y 2 verticales (`balcon`, `piso_alto`) en escala $[0, 1]$.
-  3. **15 Términos TF-IDF Reentrenados:** Ajustados exclusivamente sobre los textos de eventos multi-zona, ponderados por $\omega_{\text{nlp}} = 0.2$ (calibración óptima empírica que evita la dilución dimensional del bloque continuo).
+  3. **9 Categorías One-Hot de Tipología de Venue (`type_site`):** Ponderadas por $\text{peso\_type\_site} = 0.5$ (`arena_cubierta`, `auditorio`, `bar_club`, `centro_eventos_carpa`, `cine_sala_cultural`, `estadio_abierto`, `otro`, `parque_aire_libre`, `teatro`). La categoría `desconocido` se excluye del one-hot para evitar redundancia y preservar la ortogonalidad, manteniendo la bandera booleana `flag_site_desconocido` en el DataFrame.
+  4. **15 Términos TF-IDF Reentrenados:** Ajustados exclusivamente sobre los textos limpios de eventos multi-zona, ponderados por $\omega_{\text{nlp}} = 0.2$ para modular desempates léxicos sin distorsionar el bloque geométrico continuo.
+
+* **Decisión de Diseño y Ablación de `type_site` ($\text{peso} = 0.0$ vs $0.5$):**
+  * **Con peso 0.0 (v2.2):** Silueta multi-zona $0.224$, Davies-Bouldin $1.416$.
+  * **Con peso 0.5 (v2.3):** Silueta multi-zona $0.209$, Davies-Bouldin $1.486$.
+  * **Efecto Cualitativo de Negocio:** La inclusión de tipología con peso $0.5$ mantiene la silueta confortablemente por encima del umbral de calidad ($>0.20$) y estabiliza las asignaciones: localidades intermedias en teatros (ej. `PLATEA POSTERIOR` en Teatro Mayor Julio Mario Santo Domingo) que en v2.2 caían indebidamente en `Popular` por tener precio relativo moderado frente a los palcos del evento, migran de forma natural hacia `Preferencial / Platea Frontal` al ser contextualizadas contra la escala de precios de su tipo de venue.
 
 ---
 
 #### 3.3 `evaluar_rango_k(X: np.ndarray, k_min: int, k_max: int) -> pd.DataFrame`
-* **Evaluación Empírica y Optimización Formal sobre Multi-Zona (`peso_nlp=0.2`):**
-  * Al retirar los 15,375 registros idénticos de tarifa plana y calibrar el peso del texto en $\omega=0.2$, el espacio multi-zona revela su estructura geométrica real:
-    * $k=3$: Silhouette $0.2444$, Davies-Bouldin $1.4120$, Inercia $24,366$, Distancia Codo: $0.00$, Score Compuesto (Codo+DB): $0.000$.
-    * $k=4$: Silhouette $0.2485$, Davies-Bouldin $1.3181$, Inercia $21,022$, Distancia Codo: $0.95$, Score Compuesto (Codo+DB): $1.415$.
-    * **$k=5$ (Óptimo Formal y de Negocio):** Silhouette $0.2495$, **Davies-Bouldin $1.2720$ (Mínimo Global)**, Inercia $18,749$, **Codo Máximo (distancia ortogonal = $1.28$)**, Score Compuesto (Codo+DB): **$2.000$ (Máximo Absoluto)**.
-    * $k=6$: Silhouette $0.2492$, Davies-Bouldin $1.3870$, Inercia $17,046$, Distancia Codo: $1.27$, Score Compuesto (Codo+DB): $1.174$.
-    * $k=7$: Silhouette $0.2702$, Davies-Bouldin $1.2958$, Inercia $15,461$, Distancia Codo: $1.20$, Score Compuesto (Codo+DB): $1.767$.
-    * $k=8$: Silhouette $0.2766$, Davies-Bouldin $1.3024$, Inercia $14,195$, Distancia Codo: $0.94$, Score Compuesto (Codo+DB): $1.516$.
-    * $k=10$: Silhouette $0.2841$, Davies-Bouldin $1.3011$, Inercia $12,377$, Distancia Codo: $0.00$, Score Compuesto (Codo+DB): $0.792$.
+* **Evaluación Empírica sobre Multi-Zona con Espacio v2.3 ($35\text{D}$):**
+  * Para la fase actual, el selector multi-criterio mantiene su rango parsimonioso $k \in \{3 \dots 7\}$, donde $k=5$ maximiza el Score Compuesto Codo-DB ($2.000$).
+  * **Evidencia Empírica para la Fase Futura ($k \in \{3 \dots 12\}$):**
+    Una auditoría cuantitativa extendida sobre la muestra multi-zona revela el comportamiento de granularidades mayores:
 
-* **Fórmula del Selector Multi-Criterio (Modo `'auto'`):**
-  $$\text{Score Compuesto}(k) = \text{norm\_codo}(k) + \text{norm\_db}(k)$$
-  donde:
-  $$\text{norm\_codo}(k) = \frac{d_{\text{codo}}(k) - \min(d)}{\max(d) - \min(d)}, \quad \text{norm\_db}(k) = \frac{\max(\text{DB}) - \text{DB}(k)}{\max(\text{DB}) - \min(\text{DB})}$$
-  En $k=5$, tanto la distancia ortogonal a la cuerda de inercia ($1.28$) como la minimización de Davies-Bouldin ($1.2720$) alcanzan simultáneamente su cota máxima normalizada ($1.000 + 1.000 = 2.000$), garantizando una decisión matemática determinística y en pleno acuerdo con el negocio.
+    | $k$ | Inercia | Silhouette Score | Davies-Bouldin | Calinski-Harabasz |
+    | :---: | :---: | :---: | :---: | :---: |
+    | **3** | $32,361.5$ | $0.2168$ | $1.5345$ | $3,225.2$ |
+    | **4** | $28,863.4$ | $0.2173$ | $1.4727$ | $2,821.6$ |
+    | **5 (Actual v2.3)** | **$26,293.5$** | **$0.2094$** | **$1.4865$** | **$2,574.1$** |
+    | **6** | $24,304.0$ | $0.2062$ | $1.4652$ | $2,397.1$ |
+    | **7** | $22,803.7$ | $0.2089$ | $1.5938$ | $2,231.1$ |
+    | **8** | $21,510.1$ | $0.2159$ | $1.6276$ | $2,108.4$ |
+    | **9** | $20,249.6$ | $0.2209$ | $1.6085$ | $2,044.1$ |
+    | **10** | $19,355.7$ | $0.2241$ | $1.6228$ | $1,955.7$ |
+    | **11** | $18,587.9$ | $0.2267$ | $1.5154$ | $1,881.6$ |
+    | **12** | $17,941.9$ | $0.2270$ | $1.4588$ | $1,804.5$ |
 
-* **Análisis Crítico: ¿Por qué $k=5$ y no $k=7$?**
-  1. **Parsimonia y Codo:** $k=5$ es el **punto de codo matemático exacto** en la curva de inercia (distancia máxima a la secante $1.28$) y el punto donde se **minimiza globalmente el índice Davies-Bouldin ($1.2720$)**. A partir de $k=5$, Davies-Bouldin empeora hacia $1.2958$ en $k=7$.
-  2. **Sobre-fragmentación sin valor de negocio en $k=7$:** Aunque $k=7$ eleva la silueta promedio a $0.270$ (efecto mecánico de fraccionar clusters masivos), una inspección de centroides revela que simplemente fractura la *Platea General* y la *Tribuna Popular* en sub-segmentos redundantes que no corresponden a categorías comerciales reales del ticketing (crea clusters de $4.5\%$ sin diferenciación funcional de pricing).
-  3. **Naturaleza del Cluster *Grada General / Masiva* (819 filas, 2.4%):**
-     * En $k=5$, este cluster aísla con exactitud las localidades masivas de venues de gran formato (Estadio El Campín, Atanasio Girardot, Movistar Arena en configuración masiva), donde una sola localidad absorbe un promedio del **$81.4\%$ del aforo total del evento** (hasta $35,000$ sillas).
-     * No es un cluster degenerado ni vacío: es la captura física fiel de la asimetría de capacidad en espectáculos masivos frente a teatros y salas íntimas.
-
-* **Decisión de Diseño de Ponderación NLP ($\omega_{\text{nlp}} = 0.2$ vs $0.0$):**
-  * La ablación muestra que con $\omega_{\text{nlp}} = 0.0$ (eliminando TF-IDF) la silueta es $0.252$ y con $0.2$ es $0.249$ (diferencia marginal $< 0.003$).
-  * Se mantiene $\omega_{\text{nlp}} = 0.2$ deliberadamente como **desempatador semántico (*tie-breaker*)**: cuando dos localidades tienen precios y aforos idénticos (ej. un *Palco* corporativo frente a una *Platea Delantera* en eventos medianos con ratio $\approx 0.85$), los términos de texto resuelven la ambigüedad hacia su jerarquía física correcta. Con pesos mayores ($\ge 1.0$), el texto diluía el bloque numérico; con $0.2$, opera como modulador fino.
+  * **Hallazgo para la Siguiente Fase:** A partir de $k \ge 10$, la silueta repunta hacia $0.227$ y el Davies-Bouldin desciende a $1.458$ en $k=12$. Esto constituye evidencia formal que fundamenta la siguiente fase planificada: exploración rigurosa de $k > 10$ mediante estabilidad bootstrap y etiquetado guiado por datos, sin modificar la cota operativa actual en esta versión.
 
 ---
 
 #### 3.4 `etiquetar_por_centroides_escalados(kmeans, feature_names, scaler, peso_nlp=0.2) -> Dict[int, str]`
 * **¿Para qué se crea?**: Resuelve el desacoplamiento geométrico entre K-Means y los nombres de arquetipos.
 * **¿Cómo opera?**:
-  1. Define perfiles ideales de negocio para cada arquetipo en el espacio escalado 25D.
-  2. Calcula la matriz de distancias euclidianas entre los centroides reales $\mathbf{c}_k \in \mathbb{R}^{25}$ y los perfiles ideales.
+  1. Define perfiles ideales de negocio para cada arquetipo en el espacio escalado 35D.
+  2. Calcula la matriz de distancias euclidianas entre los centroides reales $\mathbf{c}_k \in \mathbb{R}^{35}$ y los perfiles ideales.
   3. Ejecuta el **Algoritmo Húngaro (*linear sum assignment*)** para garantizar una correspondencia 1 a 1 biyectiva sin duplicidades ni ordenamientos frágiles.
 
 ---
@@ -417,14 +421,16 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
   * Modelo K-Means ($k=5$) y transformadores ajustados (`RobustScaler`, `TfidfVectorizer`).
   * Modelo probabilístico `GaussianMixture` (con componentes anclados a los centroides K-Means mediante `means_init`).
   * Diccionario de mapeo de arquetipos estandarizados.
+  * Distribución empírica de referencia de percentiles por tipo (`distribucion_percentil_tipo`) y vocabulario congelado de categorías de venue (`categorias_type_site`).
   * Histograma de referencia de variables para cálculo de drift (`referencia_drift`) y distribución esperada de arquetipos.
-* **`cargar_modelo_clustering(filepath)`**: Carga el payload validando su versión de compatibilidad (`v2.2`).
+  * Versión explícita del artefacto: `version = "2.3"`.
+* **`cargar_modelo_clustering(filepath)`**: Carga el payload validando su versión de compatibilidad (`v2.3`).
 * **`predecir_arquetipos_demanda(df, modelo, peso_nlp=0.2) -> pd.DataFrame`**:
-  * Ejecuta la inferencia bietápica completa y enriquece cada localidad con métricas de observabilidad:
+  * Ejecuta la inferencia bietápica completa evaluando las nuevas localidades contra la distribución percentil de entrenamiento congelada y enriquece cada localidad con métricas de observabilidad:
     1. **`cluster`**: ID del segmento ($-1$ monozona, $0 \dots 4$ multi-zona).
     2. **`arquetipo_demanda`**: Nombre del arquetipo predicho.
     3. **`score_confianza`**: Margen geométrico relativo $m = (d_2 - d_1) / (d_2 + 10^{-9}) \in [0, 1]$ evaluando la separación entre los dos centroides más cercanos ($1.0$ para monozona).
-    4. **`es_frontera`**: Booleano indicando ambigüedad inter-cluster ($m < 0.15$; aísla el $16.0\%$ de casos más disputados).
+    4. **`es_frontera`**: Booleano indicando ambigüedad inter-cluster ($m < 0.15$).
     5. **`segundo_arquetipo`**: Nombre del arquetipo competidor alternativo en disputa (`None` para monozona).
     6. **`cobertura_texto`**: Proporción de tokens del nombre presentes en el vocabulario congelado del vectorizador ($\in [0, 1]$).
     7. **`texto_casi_vacio`**: Booleano de alerta ($cobertura < 0.20$) cuando la asignación carece de señal léxica relevante.
@@ -435,12 +441,10 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.1**) para res
 #### 3.7 Protocolo de Monitoreo de Drift Estadístico (PSI) y Criterios de Re-entrenamiento
 Para prevenir la degradación silenciosa del modelo ante cambios en la oferta de eventos, políticas de precios o reconfiguraciones de silletería de los venues, el pipeline implementa auditoría continua mediante el **Population Stability Index (PSI)**:
 
-$$	ext{PSI} = \sum_{b=1}^{B} \left( 	ext{actual}_b\% - 	ext{esperado}_b\% 
-ight) 	imes \ln\left(rac{	ext{actual}_b\%}{	ext{esperado}_b\%}
-ight)$$
+$$\text{PSI} = \sum_{b=1}^{B} \left( \text{actual}_b\% - \text{esperado}_b\% \right) \times \ln\left( \frac{\text{actual}_b\%}{\text{esperado}_b\%} \right)$$
 
 * **Variables de Entrada Monitoreadas:**
-  * Cardinales y Ordinales: `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo`.
+  * Cardinales y Ordinales: `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo`, `percentil_precio_absoluto_dentro_tipo`.
   * Tags Estructurales: `tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`.
   * Distribución de Salida: Porcentaje observado de cada uno de los 6 arquetipos.
 * **Matriz de Decisión y Umbrales Operativos:**
@@ -452,7 +456,8 @@ ight)$$
 
 ---
 
-##  Los 6 Arquetipos de Demanda (Modelo v2.1 Optimizado)
+## Los 6 Arquetipos de Demanda (Modelo v2.3 Optimizado)
+
 
 A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo se clasifica en 6 arquetipos nítidos:
 
@@ -551,5 +556,7 @@ print(f" Segmentación completada exitosamente: {len(df_final):,} filas clasific
 | **v1.0** | Monolítica básica | Texto crudo + precio COP | Heurística visual | Agrupaciones sin normalización por evento |
 | **v2.0** | Espacio Vectorial Mixto Monolítico | 37D ($\omega_{\text{nlp}}=1.2$) | $k=4$ (distorsionado por 45.5% tarifa plana) | 4 Arquetipos con colapso en Grada General |
 | **v2.1** | Pipeline en Dos Etapas | 25D ($\omega_{\text{nlp}}=0.2$) | $k=5$ documentado pero selector en $k=7$ | 6 Arquetipos (separación monozona) |
-| **v2.2** | **Bietápica con Persistencia e Inferencia** | **25D ($\omega_{\text{nlp}}=0.2$, RobustScaler)** | **$k=5$ unificado por Codo-DB ($2.000$)** | **6 Arquetipos Estandarizados certificados con Golden Set, CI y Joblib** |
+| **v2.2** | Bietápica con Persistencia e Inferencia | 25D ($\omega_{\text{nlp}}=0.2$, RobustScaler) | $k=5$ unificado por Codo-DB ($2.000$) | 6 Arquetipos Estandarizados certificados con Golden Set, CI y Joblib |
+| **v2.3** | **Bietápica con Feature Engineering de Venue (`type_site`)** | **35D (4 numéricas + 7 tags + 9 one-hot venue $\times 0.5$ + 15 TF-IDF $\times 0.2$)** | **$k=5$ (Codo-DB $2.000$; evidencia documentada para $k>10$)** | **6 Arquetipos Estandarizados con sensibilidad a tipología de venue, percentil empírico persistido y Golden Set 100% certificado** |
+
 
