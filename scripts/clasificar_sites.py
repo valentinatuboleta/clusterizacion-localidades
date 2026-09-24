@@ -23,16 +23,8 @@ CATEGORIAS_VALIDAS = [
 ]
 
 
-def normalizar_recinto(texto: str) -> str:
-    """
-    Normalización estricta: mayúsculas, sin tildes (Unicode NFD) y espacios colapsados.
-    """
-    if not texto or not str(texto).strip():
-        return ""
-    t = str(texto).upper().strip()
-    t = "".join(c for c in unicodedata.normalize("NFD", t) if unicodedata.category(c) != "Mn")
-    t = re.sub(r"\s+", " ", t)
-    return t
+from src.nlp_utils import normalizar_venue
+normalizar_recinto = normalizar_venue
 
 # Diccionario maestro de recintos emblemáticos de Colombia con asignación certificada
 DICCIONARIO_EMBLEMATICO = {

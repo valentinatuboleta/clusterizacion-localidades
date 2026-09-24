@@ -9,32 +9,195 @@ Este módulo se encarga de:
 """
 
 import os
+from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
-from src.nlp_utils import pipeline_procesamiento_nlp
+from scipy.stats import percentileofscore
+from src.nlp_utils import pipeline_procesamiento_nlp, normalizar_venue
+
+
+def normalizar_recinto(texto: str) -> str:
+    """Alias de compatibilidad para normalizacion de venue."""
+    return normalizar_venue(texto)
+
+
+def enriquecer_type_site(
+    df: pd.DataFrame,
+    site_column: str = "site",
+    lookup_path: str = "data/lookup/site_type_lookup.csv"
+) -> pd.DataFrame:
+    """
+    Enriquece el DataFrame con la categoria estandarizada de venue (type_site) y flag_site_desconocido.
+    Aplica matching canonico mediante normalizar_venue. Fallback type_site = 'desconocido'
+    para sites no encontrados o lookup inexistente. El pipeline nunca falla ante un venue nuevo.
+    """
+    df_res = df.copy()
+    if site_column not in df_res.columns:
+        df_res["type_site"] = "desconocido"
+        df_res["flag_site_desconocido"] = 1
+        return df_res
+
+    # Resolver ruta relativa tanto desde raiz como desde subdirectorios
+    ruta_efectiva = lookup_path
+    if not os.path.exists(ruta_efectiva):
+        alt_ruta = os.path.join("..", lookup_path)
+        if os.path.exists(alt_ruta):
+            ruta_efectiva = alt_ruta
+
+    lookup_map = {}
+    if os.path.exists(ruta_efectiva):
+        try:
+            df_lookup = pd.read_csv(ruta_efectiva)
+            if "site" in df_lookup.columns and "type_site" in df_lookup.columns:
+                for s_val, t_val in zip(df_lookup["site"], df_lookup["type_site"]):
+                    norm_s = normalizar_venue(s_val)
+                    if norm_s:
+                        lookup_map[norm_s] = str(t_val)
+        except Exception:
+            pass
+
+    sites_norm = df_res[site_column].apply(normalizar_venue)
+    df_res["type_site"] = sites_norm.map(lookup_map).fillna("desconocido")
+    df_res["flag_site_desconocido"] = (df_res["type_site"] == "desconocido").astype(int)
+
+    return df_res
 
 
 def adjuntar_tipo_venue(df: pd.DataFrame, ruta_lookup: str = "data/lookup/site_type_lookup.csv") -> pd.DataFrame:
+    """Wrapper de compatibilidad retroactiva para enriquecer_type_site."""
+    return enriquecer_type_site(df, site_column="site", lookup_path=ruta_lookup)
+
+
+def generar_referencia_percentil_tipo(
+    df: pd.DataFrame,
+    site_column: str = "site",
+    localidad_column: Optional[str] = None,
+    precio_column: str = "med_unit_amt_itx",
+    min_localidades_historicas: int = 50
+) -> Dict[str, Any]:
     """
-    Enriquece el DataFrame con la categoría estandarizada de venue (type_site).
-    Si ya existe la columna 'type_site', retorna una copia sin alterar.
+    Genera la distribucion de referencia del percentil historico de precios por type_site:
+    conteo de localidades unicas, flag cold start, bordes de bins y lista de precios ordenados.
+    """
+    df_work = df.copy()
+    if "type_site" not in df_work.columns:
+        df_work = enriquecer_type_site(df_work, site_column=site_column)
+
+    if localidad_column is None:
+        cands = ["logical_seat_category", "product", "translation_name", "cd_name", "nombre_localidad", "texto_limpio"]
+        loc_col = next((c for c in cands if c in df_work.columns), "logical_seat_category")
+    else:
+        loc_col = localidad_column
+
+    col_p = precio_column if precio_column in df_work.columns else "ave_unit_amt_itx"
+    if col_p not in df_work.columns:
+        return {}
+
+    # Precio promedio por localidad historica unica (site, localidad, type_site)
+    loc_stats = (
+        df_work.groupby([site_column, loc_col, "type_site"], as_index=False)[col_p]
+        .mean()
+        .rename(columns={col_p: "_precio_prom_hist"})
+    )
+
+    referencia = {}
+    for tipo, grp in loc_stats.groupby("type_site"):
+        precios = grp["_precio_prom_hist"].dropna().values
+        n_locs = len(precios)
+        es_cold = (n_locs < min_localidades_historicas) or (str(tipo) == "desconocido")
+        if es_cold:
+            referencia[str(tipo)] = {
+                "conteo": int(n_locs),
+                "es_cold_start": True,
+                "bin_edges": [],
+                "precios_referencia": []
+            }
+        else:
+            sorted_p = np.sort(precios).astype(float)
+            referencia[str(tipo)] = {
+                "conteo": int(n_locs),
+                "es_cold_start": False,
+                "bin_edges": np.percentile(sorted_p, np.linspace(0, 100, 101)).tolist(),
+                "precios_referencia": sorted_p.tolist()
+            }
+    return referencia
+
+
+def calcular_percentil_precio_absoluto_dentro_tipo(
+    df: pd.DataFrame,
+    site_column: str = "site",
+    localidad_column: Optional[str] = None,
+    precio_column: str = "med_unit_amt_itx",
+    referencia_distribucion: Optional[Dict[str, Any]] = None,
+    min_localidades_historicas: int = 50
+) -> pd.DataFrame:
+    """
+    Calcula el percentil del precio promedio historico de la localidad dentro de su type_site.
+    - Modo entrenamiento: precio promedio por (site, localidad), luego groupby('type_site').rank(pct=True).
+      Cold start: si el tipo tiene < 50 localidades historicas -> valor 0.50 con flag_cold_start_tipo=1.
+    - Modo inferencia: evalua contra la distribucion de referencia persistida (round-trip deterministico).
     """
     df_res = df.copy()
-    if "type_site" in df_res.columns:
+    if "type_site" not in df_res.columns:
+        df_res = enriquecer_type_site(df_res, site_column=site_column)
+
+    if localidad_column is None:
+        cands = ["logical_seat_category", "product", "translation_name", "cd_name", "nombre_localidad", "texto_limpio"]
+        loc_col = next((c for c in cands if c in df_res.columns), "logical_seat_category")
+    else:
+        loc_col = localidad_column
+
+    col_p = precio_column if precio_column in df_res.columns else "ave_unit_amt_itx"
+    if col_p not in df_res.columns:
+        df_res["percentil_precio_absoluto_dentro_tipo"] = 0.50
+        df_res["flag_cold_start_tipo"] = 1
         return df_res
 
-    # Permitir resolución de ruta relativa tanto desde raíz como desde notebooks/
-    if not os.path.exists(ruta_lookup):
-        alt_ruta = os.path.join("..", ruta_lookup)
-        if os.path.exists(alt_ruta):
-            ruta_lookup = alt_ruta
+    # Inferencia con referencia persistida
+    if referencia_distribucion is not None:
+        pcts = []
+        flags = []
+        for _, row in df_res.iterrows():
+            t_val = str(row.get("type_site", "desconocido"))
+            info = referencia_distribucion.get(t_val)
+            val_p = row.get(col_p)
+            val_p = float(val_p) if (val_p is not None and pd.notna(val_p)) else 0.0
 
-    if os.path.exists(ruta_lookup):
-        df_lookup = pd.read_csv(ruta_lookup)
-        df_res = df_res.merge(df_lookup[["site", "type_site"]], on="site", how="left")
-        df_res["type_site"] = df_res["type_site"].fillna("otro")
+            if info is None or info.get("es_cold_start", True) or not info.get("precios_referencia"):
+                pcts.append(0.50)
+                flags.append(1)
+            else:
+                ref_p = np.array(info["precios_referencia"])
+                pct_val = float(percentileofscore(ref_p, val_p, kind="rank") / 100.0)
+                pcts.append(pct_val)
+                flags.append(0)
+
+        df_res["percentil_precio_absoluto_dentro_tipo"] = pcts
+        df_res["flag_cold_start_tipo"] = flags
+        return df_res
+
+    # Calculo directo sobre el dataset (entrenamiento)
+    if site_column in df_res.columns and loc_col in df_res.columns:
+        loc_stats = (
+            df_res.groupby([site_column, loc_col, "type_site"], as_index=False)[col_p]
+            .mean()
+            .rename(columns={col_p: "_precio_prom_loc"})
+        )
+        conteos = loc_stats.groupby("type_site")["_precio_prom_loc"].transform("count")
+        es_cold = (conteos < min_localidades_historicas) | (loc_stats["type_site"] == "desconocido")
+        ranks = loc_stats.groupby("type_site")["_precio_prom_loc"].rank(pct=True)
+
+        loc_stats["percentil_precio_absoluto_dentro_tipo"] = np.where(es_cold, 0.50, ranks)
+        loc_stats["flag_cold_start_tipo"] = np.where(es_cold, 1, 0)
+
+        cols_merge = [site_column, loc_col, "type_site"]
+        cols_val = cols_merge + ["percentil_precio_absoluto_dentro_tipo", "flag_cold_start_tipo"]
+        df_res = df_res.merge(loc_stats[cols_val], on=cols_merge, how="left")
+        df_res["percentil_precio_absoluto_dentro_tipo"] = df_res["percentil_precio_absoluto_dentro_tipo"].fillna(0.50)
+        df_res["flag_cold_start_tipo"] = df_res["flag_cold_start_tipo"].fillna(1).astype(int)
     else:
-        df_res["type_site"] = "otro"
+        df_res["percentil_precio_absoluto_dentro_tipo"] = 0.50
+        df_res["flag_cold_start_tipo"] = 1
 
     return df_res
 
@@ -131,9 +294,13 @@ def preparar_dataset_enriquecido(df: pd.DataFrame) -> pd.DataFrame:
 
     print("3. Calculando métricas numéricas relativas por evento...")
     df_rel = calcular_metricas_relativas(df_site)
+
+    print("4. Calculando percentil de precio absoluto dentro de type_site...")
+    df_pct = calcular_percentil_precio_absoluto_dentro_tipo(df_rel)
     
-    print("4. Extrayendo variables estructurales y limpiando texto NLP...")
-    df_final = pipeline_procesamiento_nlp(df_rel, col_nombre="logical_seat_category")
+    print("5. Extrayendo variables estructurales y limpiando texto NLP...")
+    df_final = pipeline_procesamiento_nlp(df_pct, col_nombre="logical_seat_category")
     
     print(f" Dataset enriquecido listo: {len(df_final):,} filas y {len(df_final.columns)} columnas.")
     return df_final
+

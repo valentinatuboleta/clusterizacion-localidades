@@ -20,7 +20,11 @@ import re
 import unittest
 import pandas as pd
 import numpy as np
-from src.feature_engineering import filtrar_consistencia_localidades, calcular_metricas_relativas
+from src.feature_engineering import (
+    filtrar_consistencia_localidades,
+    calcular_metricas_relativas,
+    preparar_dataset_enriquecido
+)
 from src.nlp_utils import pipeline_procesamiento_nlp
 from src.clustering import (
     separar_admision_unica_multizona,
@@ -33,7 +37,8 @@ from src.clustering import (
     predecir_arquetipos_demanda,
     calcular_psi,
     evaluar_drift_lote,
-    DISTRIBUCION_ESPERADA_ARQUETIPOS
+    DISTRIBUCION_ESPERADA_ARQUETIPOS,
+    MODEL_VERSION
 )
 
 
@@ -45,18 +50,16 @@ class TestClusteringGoldenSet(unittest.TestCase):
         if not os.path.exists(data_path):
             return
 
-        # Cargar y preparar dataset real
+        # Cargar y preparar dataset real con ingenieria de variables completa v2.3
         df_raw = pd.read_parquet(data_path)
-        df_clean = filtrar_consistencia_localidades(df_raw)
-        df_rel = calcular_metricas_relativas(df_clean)
-        cls.df_enriquecido = pipeline_procesamiento_nlp(df_rel)
+        cls.df_enriquecido = preparar_dataset_enriquecido(df_raw)
 
         # Ejecutar pipeline en dos etapas con k optimo (k=5 en multi-zona + 1 tarifa plana = 6 arquetipos)
         cls.df_final, cls.kmeans, cls.scaler, cls.tfidf_vec, cls.feature_names, cls.metricas = (
             pipeline_clustering_dos_etapas(cls.df_enriquecido, n_clusters_multizona=5, random_state=42)
         )
 
-        # Persistir modelo de produccion v2.2 actualizado con gmm y referencia_drift
+        # Persistir modelo de produccion v2.3 actualizado con gmm, distribucion percentil y referencia_drift
         mapa_arquetipos = cls.metricas.get("mapa_arquetipos") or etiquetar_por_centroides_escalados(
             cls.kmeans, cls.feature_names, cls.scaler, peso_nlp=0.2
         )
@@ -68,12 +71,13 @@ class TestClusteringGoldenSet(unittest.TestCase):
             feature_names=cls.feature_names,
             mapa_arquetipos=mapa_arquetipos,
             metricas=cls.metricas,
-            metadata={"autor": "Data Science TuBoleta", "version": "2.2"},
+            metadata={"autor": "Data Science TuBoleta", "version": MODEL_VERSION},
             gmm=cls.metricas.get("gmm"),
             df_referencia=cls.df_enriquecido[~cls.df_enriquecido["t_performance_id"].isin(
                 cls.df_final[cls.df_final["cluster"] == -1]["t_performance_id"]
             )]
         )
+
 
     def test_01_cobertura_exacta_y_no_particion_de_eventos(self):
         """Valida que la suma de monozona + multi-zona sea 33,775 y que ningun evento este partido."""
@@ -191,14 +195,15 @@ class TestClusteringGoldenSet(unittest.TestCase):
                 feature_names=self.feature_names,
                 mapa_arquetipos=mapa_arquetipos,
                 metricas=self.metricas,
-                metadata={"autor": "Data Science TuBoleta", "version": "2.2"},
+                metadata={"autor": "Data Science TuBoleta", "version": MODEL_VERSION},
                 gmm=self.metricas.get("gmm")
             )
             self.assertTrue(os.path.exists(temp_model_path), "El archivo del modelo joblib debe existir")
 
             # 2. Cargar modelo y realizar inferencia bietapica
             modelo_cargado = cargar_modelo_clustering(temp_model_path)
-            self.assertEqual(modelo_cargado["version"], "2.2")
+            self.assertEqual(modelo_cargado["version"], MODEL_VERSION)
+
 
             df_pred = predecir_arquetipos_demanda(self.df_enriquecido, modelo_cargado)
             self.assertEqual(len(df_pred), len(self.df_final))

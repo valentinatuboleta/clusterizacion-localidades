@@ -25,11 +25,27 @@ from scipy.optimize import linear_sum_assignment
 from src.nlp_utils import vectorizar_texto_limpio
 
 
+MODEL_VERSION = "2.3"
+
+# Categorias canonicas estandarizadas de type_site (excluyendo 'desconocido')
+CANONICAL_TYPE_SITE_CATEGORIES = [
+    "arena_cubierta",
+    "auditorio",
+    "bar_club",
+    "centro_eventos_carpa",
+    "cine_sala_cultural",
+    "estadio_abierto",
+    "otro",
+    "parque_aire_libre",
+    "teatro"
+]
+
 # Lista por defecto de variables estructurales numéricas ex-ante (sin tasa de ocupación)
 DEFAULT_NUMERIC_FEATURES = [
     "ratio_precio_max",
     "percentil_precio_evento",
-    "peso_aforo"
+    "peso_aforo",
+    "percentil_precio_absoluto_dentro_tipo"
 ]
 
 DEFAULT_TAG_FEATURES = [
@@ -46,6 +62,7 @@ VARIABLES_MONITOREO_DRIFT = [
     "ratio_precio_max",
     "percentil_precio_evento",
     "peso_aforo",
+    "percentil_precio_absoluto_dentro_tipo",
     "tag_palco",
     "tag_vip",
     "tag_platea",
@@ -57,12 +74,14 @@ VARIABLES_MONITOREO_DRIFT = [
 
 DISTRIBUCION_ESPERADA_ARQUETIPOS = {
     "Admisión Única / Tarifa Plana": 15375 / 33775,
-    "Popular / Balcón / Visibilidad Parcial": 6540 / 33775,
-    "Preferencial / Platea Frontal": 4697 / 33775,
-    "Platea General / Intermedia": 3432 / 33775,
-    "VIP / Palcos / Premium": 2912 / 33775,
-    "Grada General / Masiva": 819 / 33775,
+    "Popular / Balcón / Visibilidad Parcial": 5861 / 33775,
+    "VIP / Palcos / Premium": 5070 / 33775,
+    "Platea General / Intermedia": 3270 / 33775,
+    "Preferencial / Platea Frontal": 3229 / 33775,
+    "Grada General / Masiva": 970 / 33775,
 }
+
+
 
 
 def separar_admision_unica_multizona(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -105,24 +124,37 @@ def construir_espacio_vectorial_mixto(
     usar_tfidf_texto: bool = True,
     max_tfidf_features: int = 15,
     peso_nlp: float = 0.2,
+    peso_type_site: float = 0.5,
+    categorias_type_site: Optional[List[str]] = None,
     scaler_type: str = "robust",
     scaler: Optional[Any] = None,
     tfidf_vectorizer: Optional[Any] = None
 ) -> Tuple[np.ndarray, Any, Any, List[str]]:
     """
-    Construye el espacio vectorial mixto de 25 dimensiones combinando:
-    1. Métricas numéricas relativas ex-ante escaladas (3 variables: ratio_precio_max, percentil_precio_evento, peso_aforo).
-       Nota: 'tasa_ocupacion' se excluye deliberadamente al ser una métrica ex-post de absorción comercial.
-    2. Tags estructurales densos (7 variables: 5 de jerarquía comercial + 2 de nivel vertical).
-       Nota: De los 17 tags extraídos en el pipeline NLP, se seleccionan estos 7 para modelado
-       para evitar alta dimensionalidad y dispersión causada por orientaciones y restricciones ultra-escasas.
-    3. Embeddings/TF-IDF del texto limpio de la localidad (15 n-gramas) ponderados por peso_nlp.
+    Construye el espacio vectorial mixto de 35 dimensiones (Modelo v2.3) combinando:
+    1. Metricas numericas relativas ex-ante escaladas (4 variables: ratio_precio_max, percentil_precio_evento,
+       peso_aforo, percentil_precio_absoluto_dentro_tipo).
+    2. Tags estructurales densos (7 variables: 5 de jerarquia comercial + 2 de nivel vertical).
+    3. One-hot encoding de type_site ponderado (9 categorias canonicas ponderadas por peso_type_site,
+       excluyendo 'desconocido' del one-hot pero preservando su flag).
+    4. Embeddings/TF-IDF del texto limpio de la localidad (15 n-gramas) ponderados por peso_nlp.
     
-    Total de dimensiones por defecto: 3 + 7 + 15 = 25 dimensiones.
+    Total de dimensiones por defecto: 4 + 7 + 9 + 15 = 35 dimensiones.
     """
-    # 1. Variables numéricas continuas
-    cols_num_presentes = [c for c in columnas_numericas if c in df.columns]
-    X_num = df[cols_num_presentes].values
+    df_work = df.copy()
+    if "type_site" not in df_work.columns:
+        from src.feature_engineering import enriquecer_type_site
+        df_work = enriquecer_type_site(df_work)
+    if "percentil_precio_absoluto_dentro_tipo" in columnas_numericas and "percentil_precio_absoluto_dentro_tipo" not in df_work.columns:
+        from src.feature_engineering import calcular_percentil_precio_absoluto_dentro_tipo
+        df_work = calcular_percentil_precio_absoluto_dentro_tipo(df_work)
+
+    # 1. Variables numericas continuas
+    for c in columnas_numericas:
+        if c not in df_work.columns:
+            df_work[c] = 0.50 if "percentil" in c else 0.0
+    cols_num_presentes = list(columnas_numericas)
+    X_num = df_work[cols_num_presentes].values
     
     if len(cols_num_presentes) > 0:
         if scaler is None:
@@ -131,29 +163,50 @@ def construir_espacio_vectorial_mixto(
         else:
             X_num_scaled = scaler.transform(X_num)
     else:
-        X_num_scaled = np.empty((len(df), 0))
+        X_num_scaled = np.empty((len(df_work), 0))
         
     feature_names = list(cols_num_presentes)
     
     # 2. Variables binarias (Tags) en su escala natural [0, 1]
-    cols_tags_presentes = [c for c in columnas_tags if c in df.columns]
-    if len(cols_tags_presentes) > 0:
-        X_tags = df[cols_tags_presentes].values.astype(float)
-        feature_names.extend(cols_tags_presentes)
+    for c in columnas_tags:
+        if c not in df_work.columns:
+            df_work[c] = 0.0
+    cols_tags_presentes = list(columnas_tags)
+    X_tags = df_work[cols_tags_presentes].values.astype(float)
+    feature_names.extend(cols_tags_presentes)
+
+    # 2b. One-hot de type_site ponderado por peso_type_site en el bloque de tags
+    if categorias_type_site is None:
+        cats_to_use = [c for c in CANONICAL_TYPE_SITE_CATEGORIES if c != "desconocido"]
     else:
-        X_tags = np.empty((len(df), 0))
+        cats_to_use = [c for c in categorias_type_site if c != "desconocido"]
+
+    if len(cats_to_use) > 0:
+        s_type = df_work["type_site"].astype(str) if "type_site" in df_work.columns else pd.Series(["desconocido"] * len(df_work), index=df_work.index)
+        if peso_type_site > 0.0:
+            X_type_site = np.column_stack([
+                (s_type == cat).values.astype(float) * peso_type_site for cat in cats_to_use
+            ])
+        else:
+            X_type_site = np.zeros((len(df_work), len(cats_to_use)), dtype=float)
+        cols_type_names = [f"type_site_{cat}" for cat in cats_to_use]
+        feature_names.extend(cols_type_names)
+    else:
+        X_type_site = np.empty((len(df_work), 0))
         
-    # 3. Concatenación base
+    # 3. Concatenacion de bloques estructurados
     bloques = []
     if X_num_scaled.shape[1] > 0:
         bloques.append(X_num_scaled)
     if X_tags.shape[1] > 0:
         bloques.append(X_tags)
+    if X_type_site.shape[1] > 0:
+        bloques.append(X_type_site)
     
     # 4. TF-IDF sobre texto limpio
-    if usar_tfidf_texto and "texto_limpio" in df.columns:
+    if usar_tfidf_texto and "texto_limpio" in df_work.columns:
         X_tfidf, tfidf_vectorizer = vectorizar_texto_limpio(
-            df["texto_limpio"],
+            df_work["texto_limpio"],
             max_features=max_tfidf_features,
             vectorizer=tfidf_vectorizer
         )
@@ -162,9 +215,10 @@ def construir_espacio_vectorial_mixto(
         tfidf_vocab = [f"tfidf_{w}" for w in tfidf_vectorizer.get_feature_names_out()]
         feature_names.extend(tfidf_vocab)
         
-    X_mixto = np.hstack(bloques) if len(bloques) > 0 else np.empty((len(df), 0))
+    X_mixto = np.hstack(bloques) if len(bloques) > 0 else np.empty((len(df_work), 0))
         
     return X_mixto, scaler, tfidf_vectorizer, feature_names
+
 
 
 def evaluar_rango_k(
@@ -248,22 +302,22 @@ def construir_perfiles_ideales_escalados(
     if n_clusters == 4:
         perfiles_config = {
             "VIP / Palcos / Premium": {
-                "num": {"ratio_precio_max": 0.90, "percentil_precio_evento": 0.85, "peso_aforo": 0.08},
+                "num": {"ratio_precio_max": 0.90, "percentil_precio_evento": 0.85, "peso_aforo": 0.08, "percentil_precio_absoluto_dentro_tipo": 0.90},
                 "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
                 "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
             },
             "Preferencial / Platea Frontal": {
-                "num": {"ratio_precio_max": 0.80, "percentil_precio_evento": 0.75, "peso_aforo": 0.20},
+                "num": {"ratio_precio_max": 0.80, "percentil_precio_evento": 0.75, "peso_aforo": 0.20, "percentil_precio_absoluto_dentro_tipo": 0.80},
                 "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
                 "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
             },
             "Popular / Visibilidad Parcial / Balcón": {
-                "num": {"ratio_precio_max": 0.35, "percentil_precio_evento": 0.30, "peso_aforo": 0.15},
+                "num": {"ratio_precio_max": 0.35, "percentil_precio_evento": 0.30, "peso_aforo": 0.15, "percentil_precio_absoluto_dentro_tipo": 0.30},
                 "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
                 "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
             },
             "Grada General / Masiva": {
-                "num": {"ratio_precio_max": 0.60, "percentil_precio_evento": 0.50, "peso_aforo": 0.60},
+                "num": {"ratio_precio_max": 0.60, "percentil_precio_evento": 0.50, "peso_aforo": 0.60, "percentil_precio_absoluto_dentro_tipo": 0.50},
                 "tags": {"tag_general": 0.6},
                 "words": {"tfidf_general": 0.5}
             }
@@ -272,27 +326,27 @@ def construir_perfiles_ideales_escalados(
         # Configuración para k=5 (óptimo de codo y mínimo Davies-Bouldin en multi-zona)
         perfiles_config = {
             "VIP / Palcos / Premium": {
-                "num": {"ratio_precio_max": 0.90, "percentil_precio_evento": 0.85, "peso_aforo": 0.08},
+                "num": {"ratio_precio_max": 0.90, "percentil_precio_evento": 0.85, "peso_aforo": 0.08, "percentil_precio_absoluto_dentro_tipo": 0.90},
                 "tags": {"tag_palco": 0.6, "tag_vip": 0.4},
                 "words": {"tfidf_palco": 0.5, "tfidf_mesa": 0.3}
             },
             "Preferencial / Platea Frontal": {
-                "num": {"ratio_precio_max": 0.85, "percentil_precio_evento": 0.82, "peso_aforo": 0.10},
+                "num": {"ratio_precio_max": 0.85, "percentil_precio_evento": 0.82, "peso_aforo": 0.10, "percentil_precio_absoluto_dentro_tipo": 0.82},
                 "tags": {"tag_platea": 0.8, "tag_preferencial": 0.3},
                 "words": {"tfidf_platea": 0.5, "tfidf_central": 0.3}
             },
             "Platea General / Intermedia": {
-                "num": {"ratio_precio_max": 0.80, "percentil_precio_evento": 0.70, "peso_aforo": 0.35},
+                "num": {"ratio_precio_max": 0.80, "percentil_precio_evento": 0.70, "peso_aforo": 0.35, "percentil_precio_absoluto_dentro_tipo": 0.65},
                 "tags": {"tag_platea": 0.4},
                 "words": {"tfidf_platea": 0.3}
             },
             "Grada General / Masiva": {
-                "num": {"ratio_precio_max": 0.75, "percentil_precio_evento": 0.60, "peso_aforo": 0.75},
+                "num": {"ratio_precio_max": 0.75, "percentil_precio_evento": 0.60, "peso_aforo": 0.75, "percentil_precio_absoluto_dentro_tipo": 0.50},
                 "tags": {"tag_general": 0.6},
                 "words": {"tfidf_general": 0.5}
             },
             "Popular / Balcón / Visibilidad Parcial": {
-                "num": {"ratio_precio_max": 0.35, "percentil_precio_evento": 0.30, "peso_aforo": 0.12},
+                "num": {"ratio_precio_max": 0.35, "percentil_precio_evento": 0.30, "peso_aforo": 0.12, "percentil_precio_absoluto_dentro_tipo": 0.30},
                 "tags": {"tag_balcon": 0.4, "tag_piso_alto": 0.4},
                 "words": {"tfidf_balcon": 0.4, "tfidf_piso": 0.3, "tfidf_posterior": 0.3}
             }
@@ -303,7 +357,10 @@ def construir_perfiles_ideales_escalados(
     if scaler is not None and hasattr(scaler, "feature_names_in_"):
         cols_num_scaler = list(scaler.feature_names_in_)
     else:
-        cols_num_scaler = [f for f in feature_names if not f.startswith("tag_") and not f.startswith("tfidf_")]
+        cols_num_scaler = [
+            f for f in feature_names 
+            if not f.startswith("tag_") and not f.startswith("tfidf_") and not f.startswith("type_site_")
+        ]
         
     perfiles_vectores = {}
     for nombre, cfg in perfiles_config.items():
@@ -326,12 +383,15 @@ def construir_perfiles_ideales_escalados(
                 vec.append(cfg.get("tags", {}).get(feat, 0.0))
             elif feat.startswith("tfidf_"):
                 vec.append(cfg.get("words", {}).get(feat, 0.0) * peso_nlp)
+            elif feat.startswith("type_site_"):
+                vec.append(0.0)
             else:
                 vec.append(num_dict.get(feat, 0.0))
                 
         perfiles_vectores[nombre] = np.array(vec, dtype=float)
         
     return perfiles_vectores
+
 
 
 def etiquetar_por_centroides_escalados(
@@ -456,15 +516,17 @@ def pipeline_clustering_dos_etapas(
     n_clusters_multizona: Union[int, str] = 5,
     random_state: int = 42,
     peso_nlp: float = 0.2,
+    peso_type_site: float = 0.5,
+    categorias_type_site: Optional[List[str]] = None,
     max_tfidf_features: int = 15,
     scaler_type: str = "robust"
 ) -> Tuple[pd.DataFrame, KMeans, Any, Any, List[str], Dict[str, Any]]:
     """
-    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.1 optimizado):
+    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.3 optimizado):
     1. Etapa 1 (Determinística): Aísla funciones monozona / tarifa plana (~45.5%).
        Se asignan directamente a 'Admisión Única / Tarifa Plana' con cluster = -1.
-    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 25D sobre multi-zona (~54.5%)
-       con peso_nlp calibrado en 0.2 para evitar dilución dimensional.
+    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 35D sobre multi-zona (~54.5%)
+       con peso_nlp calibrado en 0.2 y peso_type_site en 0.5 para enriquecimiento por tipo de venue.
        Ajusta K-Means con k óptimo (k=5 por defecto, determinado por codo ortogonal y mínimo Davies-Bouldin,
        o selección automática balanceada mediante n_clusters_multizona='auto') y etiqueta mediante geometría húngara.
     3. Integración: Reensambla el catálogo unificado asegurando cobertura exacta del 100% de filas.
@@ -480,8 +542,11 @@ def pipeline_clustering_dos_etapas(
         df_multizona,
         max_tfidf_features=max_tfidf_features,
         peso_nlp=peso_nlp,
+        peso_type_site=peso_type_site,
+        categorias_type_site=categorias_type_site,
         scaler_type=scaler_type
     )
+
     
     # Selección automática de k si se solicita 'auto' mediante Score Compuesto Codo-DB
     # Combina la distancia ortogonal a la cuerda en la curva de inercia (codo) y la minimización de Davies-Bouldin
@@ -819,13 +884,15 @@ def guardar_modelo_clustering(
     metadata: Optional[Dict[str, Any]] = None,
     gmm: Optional[GaussianMixture] = None,
     referencia_drift: Optional[Dict[str, Any]] = None,
-    df_referencia: Optional[pd.DataFrame] = None
+    df_referencia: Optional[pd.DataFrame] = None,
+    distribucion_percentil_tipo: Optional[Dict[str, Any]] = None,
+    categorias_type_site: Optional[List[str]] = None
 ) -> None:
     """
     Persiste el pipeline de clusterizacion entrenado en un archivo .joblib.
-    Incluye todos los transformadores, el modelo K-Means, el modelo GMM para probabilidades,
-    la referencia de drift para calculo de PSI, el vocabulario de features,
-    el diccionario de mapeo a arquetipos y metadatos de version.
+    Incluye transformadores, modelo K-Means, modelo GMM, referencia drift PSI,
+    distribucion de referencia de percentil por tipo, categorias type_site,
+    vocabulario de features, mapa de arquetipos y metadatos de version.
     """
     import os
     os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
@@ -846,8 +913,24 @@ def guardar_modelo_clustering(
                 "distribucion_arquetipos": DISTRIBUCION_ESPERADA_ARQUETIPOS.copy()
             }
 
+    if distribucion_percentil_tipo is None:
+        if df_referencia is not None:
+            from src.feature_engineering import generar_referencia_percentil_tipo
+            distribucion_percentil_tipo = generar_referencia_percentil_tipo(df_referencia)
+        elif "distribucion_percentil_tipo" in metricas_dict:
+            distribucion_percentil_tipo = metricas_dict["distribucion_percentil_tipo"]
+        else:
+            distribucion_percentil_tipo = {}
+
+    if categorias_type_site is None:
+        categorias_type_site = (
+            metricas_dict.get("categorias_type_site")
+            or [f.replace("type_site_", "") for f in feature_names if f.startswith("type_site_")]
+            or CANONICAL_TYPE_SITE_CATEGORIES
+        )
+
     payload = {
-        "version": "2.2",
+        "version": MODEL_VERSION,
         "kmeans": kmeans,
         "scaler": scaler,
         "tfidf_vectorizer": tfidf_vectorizer,
@@ -856,7 +939,9 @@ def guardar_modelo_clustering(
         "metricas": metricas_dict,
         "metadata": metadata or {},
         "gmm": gmm,
-        "referencia_drift": referencia_drift
+        "referencia_drift": referencia_drift,
+        "distribucion_percentil_tipo": distribucion_percentil_tipo,
+        "categorias_type_site": categorias_type_site
     }
     joblib.dump(payload, filepath)
 
@@ -878,11 +963,10 @@ def predecir_arquetipos_demanda(
     1. Etapa 1 (Deterministica): Evalua funciones a nivel evento (t_performance_id).
        Si es monozona (1 sola localidad o aforo >= 99%), asigna 'Admisión Única / Tarifa Plana' (cluster = -1).
        Score de confianza = 1.0, es_frontera = False, segundo_arquetipo = None, probabilidad_gmm = 1.0.
-    2. Etapa 2 (Machine Learning): Transforma las localidades multi-zona usando el scaler,
-       vectorizador TF-IDF y feature_names persistidos, predice con K-Means y GMM.
-       Calcula score_confianza (margen geometrico relativo entre los 2 centroides mas cercanos),
-       bandera es_frontera (margen < 0.15), segundo_arquetipo en disputa,
-       cobertura_texto y texto_casi_vacio (cobertura < 0.20).
+    2. Etapa 2 (Machine Learning): Transforma las localidades multi-zona usando scaler,
+       vectorizador TF-IDF, percentil referenciado por type_site y feature_names persistidos,
+       predice con K-Means y GMM. Calcula score_confianza, es_frontera, segundo_arquetipo,
+       cobertura_texto y texto_casi_vacio.
     3. Reensamblaje: Retorna el DataFrame unificado preservando exactamente el indice original.
     """
     if isinstance(modelo, str):
@@ -895,8 +979,15 @@ def predecir_arquetipos_demanda(
     tfidf_vec = modelo_dict["tfidf_vectorizer"]
     mapa_arquetipos = modelo_dict["mapa_arquetipos"]
     gmm: Optional[GaussianMixture] = modelo_dict.get("gmm", None)
+    dist_perc = modelo_dict.get("distribucion_percentil_tipo", {})
+    cats_type = modelo_dict.get("categorias_type_site", CANONICAL_TYPE_SITE_CATEGORIES)
+    peso_type_site = modelo_dict.get("metadata", {}).get("peso_type_site", 0.5)
 
     df_input = df.copy()
+    if "type_site" not in df_input.columns:
+        from src.feature_engineering import enriquecer_type_site
+        df_input = enriquecer_type_site(df_input)
+
     if "texto_limpio" not in df_input.columns:
         col_nlp = next(
             (c for c in ["logical_seat_category", "product", "translation_name", "cd_name", "nombre_localidad"] if c in df_input.columns),
@@ -913,6 +1004,13 @@ def predecir_arquetipos_demanda(
         if tag_col not in df_input.columns:
             df_input[tag_col] = 0
 
+    # Asegurar percentil_precio_absoluto_dentro_tipo contra distribucion de referencia persistida
+    if "percentil_precio_absoluto_dentro_tipo" not in df_input.columns or bool(dist_perc):
+        from src.feature_engineering import calcular_percentil_precio_absoluto_dentro_tipo
+        df_input = calcular_percentil_precio_absoluto_dentro_tipo(
+            df_input, referencia_distribucion=dist_perc if dist_perc else None
+        )
+
     # Asegurar presencia de variables numericas continuas
     if any(c not in df_input.columns for c in DEFAULT_NUMERIC_FEATURES):
         if "t_performance_id" in df_input.columns and any(
@@ -922,7 +1020,7 @@ def predecir_arquetipos_demanda(
             df_input = calcular_metricas_relativas(df_input)
         for num_col in DEFAULT_NUMERIC_FEATURES:
             if num_col not in df_input.columns:
-                df_input[num_col] = 0.0
+                df_input[num_col] = 0.50 if "percentil" in num_col else 0.0
 
     vocab = set(tfidf_vec.get_feature_names_out()) if hasattr(tfidf_vec, "get_feature_names_out") else set()
     def _calc_cobertura(texto):
@@ -946,12 +1044,26 @@ def predecir_arquetipos_demanda(
     # 2. Inferencia en multi-zona si existen registros
     if len(df_multi) > 0:
         df_multi = df_multi.copy()
-        X_multi, _, _, _ = construir_espacio_vectorial_mixto(
+        X_multi, _, _, feat_multi = construir_espacio_vectorial_mixto(
             df_multi,
             scaler=scaler,
             tfidf_vectorizer=tfidf_vec,
-            peso_nlp=peso_nlp
+            peso_nlp=peso_nlp,
+            peso_type_site=peso_type_site,
+            categorias_type_site=cats_type
         )
+        
+        target_features = modelo_dict.get("feature_names", feat_multi)
+        if feat_multi != target_features:
+            feat_idx_map = {f: i for i, f in enumerate(feat_multi)}
+            cols_aligned = []
+            for tf in target_features:
+                if tf in feat_idx_map:
+                    cols_aligned.append(X_multi[:, feat_idx_map[tf]])
+                else:
+                    cols_aligned.append(np.zeros(len(df_multi)))
+            X_multi = np.column_stack(cols_aligned)
+
         
         distancias = kmeans.transform(X_multi)
         orden = np.argsort(distancias, axis=1)

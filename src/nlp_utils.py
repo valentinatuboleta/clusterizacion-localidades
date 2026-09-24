@@ -62,6 +62,22 @@ def normalizar_texto(texto: str) -> str:
     return t
 
 
+def normalizar_venue(texto: str) -> str:
+    """
+    Normaliza el nombre de un venue eliminando tildes, caracteres especiales
+    y colapsando espacios continuos para matching canonico y robusto.
+    """
+    if pd.isna(texto) or not isinstance(texto, str):
+        return ""
+    texto = texto.upper().strip()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = re.sub(r"[^\w\s]", " ", texto)
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto
+
+
+
 def limpiar_ruido_marketing(texto: str) -> str:
     """
     Elimina sufijos publicitarios, marcas comerciales, nombres de gira y números de silletería/rango.
