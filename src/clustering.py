@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Any, Optional, Union
 import joblib
+import warnings
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.cluster import KMeans, AgglomerativeClustering, HDBSCAN
 from sklearn.mixture import GaussianMixture
@@ -964,9 +965,20 @@ def guardar_modelo_clustering(
 
 def cargar_modelo_clustering(filepath: str) -> Dict[str, Any]:
     """
-    Carga un pipeline de clusterización previamente persistido con joblib.
+    Carga un pipeline de clusterización previamente persistido con joblib,
+    validando su versión de compatibilidad con MODEL_VERSION.
     """
-    return joblib.load(filepath)
+    payload = joblib.load(filepath)
+    version = payload.get("version") if isinstance(payload, dict) else None
+    if version != MODEL_VERSION:
+        warnings.warn(
+            f"El modelo cargado desde '{filepath}' tiene versión '{version}', "
+            f"mientras que la versión actual del pipeline es '{MODEL_VERSION}'. "
+            f"Las predicciones pueden diferir en dimensionalidad o preprocesamiento.",
+            category=UserWarning,
+            stacklevel=2
+        )
+    return payload
 
 
 def predecir_arquetipos_demanda(

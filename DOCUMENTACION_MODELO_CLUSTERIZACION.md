@@ -307,7 +307,7 @@ El análisis de correlaciones lineales (Pearson $r$) valida tres propiedades est
 
 #### 2.3 `preparar_dataset_enriquecido(df: pd.DataFrame) -> pd.DataFrame`
 * Orquesta el filtrado, el cálculo de métricas relativas y la ejecución del pipeline NLP.
-* Retorna el dataset maestro con **44 columnas** listo para vectorización.
+* Retorna el dataset maestro con **48 columnas** listo para vectorización.
 
 ---
 
@@ -385,7 +385,7 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.3**) para res
 
   * **Descomposición del Impacto y Justificación Cualitativa:**
     1. **Efecto de la 4ª Numérica (25D $\to$ 26D):**
-       Al incorporar `percentil_precio_absoluto_dentro_tipo`, la silueta desciende de $0.2495$ a $0.2243$. La matriz de transición descompuesta demuestra que esta variable es la causante principal de la **expansión del arquetipo VIP / Palcos / Premium (+74%, de 2,912 a 5,081 registros)**. Esto ocurre porque rescata localidades con precio nominal alto dentro de teatros, auditorios y carpas (que antes colapsaban en Preferencial al evaluarse solo contra el precio pico del espectáculo).
+       Al incorporar `percentil_precio_absoluto_dentro_tipo`, la silueta desciende de $0.2495$ a $0.2243$. La matriz de transición descompuesta demuestra que esta variable es la causante principal de la **expansión del arquetipo VIP / Palcos / Premium (+74%, de 2,912 a 5,070 registros)**. Esto ocurre porque rescata localidades con precio nominal alto dentro de teatros, auditorios y carpas (que antes colapsaban en Preferencial al evaluarse solo contra el precio pico del espectáculo).
     2. **Efecto del One-Hot de Tipología de Venue (26D $\to$ 35D, $\text{peso} = 0.5$):**
        La inclusión de las 9 dimensiones canónicas de venue modula la silueta de $0.2243$ a $0.2094$ (manteniéndose cómodamente sobre el umbral $>0.20$). Este bloque aporta cohesión de tipología física: estabiliza las localidades intermedias y resuelve anomalías cualitativas de negocio (como las entradas `"General"` de precio elevado en teatros pequeños, de las cuales el $14.3\%$ migra de forma natural fuera de Popular hacia Platea o Preferencial al ser contextualizadas contra la tipología del venue).
 

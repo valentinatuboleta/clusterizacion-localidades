@@ -48,14 +48,19 @@ clusterizacion-localidades/
 │   ├── __init__.py
 │   ├── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
 │   ├── test_clasificacion_sites.py             # Casos borde toponímicos, límites de palabra y trazabilidad
-│   └── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
+│   ├── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
+│   ├── test_feature_type_site.py               # Tests del feature type_site y percentil
+│   └── test_microclusters.py                   # Tests de la exploración de micro-clusters
 │
 ├── scripts/                                    # Automatización, diagnóstico y análisis
 │   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
 │   ├── comparar_resultados_clustering.py       # Comparativa cuantitativa y matriz de transición v2.0 vs v2.2
+│   ├── comparar_v22_vs_v23.py                  # Comparación y ablación de versiones
 │   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
 │   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (Codo Ortogonal + Davies-Bouldin)
 │   ├── verificar_k5_perfiles.py                # Inspección de centroides y activación de tags
+│   ├── monitorear_drift.py                     # Monitoreo PSI de drift
+│   ├── explorar_microclusters.py               # Exploración de micro-clusters para normalización de nombres
 │   ├── build_presentation.py                   # Generación de presentación ejecutiva de EDA (10 diapositivas)
 │   ├── build_presentation_from_template.py     # Inyección de insights en plantilla corporativa PPTX
 │   ├── build_full_notebook_presentation.py     # Generación de presentación ejecutiva completa

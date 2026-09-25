@@ -114,6 +114,37 @@ class TestMicroclustersExploracion(unittest.TestCase):
         )
         self.assertEqual(label, "Palco Occidental Alto")
 
+    def test_generar_label_auto_deduplicacion_acentos(self):
+        """Valida que una colisión acentuada ('Balcón' vs 'balcon') se deduplique correctamente."""
+        tag_shares = pd.Series({
+            "tag_balcon": 0.90,
+            "tag_piso_alto": 0.80
+        })
+        label = generar_label_auto(
+            cluster_id=1,
+            tag_shares=tag_shares,
+            term_dominante="balcon",
+            purity_tag=0.90,
+            purity_term=0.80,
+            threshold_tag_active=0.60,
+            min_purity_tag=0.70
+        )
+        self.assertEqual(label, "Balcón Piso Alto")
+
+        tag_shares_solo_balcon = pd.Series({
+            "tag_balcon": 0.95
+        })
+        label_solo = generar_label_auto(
+            cluster_id=6,
+            tag_shares=tag_shares_solo_balcon,
+            term_dominante="balcon",
+            purity_tag=0.95,
+            purity_term=0.85,
+            threshold_tag_active=0.60,
+            min_purity_tag=0.70
+        )
+        self.assertEqual(label_solo, "Balcón")
+
     def test_generar_label_auto_impuro_hibrido(self):
         """Valida fallback estricto a 'hibrido_k{id}' si la pureza es < 0.70 o sin término."""
         tag_shares = pd.Series({

@@ -18,6 +18,8 @@ Valida:
 import os
 import re
 import unittest
+import warnings
+import joblib
 import pandas as pd
 import numpy as np
 from src.feature_engineering import (
@@ -424,6 +426,37 @@ class TestClusteringGoldenSet(unittest.TestCase):
 
         self.assertEqual(len(errores_emoji), 0, f"Se encontraron emojis en: {errores_emoji}")
         self.assertEqual(len(errores_recinto), 0, f"Se encontro la palabra 'recinto' en: {errores_recinto}")
+
+    def test_12_validacion_version_cargar_modelo(self):
+        """Valida que cargar un modelo con version diferente emita UserWarning y con version actual no emita warning."""
+        temp_dir = "data/processed"
+        temp_old = os.path.join(temp_dir, "test_modelo_v_old.joblib")
+        temp_curr = os.path.join(temp_dir, "test_modelo_v_curr.joblib")
+        try:
+            joblib.dump({"version": "2.1", "contenido": "dummy"}, temp_old)
+            joblib.dump({"version": MODEL_VERSION, "contenido": "dummy"}, temp_curr)
+
+            # 1. Version vieja: debe emitir UserWarning
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                cargar_modelo_clustering(temp_old)
+                self.assertTrue(
+                    any(issubclass(item.category, UserWarning) and "versión" in str(item.message).lower() for item in w),
+                    "Cargar una version antigua debe emitir un UserWarning de compatibilidad"
+                )
+
+            # 2. Version actual: no debe emitir warning de version
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                cargar_modelo_clustering(temp_curr)
+                self.assertFalse(
+                    any("versión" in str(item.message).lower() for item in w),
+                    "Cargar la version actual no debe emitir warning de version"
+                )
+        finally:
+            for p in (temp_old, temp_curr):
+                if os.path.exists(p):
+                    os.remove(p)
 
 
 if __name__ == "__main__":

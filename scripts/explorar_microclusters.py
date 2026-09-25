@@ -54,6 +54,7 @@ from src.clustering import (
     predecir_arquetipos_demanda,
     CANONICAL_TYPE_SITE_CATEGORIES
 )
+from src.nlp_utils import normalizar_texto
 
 # Mapeo limpio de tags a etiquetas Title Case
 TAG_LABEL_MAP = {
@@ -166,18 +167,20 @@ def generar_label_auto(
         dom_col = tag_shares.idxmax()
         active_tags.append(TAG_LABEL_MAP.get(dom_col, dom_col.replace("tag_", "").capitalize()))
 
-    # Agregar término léxico dominante si no es redundante
+    # Agregar término léxico dominante si no es redundante (con stripping de acentos)
     partes = []
     seen = set()
     for tag_name in active_tags:
         for word in tag_name.split():
-            w_lower = word.lower()
-            if w_lower not in seen:
-                partes.append(word.capitalize())
-                seen.add(w_lower)
+            w_norm = normalizar_texto(word)
+            if w_norm and w_norm not in seen:
+                clean_word = word if word.isupper() and len(word) > 1 else word.capitalize()
+                partes.append(clean_word)
+                seen.add(w_norm)
 
     term_clean = term_dominante.capitalize()
-    if term_clean.lower() not in seen and term_clean.lower() != "ninguno":
+    term_norm = normalizar_texto(term_clean)
+    if term_norm and term_norm not in seen and term_norm != "NINGUNO":
         partes.append(term_clean)
 
     if not partes:
