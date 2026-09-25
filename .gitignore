@@ -226,6 +226,7 @@ data/*
 *.parquet
 *.csv
 !data/lookup/*.csv
+!reports/microclusters_resultados.csv
 
 # macOS y temporales de Office
 .DS_Store

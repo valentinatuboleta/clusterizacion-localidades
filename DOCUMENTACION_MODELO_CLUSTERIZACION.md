@@ -571,4 +571,58 @@ print(f" Segmentación completada exitosamente: {len(df_final):,} filas clasific
 | **v2.2** | Bietápica con Persistencia e Inferencia | 25D ($\omega_{\text{nlp}}=0.2$, RobustScaler) | $k=5$ unificado por Codo-DB ($2.000$) | 6 Arquetipos Estandarizados certificados con Golden Set, CI y Joblib |
 | **v2.3** | **Bietápica con Feature Engineering de Venue (`type_site`)** | **35D (4 numéricas + 7 tags + 9 one-hot venue $\times 0.5$ + 15 TF-IDF $\times 0.2$)** | **$k=5$ (Codo-DB $2.000$; evidencia documentada para $k>10$)** | **6 Arquetipos Estandarizados con sensibilidad a tipología de venue, percentil empírico persistido y Golden Set 100% certificado** |
 
+---
+
+## Micro-clusters (exploración)
+
+### 1. Propósito y Caso de Uso
+Se evaluó experimentalmente la viabilidad de generar particiones de grano fino ($k > 10$) sobre las $18,400$ localidades multi-zona en el espacio vectorial unificado de 35 dimensiones. El objetivo del caso de uso es servir como capa de normalización de nombres de localidades por detrás (backend), facilitando mapeos sistemáticos mientras se garantiza que el nombre comercial original (`logical_seat_category`) se preserve inalterado en todo momento.
+
+### 2. Decisión de Negocio y Gobernanza
+* **Identificador de Backend:** El `cluster_id` numérico opera estrictamente como la clave primaria de agregación interna.
+* **Auto-generación sin Aprobación Humana:** Cualquier etiqueta legible (`label_auto`) se compone automáticamente a partir de los tags estructurales con activación superior al 60% en el centroide y el término TF-IDF dominante (en formato Title Case). Si la pureza estructural es menor al 70% o no existe un término dominante representativo, el sistema asigna la etiqueta de resguardo `hibrido_k{id}`. Esta decisión de negocio elimina cuellos de botella operativos al no requerir compuertas manuales de aprobación (*human-in-the-loop*).
+* **Rollup a Nivel v2.3:** Cada micro-cluster preserva su alineación jerárquica con el modelo v2.3 mediante la columna `arquetipo_v23_rollup`, asegurando que las distribuciones y reglas de negocio vigentes no se rompan.
+
+### 3. Script y Protocolo de Evaluación
+El script de evaluación reproducible se encuentra en [`scripts/explorar_microclusters.py`](scripts/explorar_microclusters.py). Reutiliza idénticamente las funciones de enriquecimiento y construcción del espacio vectorial mixto v2.3 ($\omega_{\text{nlp}} = 0.2$, $\omega_{\text{venue}} = 0.5$, `RobustScaler` y semillas fijadas en 42).
+
+Se evaluaron tres familias algorítmicas con evaluación estandarizada sobre una submuestra fija de 5,000 filas (`RandomState(42)`):
+1. **K-Means:** $k \in \{8, 10, 12, 14, 16\}$ con $n\_init = 15$.
+2. **Gaussian Mixture Models (GMM):** $k \in \{8, 10, 12, 14, 16\}$ con covarianza completa (`covariance_type="full"`), $n\_init = 3$ y reporte de BIC.
+3. **HDBSCAN:** Grid de densidad con $\text{min\_cluster\_size} \in \{1.0\%, 1.5\%, 2.0\%\}$ de $N$ ($184$, $276$ y $368$ elementos respectivamente) y $\text{min\_samples} = 20\%$ de dicho tamaño.
+
+### 4. Criterios de Aceptación Cuantitativos
+Un algoritmo califica formalmente como candidato si satisface simultáneamente tres condiciones:
+1. **Pureza de naming** $\ge 0.85$ (medida como la combinación ponderada de pureza de tag estructural dominante y término TF-IDF dominante).
+2. **Estabilidad bootstrap-ARI** $\ge 0.85$ (promedio tras 20 remuestreos aleatorios al 80% de los datos contra la partición completa).
+3. **Cero clusters degenerados** (ningún cluster con menos del 2% del volumen total multi-zona, es decir, $< 368$ localidades).
+
+### 5. Resumen de Resultados
+
+| Algoritmo | $k$ / Parámetro | $k$ Efectivo | Silueta | Davies-Bouldin | Bootstrap-ARI (std) | Pureza Naming | Clusters Puros ($\ge 85\%$) | Clusters Degenerados | Pasa Criterios |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| K-Means | 8 | 8 | 0.2147 | 1.6273 | 0.7405 (0.130) | 0.6371 | 50.0% | 0 | **No** |
+| K-Means | 10 | 10 | 0.2240 | 1.6197 | 0.7875 (0.115) | 0.6704 | 50.0% | 0 | **No** |
+| K-Means | 12 | 12 | 0.2235 | 1.4601 | 0.7493 (0.093) | 0.6543 | 50.0% | 0 | **No** |
+| K-Means | 14 | 14 | 0.2258 | 1.4866 | 0.7824 (0.076) | 0.6762 | 57.1% | 0 | **No** |
+| K-Means | 16 | 16 | 0.2301 | 1.4733 | 0.7823 (0.066) | 0.7200 | 68.8% | 0 | **No** |
+| GMM | 8 | 8 | 0.1266 | 3.6441 | 0.7094 (0.106) | 0.7291 | 50.0% | 0 | **No** |
+| GMM | 10 | 10 | 0.1208 | 3.8096 | 0.7153 (0.101) | 0.7435 | 40.0% | 2 | **No** |
+| GMM | 12 | 12 | 0.0731 | 3.3196 | 0.6422 (0.072) | 0.7268 | 41.7% | 1 | **No** |
+| GMM | 14 | 14 | 0.0890 | 3.4479 | 0.6400 (0.055) | 0.7264 | 50.0% | 2 | **No** |
+| GMM | 16 | 16 | 0.0798 | 2.7201 | 0.6551 (0.079) | 0.7651 | 56.2% | 4 | **No** |
+| HDBSCAN | 1.0% | 25 | 0.2353 | 1.3361 | 0.7863 (0.034) | 0.8637 | 76.0% | 11 | **No** |
+| HDBSCAN | 1.5% | 20 | 0.2313 | 1.2716 | 0.5250 (0.006) | 0.8641 | 75.0% | 8 | **No** |
+| HDBSCAN | 2.0% | 11 | 0.1705 | 1.5450 | 0.8374 (0.006) | 0.7741 | 90.9% | 0 | **No** |
+
+### 6. Conclusión Técnica y Artefactos
+* **Artefacto de Resultados:** [`reports/microclusters_resultados.csv`](reports/microclusters_resultados.csv)
+* **Catálogo de Referencia:** [`data/processed/cluster_catalog.csv`](data/processed/cluster_catalog.csv)
+* **Dictamen:** Ningún candidato satisfizo simultáneamente los umbrales de pureza ($\ge 0.85$), estabilidad ($\ge 0.85$) y no degeneración ($0$ clusters $<2\%$).
+  * En **K-Means**, las particiones son estables (ARI $\approx 0.78$) y no degeneran, pero la pureza máxima alcanza apenas $0.7200$.
+  * En **GMM**, la estimación de covarianza completa degrada la compacidad geométrica (silueta $< 0.13$) y produce fragmentación con clusters degenerados.
+  * En **HDBSCAN**, si bien los núcleos densos alcanzan purezas léxicas del $86.4\%$, esto ocurre a expensas de descartar entre el $18\%$ y $26\%$ de los datos como ruido/outliers, con una inestabilidad severa (ARI $= 0.5250$ en $1.5\%$) y múltiples clusters degenerados.
+* **Decisión de Implementación:** Con base en la evidencia empírica, **no se persiste ningún modelo de micro-clusters ni se altera el pipeline de producción**. El modelo canónico v2.3 ($k=5$) permanece inmutable como la versión certificada para el negocio.
+
+
 

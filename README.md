@@ -225,6 +225,23 @@ python scripts/monitorear_drift.py --datos data/raw/localidades_eda.parquet --ou
 
 ---
 
+## Micro-clusters (exploración)
+
+Evaluación experimental de particiones finas ($k > 10$) sobre las $18,400$ localidades multi-zona en el espacio vectorial 35D, con el propósito de normalización técnica de nombres de localidades en capas de backend (manteniendo siempre inalterado el nombre comercial `logical_seat_category`).
+
+* **Decisión de Negocio:** El `cluster_id` es el identificador técnico de backend. Las etiquetas legibles (`label_auto`) se generan de forma automática según la combinación de tags dominantes ($\ge 60\%$) y términos TF-IDF, sin requerir compuertas de aprobación humana.
+* **Script de Ejecución:**
+  ```bash
+  python scripts/explorar_microclusters.py
+  ```
+* **Artefactos Generados:**
+  * Tabla comparativa de métricas: [`reports/microclusters_resultados.csv`](reports/microclusters_resultados.csv)
+  * Catálogo de referencia con rollup a v2.3: [`data/processed/cluster_catalog.csv`](data/processed/cluster_catalog.csv)
+* **Conclusión Cuantitativa:** Ningún candidato (K-Means $k=8..16$, GMM $k=8..16$, HDBSCAN grid) cumplió simultáneamente los criterios de aceptación (pureza $\ge 0.85$, bootstrap-ARI $\ge 0.85$ y cero clusters degenerados $<2\%$). En consecuencia, no se altera el pipeline de producción ni se persiste ningún modelo nuevo.
+
+---
+
 ## Documentación Técnica Detallada
 Para consultar la justificación matemática, fórmulas de normalización, descomposiciones de varianza PCA y pseudocódigo, consulta:
  **[DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md)**
+

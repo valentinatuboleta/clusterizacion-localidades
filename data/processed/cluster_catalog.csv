@@ -1,0 +1,21 @@
+cluster_id,n,purity_tag,tag_dominante,purity_term,term_dominante,label_auto,arquetipo_v23_rollup
+0,318,1.0,tag_general,0.0094,general,hibrido_k0,Grada General / Masiva
+1,415,1.0,tag_balcon,1.0,balcon,Balcón Piso Alto Balcon,Popular / Balcón / Visibilidad Parcial
+2,561,1.0,tag_platea,1.0,platea,Platea Piso Alto,Preferencial / Platea Frontal
+3,462,1.0,tag_palco,1.0,palco,Palco Preferencial,VIP / Palcos / Premium
+4,843,1.0,tag_general,0.9988,general,General,Platea General / Intermedia
+5,2818,1.0,tag_platea,0.9929,platea,Platea,Preferencial / Platea Frontal
+6,2053,1.0,tag_balcon,0.9942,balcon,Balcón Balcon,Popular / Balcón / Visibilidad Parcial
+7,451,1.0,tag_vip,0.0843,occidental,hibrido_k7,VIP / Palcos / Premium
+8,402,1.0,tag_palco,0.6741,palco,Palco Vip,VIP / Palcos / Premium
+9,384,1.0,tag_piso_alto,1.0,piso,Piso Alto Vista Parcial,Popular / Balcón / Visibilidad Parcial
+10,987,1.0,tag_piso_alto,1.0,piso,Piso Alto,Popular / Balcón / Visibilidad Parcial
+11,327,1.0,tag_palco,0.9969,mesa,Palco Mesa,VIP / Palcos / Premium
+12,325,1.0,tag_palco,0.8615,mesa,Palco Mesa,VIP / Palcos / Premium
+13,497,1.0,tag_palco,0.9859,palco,Palco Lateral,VIP / Palcos / Premium
+14,318,0.0,ninguno,0.0,ninguno,hibrido_k14,Platea General / Intermedia
+15,1255,0.3849,tag_occidental,0.3602,norte,hibrido_k15,Popular / Balcón / Visibilidad Parcial
+16,293,0.6007,tag_sur,0.6007,sur,hibrido_k16,VIP / Palcos / Premium
+17,309,0.0388,tag_piso_bajo,0.0,ninguno,hibrido_k17,VIP / Palcos / Premium
+18,285,0.8702,tag_lateral,0.007,lateral,hibrido_k18,VIP / Palcos / Premium
+19,313,0.0128,tag_lateral,0.0128,lateral,hibrido_k19,Popular / Balcón / Visibilidad Parcial
