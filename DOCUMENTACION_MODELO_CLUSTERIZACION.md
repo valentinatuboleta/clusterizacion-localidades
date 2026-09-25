@@ -2,7 +2,7 @@
 
 > **Proyecto:** Segmentación y Clasificación Inteligente de Localidades de Boletería  
 > **Compañía:** TuBoleta  
-> **Versión del Pipeline:** 2.2 (Pipeline Bietápico: Partición Monozona + Espacio Mixto 25D, ω=0.2, k=5)  
+> **Versión del Pipeline:** 2.3 (Pipeline Bietápico: Partición Monozona + Espacio Mixto 35D, ω_nlp=0.2, ω_venue=0.5, k=5)  
 > **Autor / Equipo:** Data Science & Machine Learning  
 
 ---
@@ -37,7 +37,7 @@ graph TD
 ### La Misión Heroica:
 Construir un **Espacio Vectorial Mixto** que:
 1. **Desmonte el maquillaje publicitario** mediante Procesamiento de Lenguaje Natural (NLP), extrayendo la arquitectura física y espacial real.
-2. **Contextualice matemáticamente cada boleta** en relación a su propio espectáculo (percentiles de precio y peso de aforo).
+2. **Contextualice matemáticamente cada boleta** en relación a su propio espectáculo y la tipología de su venue (percentiles de precio y peso de aforo).
 3. **Agrupe y estandarice automáticamente** cualquier localidad del catálogo en **6 Arquetipos Estandarizados de Demanda (1 Admisión Única + 5 Multi-Zona)**.
 
 ---
@@ -48,27 +48,28 @@ Construir un **Espacio Vectorial Mixto** que:
 flowchart TD
     A[("Azure Blob Storage\n(GOLD/SECUTIX Parquet)")] --> B["data/raw/localidades_eda.parquet\n(34,030 registros)"]
     
-    subgraph S1 ["1. Consistencia y Feature Engineering"]
+    subgraph S1 ["1. Consistencia, Tipología de Venue y Feature Engineering"]
         B --> C["src.feature_engineering\nfiltrar_consistencia_localidades() (33,775 filas)"]
-        C --> D["src.feature_engineering\ncalcular_metricas_relativas() (26 columnas)"]
-        D --> E["src.nlp_utils\npipeline_procesamiento_nlp() (44 columnas)"]
+        C --> D1["scripts.clasificar_sites & src.llm_classifier\nenriquecer_type_site() (494 venues categorizados)"]
+        D1 --> D2["src.feature_engineering\ncalcular_percentil_precio_absoluto_dentro_tipo()"]
+        D2 --> D3["src.feature_engineering & src.nlp_utils\ncalcular_metricas_relativas() & pipeline_procesamiento_nlp() (48 columnas)"]
     end
 
     subgraph S2 ["2. Partición Bietápica a Nivel Evento"]
-        E --> F{"src.clustering\nseparar_admision_unica_multizona()"}
+        D3 --> F{"src.clustering\nseparar_admision_unica_multizona()"}
         F -->|"Monozona / Tarifa Plana (45.5%)\n1 sola localidad o aforo ≥ 99%"| G["ETAPA 1 (Determinística)\ncluster = -1\n'Admisión Única / Tarifa Plana'"]
-        F -->|"Multi-Zona Estratificada (54.5%)\nLocalidades en competencia"| H["ETAPA 2 (Machine Learning)\nEspacio Mixto 25D (ω_nlp = 0.2)"]
+        F -->|"Multi-Zona Estratificada (54.5%)\nLocalidades en competencia"| H["ETAPA 2 (Machine Learning)\nEspacio Mixto 35D (ω_nlp = 0.2, ω_venue = 0.5)"]
     end
 
     subgraph S3 ["3. Modelado y Etiquetado Multi-Zona"]
         H --> I["K-Means (k=5 Óptimo Formal / 'auto')\nEvaluado con Codo + Davies-Bouldin"]
-        I --> J["src.clustering\netiquetar_por_centroides_escalados()\n(Asignación Biyectiva Húngara 25D)"]
+        I --> J["src.clustering\netiquetar_por_centroides_escalados()\n(Asignación Biyectiva Húngara 35D)"]
     end
 
     subgraph S4 ["4. Integración y Persistencia"]
         G & J --> K["src.clustering\npipeline_clustering_dos_etapas()\n(Reensamblaje 100% Cobertura: 33,775 filas)"]
         K --> L[("data/processed/\nlocalidades_clusterizadas.parquet\n(6 Arquetipos de Demanda)")]
-        K --> M["src.clustering\nguardar_modelo_clustering()\n(models/modelo_clustering_v2_2.joblib)"]
+        K --> M["src.clustering\nguardar_modelo_clustering()\n(data/processed/modelo_clustering_v2_3.joblib)"]
     end
 ```
 
@@ -203,8 +204,8 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 #### 1.4 `pipeline_procesamiento_nlp(df: pd.DataFrame, col_nombre: str) -> pd.DataFrame`
 * **¿Para qué se crea?**: Es el orquestador que toma el DataFrame y añade la columna `texto_limpio` y las 17 columnas `tag_*`.
 * **Transformación del DataFrame:**
-  * **Antes:** DataFrame con 26 columnas relativas (`df_rel`).
-  * **Después:** DataFrame con 44 columnas (26 relativas + `texto_limpio` + 17 `tag_*`).
+  * **Antes:** DataFrame enriquecido con consistencia y tipología de venue (`df_rel` con variables relativas y `type_site`).
+  * **Después:** DataFrame con 48 columnas enriquecidas (incluyendo variables numéricas, `texto_limpio`, 17 `tag_*`, `type_site` y percentil absoluto dentro de tipo).
 
 ---
 
@@ -372,10 +373,21 @@ Este módulo implementa la arquitectura en dos etapas (**Modelo v2.3**) para res
   3. **9 Categorías One-Hot de Tipología de Venue (`type_site`):** Ponderadas por $\text{peso\_type\_site} = 0.5$ (`arena_cubierta`, `auditorio`, `bar_club`, `centro_eventos_carpa`, `cine_sala_cultural`, `estadio_abierto`, `otro`, `parque_aire_libre`, `teatro`). La categoría `desconocido` se excluye del one-hot para evitar redundancia y preservar la ortogonalidad, manteniendo la bandera booleana `flag_site_desconocido` en el DataFrame.
   4. **15 Términos TF-IDF Reentrenados:** Ajustados exclusivamente sobre los textos limpios de eventos multi-zona, ponderados por $\omega_{\text{nlp}} = 0.2$ para modular desempates léxicos sin distorsionar el bloque geométrico continuo.
 
-* **Decisión de Diseño y Ablación de `type_site` ($\text{peso} = 0.0$ vs $0.5$):**
-  * **Con peso 0.0 (v2.2):** Silueta multi-zona $0.224$, Davies-Bouldin $1.416$.
-  * **Con peso 0.5 (v2.3):** Silueta multi-zona $0.209$, Davies-Bouldin $1.486$.
-  * **Efecto Cualitativo de Negocio:** La inclusión de tipología con peso $0.5$ mantiene la silueta confortablemente por encima del umbral de calidad ($>0.20$) y estabiliza las asignaciones: localidades intermedias en teatros (ej. `PLATEA POSTERIOR` en Teatro Mayor Julio Mario Santo Domingo) que en v2.2 caían indebidamente en `Popular` por tener precio relativo moderado frente a los palcos del evento, migran de forma natural hacia `Preferencial / Platea Frontal` al ser contextualizadas contra la escala de precios de su tipo de venue.
+* **Ablación Metodológica en Tres Brazos y Descomposición Honesta:**
+
+  Para evaluar de forma transparente el impacto individual de cada componente incorporado al espacio vectorial, se ejecutó una ablación experimental en tres brazos controlados sobre el catálogo multi-zona ($18,400$ registros):
+
+  | Brazo Metodológico | Dimensiones | Silhouette Score | Davies-Bouldin | Calinski-Harabasz | Inercia |
+  | :--- | :---: | :---: | :---: | :---: | :---: |
+  | **1. v2.2 Base (3 numéricas, 7 tags, 15 TF-IDF)** | **25D** | **0.2495** | **1.2769** | **6,089.0** | **18,748.9** |
+  | **2. v2.2 + Percentil Tipo (4 numéricas, 7 tags, 15 TF-IDF)** | **26D** | **0.2243** | **1.4164** | **5,193.7** | **23,447.9** |
+  | **3. v2.3 Completo (4 numéricas, 7 tags, 9 one-hot venue, 15 TF-IDF)** | **35D** | **0.2094** | **1.4865** | **4,672.7** | **26,293.5** |
+
+  * **Descomposición del Impacto y Justificación Cualitativa:**
+    1. **Efecto de la 4ª Numérica (25D $\to$ 26D):**
+       Al incorporar `percentil_precio_absoluto_dentro_tipo`, la silueta desciende de $0.2495$ a $0.2243$. La matriz de transición descompuesta demuestra que esta variable es la causante principal de la **expansión del arquetipo VIP / Palcos / Premium (+74%, de 2,912 a 5,081 registros)**. Esto ocurre porque rescata localidades con precio nominal alto dentro de teatros, auditorios y carpas (que antes colapsaban en Preferencial al evaluarse solo contra el precio pico del espectáculo).
+    2. **Efecto del One-Hot de Tipología de Venue (26D $\to$ 35D, $\text{peso} = 0.5$):**
+       La inclusión de las 9 dimensiones canónicas de venue modula la silueta de $0.2243$ a $0.2094$ (manteniéndose cómodamente sobre el umbral $>0.20$). Este bloque aporta cohesión de tipología física: estabiliza las localidades intermedias y resuelve anomalías cualitativas de negocio (como las entradas `"General"` de precio elevado en teatros pequeños, de las cuales el $14.3\%$ migra de forma natural fuera de Popular hacia Platea o Preferencial al ser contextualizadas contra la tipología del venue).
 
 ---
 
@@ -465,33 +477,33 @@ A partir del pipeline en dos etapas sobre los **33,775 registros**, el catálogo
                                      ▲ Ratio de Precio Relativo
                                      │
              VIP / PALCOS          │          PREFERENCIAL / PLATEA FRONTAL
-        (Ratio: 0.76 / Aforo: 4.7%) │     (Ratio: 0.85 / Aforo: 9.3%)
-        Mediana: $135,000 COP        │     Mediana: $94,340 COP
+        (Ratio: 0.81 / Aforo: 5.6%) │     (Ratio: 0.86 / Aforo: 17.1%)
+        Mediana: $140,000 COP        │     Mediana: $121,312 COP
                                      │
                                      │          PLATEA GENERAL / INTERMEDIA
-                                     │     (Ratio: 0.80 / Aforo: 37.2%)
-                                     │     Mediana: $65,150 COP
+                                     │     (Ratio: 0.71 / Aforo: 33.2%)
+                                     │     Mediana: $48,200 COP
     ─────────────────────────────────┼─────────────────────────────────► Peso de Aforo
                                      │                                  (% Capacidad)
              POPULAR / BALCÓN      │          GRADA GENERAL MASIVA
-        (Ratio: 0.35 / Aforo: 11.3%)│     (Ratio: 0.79 / Aforo: 81.4%)
-        Mediana: $50,000 COP         │     Mediana: $66,000 COP
+        (Ratio: 0.35 / Aforo: 9.4%) │     (Ratio: 0.81 / Aforo: 77.9%)
+        Mediana: $44,650 COP         │     Mediana: $66,000 COP
                                      │
 ═════════════════════════════════════╪══════════════════════════════════════════════
      ADMISIÓN ÚNICA / TARIFA PLANA (Cinemateca, Museos: 15,375 filas | 45.5% | Mediana: $13,572 COP)
 ```
 
-### Resumen Cuantitativo Consolidado de los 6 Arquetipos:
+### Resumen Cuantitativo Consolidado de los 6 Arquetipos (Modelo v2.3):
 
 | Arquetipo Estandarizado | Etapa del Modelo | Registros | % Catálogo | Ratio Precio Promedio | Peso Aforo Promedio | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 |  **Admisión Única / Tarifa Plana** | Etapa 1 (Determinística) | 15,375 | **45.5%** | **0.99** | **100.0%** | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-|  **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 2,912 | **8.6%** | **0.76** | **4.7%** | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
-|  **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 4,697 | **13.9%** | **0.85** | **9.3%** | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
-|  **Platea General / Intermedia** | Etapa 2 (Multi-Zona ML) | 3,432 | **10.2%** | **0.80** | **37.2%** | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
-|  **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 819 | **2.4%** | **0.79** | **81.4%** | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
-|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 (Multi-Zona ML) | 6,540 | **19.4%** | **0.35** | **11.3%** | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
-| **TOTAL CATÁLOGO** | **Integración v2.2** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
+|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 (Multi-Zona ML) | 5,861 | **17.4%** | **0.35** | **9.4%** | **$44,650** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+|  **VIP / Palcos / Premium** | Etapa 2 (Multi-Zona ML) | 5,070 | **15.0%** | **0.81** | **5.6%** | **$140,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+|  **Platea General / Intermedia** | Etapa 2 (Multi-Zona ML) | 3,270 | **9.7%** | **0.71** | **33.2%** | **$48,200** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+|  **Preferencial / Platea Frontal** | Etapa 2 (Multi-Zona ML) | 3,229 | **9.6%** | **0.86** | **17.1%** | **$121,312** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+|  **Grada General / Masiva** | Etapa 2 (Multi-Zona ML) | 970 | **2.9%** | **0.81** | **77.9%** | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+| **TOTAL CATÁLOGO** | **Integración v2.3** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 

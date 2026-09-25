@@ -8,6 +8,7 @@ import os
 import re
 import datetime
 import unicodedata
+from typing import Optional, Tuple
 import pandas as pd
 
 CATEGORIAS_VALIDAS = [
@@ -193,7 +194,7 @@ DICCIONARIO_EMBLEMATICO = {
 DICCIONARIO_NORMALIZADO = {normalizar_recinto(k): v for k, v in DICCIONARIO_EMBLEMATICO.items()}
 
 
-def _buscar_en_diccionario_emblematico(rec_norm: str) -> tuple[str, float] | None:
+def _buscar_en_diccionario_emblematico(rec_norm: str) -> Optional[Tuple[str, float]]:
     """
     Busqueda segura en diccionario maestro:
     1. Coincidencia exacta total.

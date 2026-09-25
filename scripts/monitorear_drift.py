@@ -3,7 +3,7 @@
 Script de Monitoreo Periodico de Drift (PSI y Distribucion de Arquetipos).
 
 Este script evalua la estabilidad estadistica de nuevos lotes de localidades
-frente a la referencia historica del modelo de clusterizacion v2.2.
+frente a la referencia historica del modelo de clusterizacion v2.3.
 
 Metricas calculadas:
 1. Population Stability Index (PSI) por variable estructural.
@@ -44,7 +44,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--modelo",
         type=str,
-        default="data/processed/modelo_clustering_v2_2.joblib",
+        default="data/processed/modelo_clustering_v2_3.joblib",
         help="Ruta al artefacto del modelo serializado (.joblib)."
     )
     parser.add_argument(

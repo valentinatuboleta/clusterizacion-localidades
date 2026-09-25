@@ -1,7 +1,7 @@
 {
-  "estado_general": "ESTABLE",
+  "estado_general": "REVISAR",
   "total_registros": 33775,
-  "psi_maximo": 0.0,
+  "psi_maximo": 0.1524,
   "psi_por_variable": {
     "ratio_precio_max": {
       "psi": 0.0,
@@ -14,6 +14,10 @@
     "peso_aforo": {
       "psi": 0.0,
       "estado": "ESTABLE"
+    },
+    "percentil_precio_absoluto_dentro_tipo": {
+      "psi": 0.1524,
+      "estado": "REVISAR"
     },
     "tag_palco": {
       "psi": 0.0,
@@ -51,33 +55,33 @@
       "diferencia": 0.0
     },
     "Popular / Balcón / Visibilidad Parcial": {
-      "esperado": 0.1936,
-      "observado": 0.1936,
-      "diferencia": 0.0
-    },
-    "Preferencial / Platea Frontal": {
-      "esperado": 0.1391,
-      "observado": 0.1391,
-      "diferencia": 0.0
-    },
-    "Platea General / Intermedia": {
-      "esperado": 0.1016,
-      "observado": 0.1016,
-      "diferencia": 0.0
+      "esperado": 0.1735,
+      "observado": 0.1828,
+      "diferencia": 0.0092
     },
     "VIP / Palcos / Premium": {
-      "esperado": 0.0862,
-      "observado": 0.0862,
-      "diferencia": 0.0
+      "esperado": 0.1501,
+      "observado": 0.1454,
+      "diferencia": -0.0047
+    },
+    "Platea General / Intermedia": {
+      "esperado": 0.0968,
+      "observado": 0.1019,
+      "diferencia": 0.005
+    },
+    "Preferencial / Platea Frontal": {
+      "esperado": 0.0956,
+      "observado": 0.0861,
+      "diferencia": -0.0095
     },
     "Grada General / Masiva": {
-      "esperado": 0.0242,
-      "observado": 0.0242,
-      "diferencia": 0.0
+      "esperado": 0.0287,
+      "observado": 0.0287,
+      "diferencia": -0.0001
     }
   },
-  "pct_frontera": 0.0871,
+  "pct_frontera": 0.1211,
   "pct_texto_casi_vacio": 0.1697,
-  "score_confianza_promedio": 0.6554,
+  "score_confianza_promedio": 0.6184,
   "alertas": []
 }

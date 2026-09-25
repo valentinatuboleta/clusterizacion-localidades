@@ -2,7 +2,7 @@
 
 Proyecto integral de Data Science y Machine Learning para la segmentación y clasificación automatizada de localidades en espectáculos públicos a partir de datos transaccionales almacenados en formato `.parquet` en Azure Blob Storage.
 
-El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (características numéricas relativas *ex-ante*, tags estructurales de venue extraídos mediante NLP y representaciones vectoriales TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
+El modelo implementa un **espacio vectorial mixto de 35 dimensiones** (Modelo v2.3: características numéricas relativas *ex-ante*, percentil dentro de tipología de venue, tags estructurales extraídos mediante NLP, tipología de venue one-hot ponderada y representaciones TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
 
 ---
 
@@ -10,14 +10,14 @@ El modelo implementa un **espacio vectorial mixto de 25 dimensiones** (caracter�
 
 ```text
 clusterizacion-localidades/
-├── .env.example                                # Plantilla segura de variables de entorno (Azure)
+├── .env.example                                # Plantilla segura de variables de entorno (Azure y Gemini)
 ├── .gitignore                                  # Exclusión de credenciales, datos y entornos
 ├── .pre-commit-config.yaml                     # Hook pre-commit con nbstripout
 ├── LICENSE                                     # Licencia MIT del proyecto
 ├── README.md                                   # Guía general de uso y arquitectura
 ├── requirements.txt                            # Dependencias locales (sin PySpark)
 ├── requirements-databricks.txt                 # Dependencias exclusivas para Databricks
-├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.2)
+├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.3)
 │
 ├── .github/                                    # Integración Continua (CI)
 │   └── workflows/
@@ -34,7 +34,7 @@ clusterizacion-localidades/
 ├── notebooks/                                  # Flujo interactivo paso a paso
 │   ├── 00_databricks_raw_data.ipynb            # Extracción y preparación inicial en Databricks
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
-│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (25D), K-Means/GMM y arquetipos (v2.2)
+│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (35D), K-Means/GMM y arquetipos (v2.3)
 │
 ├── src/                                        # Módulos Python reutilizables de producción
 │   ├── __init__.py
@@ -42,7 +42,7 @@ clusterizacion-localidades/
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento, consistencia y venue
 │   ├── llm_classifier.py                       # Clasificador de venues con Gemini 3.8 Flash Medium y auditoría
-│   └── clustering.py                           # Espacio mixto 25D, clustering bietápico, persistencia e inferencia
+│   └── clustering.py                           # Espacio mixto 35D, clustering bietápico, persistencia e inferencia
 │
 ├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
 │   ├── __init__.py
@@ -146,27 +146,28 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
      * **Orientación Espacial:** `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
      * **Restricciones de Acceso:** `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
 
-3. **Arquitectura en Dos Etapas y Espacio Mixto 25D (`src/clustering.py` - Modelo v2.2 Optimizado):**
+3. **Arquitectura en Dos Etapas y Espacio Mixto 35D (`src/clustering.py` - Modelo v2.3 Optimizado):**
    * **Etapa 1 (Determinística):** Aislamiento de funciones de admisión única / tarifa plana a nivel evento ($15,375$ registros, $45.5\%$ del catálogo: Cinemateca, Maloka, museos). Asignación directa a *Admisión Única / Tarifa Plana*.
-   * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 25 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
-     * $3$ métricas numéricas relativas *ex-ante* (`RobustScaler`).
+   * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 35 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
+     * $4$ métricas numéricas relativas *ex-ante* (`RobustScaler`, incluyendo percentil de precio dentro del tipo de venue).
      * $7$ tags estructurales densos (5 comerciales + 2 verticales) en escala $[0, 1]$.
-     * $15$ características TF-IDF reentrenadas exclusivamente sobre multi-zona con ponderación calibrada $\omega_{\text{nlp}} = 0.2$ (evitando la dilución dimensional del bloque continuo).
-   * **Algoritmo & Etiquetado:** K-Means ($k=5$, óptimo formal por codo ortogonal y mínimo Davies-Bouldin de $1.2720$) con correspondencia biyectiva de centroides geométricos 1-a-1 mediante el Algoritmo Húngaro.
+     * $9$ categorías one-hot de tipología de venue (`type_site`) ponderadas en $\omega_{\text{venue}} = 0.5$.
+     * $15$ características TF-IDF reentrenadas exclusivamente sobre multi-zona con ponderación calibrada $\omega_{\text{nlp}} = 0.2$.
+   * **Algoritmo & Etiquetado:** K-Means ($k=5$, óptimo formal por codo ortogonal y mínimo Davies-Bouldin) con correspondencia biyectiva de centroides geométricos 1-a-1 mediante el Algoritmo Húngaro.
 
 ---
 
-##  Los 6 Arquetipos de Demanda (Modelo v2.2 Optimizado)
+##  Los 6 Arquetipos de Demanda (Modelo v2.3 Optimizado)
 
 | Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 |  **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.5%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-|  **VIP / Palcos / Premium** | Etapa 2 | 2,912 | **8.6%** | 0.76 | 4.7% | **$135,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
-| **Preferencial / Platea Frontal** | Etapa 2 | 4,697 | **13.9%** | 0.85 | 9.3% | **$94,340** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
-| **Platea General / Intermedia** | Etapa 2 | 3,432 | **10.2%** | 0.80 | 37.2% | **$65,150** | *Platea Media, Balcón Delantero, Localidades intermedias* |
-|  **Grada General / Masiva** | Etapa 2 | 819 | **2.4%** | 0.79 | 81.4% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
-|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,540 | **19.4%** | 0.35 | 11.3% | **$50,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
-| **TOTAL CATÁLOGO** | **v2.2** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
+|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 5,861 | **17.4%** | 0.35 | 9.4% | **$44,650** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+|  **VIP / Palcos / Premium** | Etapa 2 | 5,070 | **15.0%** | 0.81 | 5.6% | **$140,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+|  **Platea General / Intermedia** | Etapa 2 | 3,270 | **9.7%** | 0.71 | 33.2% | **$48,200** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+|  **Preferencial / Platea Frontal** | Etapa 2 | 3,229 | **9.6%** | 0.86 | 17.1% | **$121,312** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+|  **Grada General / Masiva** | Etapa 2 | 970 | **2.9%** | 0.81 | 77.9% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+| **TOTAL CATÁLOGO** | **v2.3** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
@@ -201,7 +202,7 @@ import pandas as pd
 from src.clustering import cargar_modelo_clustering, predecir_arquetipos_demanda
 
 # Cargar modelo serializado
-modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
+modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_3.joblib")
 
 # Predecir arquetipos con observabilidad completa (score de confianza, frontera, OOV)
 df_segmentado = predecir_arquetipos_demanda(df_nuevas_localidades, modelo)

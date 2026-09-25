@@ -181,14 +181,11 @@ def construir_espacio_vectorial_mixto(
     else:
         cats_to_use = [c for c in categorias_type_site if c != "desconocido"]
 
-    if len(cats_to_use) > 0:
+    if len(cats_to_use) > 0 and peso_type_site > 0.0:
         s_type = df_work["type_site"].astype(str) if "type_site" in df_work.columns else pd.Series(["desconocido"] * len(df_work), index=df_work.index)
-        if peso_type_site > 0.0:
-            X_type_site = np.column_stack([
-                (s_type == cat).values.astype(float) * peso_type_site for cat in cats_to_use
-            ])
-        else:
-            X_type_site = np.zeros((len(df_work), len(cats_to_use)), dtype=float)
+        X_type_site = np.column_stack([
+            (s_type == cat).values.astype(float) * peso_type_site for cat in cats_to_use
+        ])
         cols_type_names = [f"type_site_{cat}" for cat in cats_to_use]
         feature_names.extend(cols_type_names)
     else:
@@ -294,7 +291,7 @@ def construir_perfiles_ideales_escalados(
 ) -> Dict[str, np.ndarray]:
     """
     Construye las representaciones vectoriales ideales para cada arquetipo multi-zona
-    dentro del espacio geométrico escalado de 25 dimensiones.
+    dentro del espacio geométrico escalado (35 dimensiones en v2.3).
     
     Refactor robusto: Mapea cada dimensión explícitamente por nombre en lugar de
     asumir posiciones fijas o slices posicionales [3:].
@@ -402,7 +399,7 @@ def etiquetar_por_centroides_escalados(
 ) -> Dict[int, str]:
     """
     Asigna arquetipos a los clusters evaluando la distancia euclidiana entre los centroides
-    reales del modelo (en el espacio transformado de 25D) y los perfiles ideales de negocio.
+    reales del modelo (en el espacio transformado de 35D v2.3 / 25D v2.2) y los perfiles ideales de negocio.
     
     Aplica el algoritmo de asignación óptima 1 a 1 (Hungarian / Munkres) para garantizar
     una correspondencia biyectiva estricta sin duplicidades ni heurísticas frágiles de ordenamiento.
@@ -443,11 +440,11 @@ def asignar_arquetipos_demanda(
     Interpreta los centroides de cada cluster en términos de precio relativo, peso de aforo y semántica,
     asignando nombres de arquetipos estandarizados de negocio.
     Si se suministra el objeto kmeans y feature_names, utiliza el motor de asignación geométrica
-    en el espacio escalado 25D. En caso contrario, recurre al clasificador heurístico.
+    en el espacio escalado (35D en v2.3). En caso contrario, recurre al clasificador heurístico.
     """
     df_res = df_clustered.copy()
     
-    # 1. Asignación geométrica basada en centroides escalados 25D
+    # 1. Asignación geométrica basada en centroides escalados (35D v2.3 / 25D v2.2)
     if kmeans is not None and feature_names is not None:
         mapa_arquetipos = etiquetar_por_centroides_escalados(
             kmeans=kmeans,
@@ -519,7 +516,8 @@ def pipeline_clustering_dos_etapas(
     peso_type_site: float = 0.5,
     categorias_type_site: Optional[List[str]] = None,
     max_tfidf_features: int = 15,
-    scaler_type: str = "robust"
+    scaler_type: str = "robust",
+    columnas_numericas: Optional[List[str]] = None
 ) -> Tuple[pd.DataFrame, KMeans, Any, Any, List[str], Dict[str, Any]]:
     """
     Ejecuta el pipeline de clustering en dos etapas (Modelo v2.3 optimizado):
@@ -538,8 +536,10 @@ def pipeline_clustering_dos_etapas(
     df_monozona["arquetipo_demanda"] = "Admisión Única / Tarifa Plana"
     
     # 2. Espacio mixto sobre multi-zona
+    cols_num = columnas_numericas if columnas_numericas is not None else DEFAULT_NUMERIC_FEATURES
     X_multizona, scaler, tfidf_vec, feature_names = construir_espacio_vectorial_mixto(
         df_multizona,
+        columnas_numericas=cols_num,
         max_tfidf_features=max_tfidf_features,
         peso_nlp=peso_nlp,
         peso_type_site=peso_type_site,
@@ -611,6 +611,9 @@ def pipeline_clustering_dos_etapas(
     gmm.fit(X_multizona)
     metricas["gmm"] = gmm
     metricas["mapa_arquetipos"] = mapa_arquetipos
+    metricas["peso_nlp"] = peso_nlp
+    metricas["peso_type_site"] = peso_type_site
+    metricas["columnas_numericas"] = cols_num
 
     # Distancias a centroides para margen geometrico, frontera y segundo arquetipo
     distancias = kmeans.transform(X_multizona)
@@ -886,7 +889,9 @@ def guardar_modelo_clustering(
     referencia_drift: Optional[Dict[str, Any]] = None,
     df_referencia: Optional[pd.DataFrame] = None,
     distribucion_percentil_tipo: Optional[Dict[str, Any]] = None,
-    categorias_type_site: Optional[List[str]] = None
+    categorias_type_site: Optional[List[str]] = None,
+    peso_nlp: Optional[float] = None,
+    peso_type_site: Optional[float] = None
 ) -> None:
     """
     Persiste el pipeline de clusterizacion entrenado en un archivo .joblib.
@@ -929,6 +934,17 @@ def guardar_modelo_clustering(
             or CANONICAL_TYPE_SITE_CATEGORIES
         )
 
+    meta = (metadata or {}).copy()
+    if peso_nlp is not None:
+        meta["peso_nlp"] = float(peso_nlp)
+    elif "peso_nlp" not in meta:
+        meta["peso_nlp"] = float(metricas_dict.get("peso_nlp", 0.2))
+
+    if peso_type_site is not None:
+        meta["peso_type_site"] = float(peso_type_site)
+    elif "peso_type_site" not in meta:
+        meta["peso_type_site"] = float(metricas_dict.get("peso_type_site", 0.5))
+
     payload = {
         "version": MODEL_VERSION,
         "kmeans": kmeans,
@@ -937,7 +953,7 @@ def guardar_modelo_clustering(
         "feature_names": feature_names,
         "mapa_arquetipos": mapa_arquetipos,
         "metricas": metricas_dict,
-        "metadata": metadata or {},
+        "metadata": meta,
         "gmm": gmm,
         "referencia_drift": referencia_drift,
         "distribucion_percentil_tipo": distribucion_percentil_tipo,
@@ -981,7 +997,17 @@ def predecir_arquetipos_demanda(
     gmm: Optional[GaussianMixture] = modelo_dict.get("gmm", None)
     dist_perc = modelo_dict.get("distribucion_percentil_tipo", {})
     cats_type = modelo_dict.get("categorias_type_site", CANONICAL_TYPE_SITE_CATEGORIES)
-    peso_type_site = modelo_dict.get("metadata", {}).get("peso_type_site", 0.5)
+    meta = modelo_dict.get("metadata", {})
+    peso_type_site = meta.get("peso_type_site", 0.5)
+    peso_nlp_efectivo = meta.get("peso_nlp", peso_nlp)
+
+    target_features = modelo_dict.get("feature_names", [])
+    cols_num_model = [
+        f for f in target_features
+        if not f.startswith("tag_") and not f.startswith("type_site_") and not f.startswith("tfidf_")
+    ]
+    if not cols_num_model:
+        cols_num_model = DEFAULT_NUMERIC_FEATURES
 
     df_input = df.copy()
     if "type_site" not in df_input.columns:
@@ -1046,9 +1072,10 @@ def predecir_arquetipos_demanda(
         df_multi = df_multi.copy()
         X_multi, _, _, feat_multi = construir_espacio_vectorial_mixto(
             df_multi,
+            columnas_numericas=cols_num_model,
             scaler=scaler,
             tfidf_vectorizer=tfidf_vec,
-            peso_nlp=peso_nlp,
+            peso_nlp=peso_nlp_efectivo,
             peso_type_site=peso_type_site,
             categorias_type_site=cats_type
         )
