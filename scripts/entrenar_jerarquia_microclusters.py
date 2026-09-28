@@ -3,7 +3,7 @@
 Script de Entrenamiento de la Jerarquía de Micro-Clusters (v3.0 Candidata).
 
 Arquitectura en Dos Niveles:
-- Nivel 1 (Producción v2.3 congelado): Pipeline bietápico de 6 arquetipos de demanda.
+- Nivel 1 (Producción v2.4 congelado): Pipeline bietápico de 6 arquetipos de demanda.
   Admisión Única / Tarifa Plana es un micro-cluster terminal único por definición (AU-0).
 - Nivel 2 (Sub-clustering por Arquetipo Macro):
   Para cada uno de los 5 arquetipos multi-zona, entrena un sub-modelo K-Means sobre un
@@ -85,8 +85,8 @@ def entrenar_jerarquia(
     df_raw = pd.read_parquet(data_path)
     df_enr = preparar_dataset_enriquecido(df_raw)
 
-    # 2. Nivel 1: Pipeline v2.3 congelado
-    print("\n2. Ejecutando Nivel 1 (Producción v2.3 congelada)...")
+    # 2. Nivel 1: Pipeline v2.4
+    print("\n2. Ejecutando Nivel 1 (Producción v2.4)...")
     df_n1, km_n1, scaler_n1, tfidf_n1, fnames_n1, met_n1 = pipeline_clustering_dos_etapas(
         df_enr, n_clusters_multizona=5, random_state=random_state
     )
@@ -271,7 +271,7 @@ def entrenar_jerarquia(
     payload_v3 = {
         "version": HIERARCHY_VERSION,
         "nivel_1": {
-            "version_base": "2.3",
+            "version_base": "2.4",
             "kmeans": km_n1,
             "scaler": scaler_n1,
             "tfidf": tfidf_n1,

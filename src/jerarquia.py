@@ -1,8 +1,8 @@
 """
-Modulo de Arquitectura Jerarquica de Micro-Clusters (v3.0-hier.1).
+Modulo de Arquitectura Jerarquica de Micro-Clusters (v3.0-hier.2).
 
 Este modulo implementa el envoltorio operativo y generador de features de micro-clusters
-en dos niveles a partir de arquetipos macro v2.3 congelados y sub-clustering especializado.
+en dos niveles a partir de arquetipos macro v2.4 y sub-clustering especializado.
 
 Componentes:
 1. Constantes de version y catalogo canonico (20 micro-clusters vigentes).
@@ -43,7 +43,7 @@ from src.clustering import (
 )
 
 
-HIERARCHY_VERSION = "3.0-hier.1"
+HIERARCHY_VERSION = "3.0-hier.2"
 
 # 13 Tags estructurales expandidos del sub-espacio Nivel 2
 TAGS_SUBESPACIO_13 = [
