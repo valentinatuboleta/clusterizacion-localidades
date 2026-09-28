@@ -2,7 +2,7 @@
 
 > **Proyecto:** Segmentación y Clasificación Inteligente de Localidades de Boletería  
 > **Compañía:** TuBoleta  
-> **Versión del Pipeline:** 2.3 (Pipeline Bietápico: Partición Monozona + Espacio Mixto 35D, ω_nlp=0.2, ω_venue=0.5, k=5)  
+> **Versión del Pipeline:** 2.4 (Pipeline Bietápico: Partición Monozona + Espacio Mixto 36D, ω_nlp=0.2, ω_venue=0.5, k=5, Taxonomía de Venue 10 Categorías)  
 > **Autor / Equipo:** Data Science & Machine Learning  
 
 ---
@@ -14,8 +14,9 @@
 | **v1.0** | 2026-03 | Deprecado | Baseline exploratorio K-Means sobre variables numéricas crudas. |
 | **v2.0** | 2026-05 | Deprecado | Pipeline bietápico inicial con tags NLP básicos y separación monozona/multizona. |
 | **v2.2** | 2026-07 | Deprecado | Incorporación de percentil de precio por evento y expansión a 11 tags estructurales. |
-| **v2.3** | 2026-09 | **Producción Vigente** | Espacio vectorial mixto 35D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU), 6 arquetipos macro de demanda certificados. |
-| **v3.0-hier.1** | 2026-09 | **Aprobado (Features)** | Aprobado como generador de features bajo criterios de estabilidad/cobertura; compuerta de pureza archivada como criterio del caso de uso de nombres (ver Módulo 3.8 diagnóstico). Jerarquía 20 micro-clusters (`AU-0` + 19 multi-zona). |
+| **v2.3** | 2026-09 | Superado | Espacio vectorial mixto 35D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU, 9 categorías de venue v1), 6 arquetipos macro de demanda certificados. |
+| **v2.4** | 2026-09 | **Producción Vigente** | Espacio vectorial mixto 36D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU), migración a 10 categorías canónicas de venue (`type_site`). Silueta=0.2098, DB=1.4784, ARI vs v2.3=0.9416. |
+| **v3.0-hier.2** | 2026-09 | **Aprobado (Features)** | Aprobado como generador de features bajo criterios de estabilidad/cobertura con Nivel 1 v2.4 (36D) y Nivel 2 en 5 sub-espacios (32D, 13 tags, $\omega_{\text{venue}}=0.0$). 21 micro-clusters (`AU-0` + 20 multi-zona), 0 degenerados, rollup 1:1 estricto. |
 
 ---
 
@@ -109,13 +110,40 @@ Para contextualizar el entorno físico de cada localidad, se implementó un sist
   * `fuente = "revision_humana"`: Asignaciones de curaduría experta validadas manualmente.
   * `fuente = "llm"`: Asignaciones generadas por el agente LLM, acompañadas de la columna `modelo_llm = "gemini-3.8-flash-medium"`.
   * `fuente = "reglas_heuristicas"`: Fallback determinístico con límites de palabra (`\b`) cuando no hay conexión LLM disponible.
-* **Persistencia de Auditoría:**
-  * Cada inferencia del LLM se persiste en `data/lookup/audit_llm_venues.jsonl` registrando timestamp, prompt exacto, respuesta cruda en JSON, confianza y justificación semántica.
+  * `taxonomia_version = "v2"`: Identificador formal de la versión taxonómica vigente.
+  * `fecha_reclasificacion`: Marca temporal que preserva la trazabilidad del histórico sin sobrescrituras silenciosas.
 * **Mecanismos de Protección ante Casos Borde en Reglas:**
   1. **Límites de Palabra Estrictos (`\b`):** Evita falsos positivos por subcadenas (ej. `"BAR"` nunca se activa dentro del topónimo `"BARRANQUILLA"`).
-  2. **Prevención de Falsas Raíces:** Términos como `"PARQUEADERO"` o `"PARKING"` se desvían a `"otro"` y nunca activan `"parque_aire_libre"`.
+  2. **Prevención de Falsas Raíces:** Términos como `"PARQUEADERO"` o `"PARKING"` se enrutan directamente a la categoría `"PARQUEADERO"` y nunca activan `"PARQUE"`.
   3. **No Inclusión Inversa:** Un venue genérico como `"SALA 2"` no activa `"SALA 2 CINEMATECA"`; requiere la palabra explícita de cine o teatro, de lo contrario pasa a revisión humana.
-  4. **Servicios Automotrices:** Locaciones comerciales como `"BIBLOS CAR WASH"` se catalogan como `"otro"`.
+  4. **Servicios y Locaciones Auxiliares:** Espacios comerciales puros como `"BIBLOS CAR WASH"` se catalogan bajo revisión humana o `"desconocido"`.
+
+---
+
+#### Migración de Taxonomía v1 a v2 (10 Categorías Canónicas)
+
+En la versión 2.4 se consolida una taxonomía formal de 10 categorías canónicas de negocio más el clasificador interno de seguridad `desconocido` (destinado exclusivamente a fallbacks no comerciales fuera del vector one-hot).
+
+| Categoría v1 (Legacy) | Categoría v2 (Canónica) | Razón de Negocio y Justificación del Cambio |
+| :--- | :--- | :--- |
+| `arena_cubierta` | **`ARENA`** | Escenarios modernos multipropósito de gran escala con tratamiento acústico integral y silletería modular para conciertos internacionales de alta densidad. |
+| `cine_sala_cultural` | **`CINEMATECA`** | Salas especializadas en proyecciones audiovisuales, cine de autor y foros culturales de aforo reducido con butacas individuales fijas. |
+| `estadio_abierto` | **`ESTADIO`** | Complejos deportivos y de espectáculos de escala masiva al aire libre con graderías perimetrales de concreto y zona de cancha/gramilla. |
+| `coliseo` | **`COLISEO`** | Escenarios polideportivos municipales tradicionales techados con graderías fijas, separados formalmente de las arenas por su infraestructura acústica y operativa. |
+| `teatro` | **`TEATRO`** | Salas escénicas convencionales con arquitectura clásica o moderna dividida en plateas, palcos teatrales y balcones/mezzanines. |
+| `parque_aire_libre` | **`PARQUE`** | Áreas verdes y espacios abiertos configurados temporalmente para festivales musicales, ferias y eventos masivos al aire libre sin silletería permanente. |
+| `bar_club` | **`RESTAURANTE`** | Establecimientos gastronómicos, bares, gastrobares y clubes donde la experiencia principal combina consumo de alimentos/bebidas con espectáculos íntimos. |
+| `auditorio`, `centro_convenciones`, `sala_conciertos`, `cabaret_comedia` | **`OTROS_RECINTOS`** | Consolidación estratégica de tipologías de aforo intermedio que compartían perfiles de dispersión y densidad similares, evitando sobrefragmentación del espacio vectorial. |
+| `otro` | **Reclasificación Residuo** | Desmantelamiento del bucket genérico anterior mediante reglas específicas y curaduría experta hacia `MUSEO`, `RESTAURANTE`, `PARQUEADERO`, `ARENA` o `site_type_revision_humana.csv`. |
+
+##### Semántica Operativa de PARQUEADERO
+* **Definición Rigurosa:** Corresponde a un venue cuya naturaleza física y comercial **ES un establecimiento de estacionamiento** para vehículos, **NO a una boleta o servicio de parqueadero vendido como complemento (add-on)** dentro de un espectáculo alojado en otro venue.
+* **Justificación de Frecuencia Histórica (0 Localidades):** En el historial transaccional de TuBoleta, las boletas de estacionamiento se expiden como productos complementarios adscritos a espectáculos en estadios o arenas, heredando el identificador del venue principal (`ESTADIO` o `ARENA`). No existe ningún venue en el catálogo de eventos cuya actividad de negocio exclusiva sea operar como sede física principal de eventos culturales o deportivos bajo modalidad de parqueadero. La categoría se preserva canónicamente en el modelo para permitir ingesta y scoring futuro de predios de estacionamiento independientes sin colapsar en fallbacks genéricos.
+
+##### Separación Estructural entre ARENA y COLISEO
+La separación entre `ARENA` y `COLISEO` resuelve una distorsión operativa histórica:
+* **`ARENA` (ej. Movistar Arena Bogotá):** Infraestructura contemporánea para espectáculos masivos, acústica especializada, aislamiento perimetral, suites corporativas VIP y tarificación altamente diferenciada.
+* **`COLISEO` (ej. Coliseo El Salitre, Coliseo Evangelista Mora):** Infraestructura pública polideportiva tradicional, graderías de hormigón macizo, acústica reflectiva y operación orientada prioritariamente al deporte institucional o festivales comunitarios de tarifa plana.
 
 ---
 
@@ -727,34 +755,74 @@ Los nombres comerciales de las localidades en los segmentos de `Platea General /
 
 ---
 
-### 8. Envoltorio Operativo y Contrato de Features (v3.0-hier.1)
+### 8. Envoltorio Operativo y Contrato de Features (v3.0-hier.2)
 
 #### 8.1 Cambio de Criterio y Aprobación como Generador de Features
 A partir del diagnóstico exhaustivo de separabilidad, se formaliza la disociación entre dos casos de uso con requisitos operativos divergentes:
 1. **Caso de Uso A: Normalización Automática de Nombres Comerciales en Backend:**
    * Requiere compuerta de pureza léxica estricta ($\text{pureza} \ge 0.85$) para garantizar que las etiquetas legibles (`label_auto`) sean semánticamente homogéneas. Este caso de uso queda archivado como no viable bajo el vocabulario transaccional no estructurado actual.
-2. **Caso de Uso B: Generador de Features para Modelos de Demanda y Pricing (v3.0-hier.1):**
+2. **Caso de Uso B: Generador de Features para Modelos de Demanda y Pricing (v3.0-hier.2):**
    * Queda **aprobado formalmente** bajo sus criterios propios de calidad estadística:
-     * **Estabilidad Bootstrap-ARI:** Promedio superior a $0.96$ en 4 de los 5 sub-espacios (hasta $0.9830$).
+     * **Estabilidad Bootstrap-ARI:** Alta estabilidad multizona (hasta $0.9740$ en Popular y $0.9362$ en Platea Intermedia).
      * **Cobertura Total:** $100\%$ del catálogo sin descarte de registros ni generación de ruido (a diferencia de HDBSCAN).
-     * **Cero Clusters Degenerados:** Ninguna partición con aforo menor al $12.14\%$ del sub-espacio.
+     * **Cero Clusters Degenerados:** Ninguna partición degenerada (mínimo share del sub-espacio: $6.78\%$, muy por encima del piso de $3\%$).
      * **Invarianza Jerárquica:** Rollup 1:1 estricto entre micro-clusters y macro-arquetipos garantizado por construcción.
 
-El modelo base v2.3 de producción permanece 100% inalterado en `data/processed/modelo_clustering_v2_3.joblib` y `src/clustering.py`. Toda la lógica jerárquica reside de forma desacoplada en el módulo [`src/jerarquia.py`](src/jerarquia.py).
+El modelo base v2.4 de producción permanece como baseline en `data/processed/modelo_clustering_v2_4.joblib` y `src/clustering.py`. Toda la lógica jerárquica reside de forma desacoplada en el módulo [`src/jerarquia.py`](src/jerarquia.py).
 
 #### 8.2 Especificación del Contrato de Features
 
 | Atributo | Especificación Técnica | Detalle para el Consumidor de Datos |
 | :--- | :--- | :--- |
-| **Columnas Entregadas** | `micro_cluster_id` (20 niveles), `arquetipo_demanda` (6 niveles) | Features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante*. |
+| **Columnas Entregadas** | `micro_cluster_id` (21 niveles), `arquetipo_demanda` (6 niveles) | Features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante*. |
 | **Seguridad de Información** | *Ex-ante* / Cero Fuga (*Leakage-free*) | No utiliza volumen transaccional posterior (`net_sold_qty`, recaudos finales). Totalmente seguras para entrenamiento de modelos de demanda, propensión y pricing dinámico. |
-| **Niveles de Micro-Clusters** | 20 categorías canónicas | `AU-0` (Admisión Única terminal) + 19 sub-espacios multi-zona: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..2`. |
+| **Niveles de Micro-Clusters** | 21 categorías canónicas | `AU-0` (Admisión Única terminal) + 20 sub-espacios multi-zona: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..3`. |
 | **Niveles de Arquetipos** | 6 arquetipos macro | `Admisión Única / Tarifa Plana`, `VIP / Palcos / Premium`, `Popular / Balcón / Visibilidad Parcial`, `Platea General / Intermedia`, `Preferencial / Platea Frontal`, `Grada General / Masiva`. |
-| **Encoding Recomendado** | **One-Hot Encoding** | 20 columnas binarias para micro-clusters y 6 para arquetipos. Óptimo para arquitecturas de árboles (LightGBM, XGBoost, CatBoost). |
+| **Encoding Recomendado** | **One-Hot Encoding** | 21 columnas binarias para micro-clusters y 6 para arquetipos. Óptimo para arquitecturas de árboles (LightGBM, XGBoost, CatBoost). |
 | **Encoding Alternativo** | **Target Encoding con CV** | Si el consumidor implementa target/mean encoding, debe aplicarlo estrictamente con validación cruzada *out-of-fold* (K-Fold) para prevenir fuga de señal del target. |
-| **Freshness y Scoring** | *On-the-fly* al momento de scoring | Asignado mediante `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)`. El payload de inferencia se congela por versión (`3.0-hier.1`). |
+| **Freshness y Scoring** | *On-the-fly* al momento de scoring | Asignado mediante `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)`. El payload de inferencia se congela por versión (`3.0-hier.2`). |
 | **Manejo de Incertidumbre** | Flags no bloqueantes | Si una localidad presenta venue no visto o datos faltantes, activa flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepción. |
-| **Monitoreo Continuo** | Population Stability Index (PSI) | Drift evaluado por lote sobre las 20 categorías frente a `distribucion_referencia_microclusters`. Alerta activa ante $\text{PSI} \ge 0.10$. |
+| **Monitoreo Continuo** | Population Stability Index (PSI) | Drift evaluado por lote sobre las 21 categorías frente a `distribucion_referencia_microclusters`. Alerta activa ante $\text{PSI} \ge 0.10$. |
+
+---
+
+### 9. Tabla Comparativa de Decisión y Modelos de Producción
+
+A continuación se sintetiza el desempeño cuantitativo de cada familia de modelos bajo sus respectivos criterios de aceptación formal:
+
+#### 9.1 Comparativa Macro-Clustering: Modelo v2.3 vs Modelo v2.4
+
+| Criterio / Métrica | v2.3 (Taxonomía v1, 9 Cats) | v2.4 (Taxonomía v2, 10 Cats) | Delta / Impacto | Evaluación |
+| :--- | :---: | :---: | :---: | :---: |
+| **Dimensionalidad Espacio Mixto** | 35D | 36D | +1 dimensión | Incorpora diferenciación limpia ARENA vs COLISEO |
+| **Categorías Canónicas de Venue** | 9 categorías | 10 categorías | +1 categoría | Taxonomía estandarizada sin categoría residual `otro` |
+| **Silueta Multi-Zona** | 0.2094 | **0.2098** | +0.0004 | Ligera mejora en definición de fronteras |
+| **Davies-Bouldin (menor es mejor)** | 1.4865 | **1.4784** | -0.0081 | Mayor compacidad intracluster y separación |
+| **Calinski-Harabasz (mayor es mejor)**| 4672.7 | **4676.9** | +4.2 | Mayor dispersión entre centroides |
+| **Inercia K-Means (menor es mejor)** | 26,293.5 | **26,075.4** | -218.1 | Mayor concentración geométrica global |
+| **Estabilidad ARI vs v2.3** | 1.0000 (base) | **0.9416** | Consistencia > 94% | Transición suave sin desestabilizar arquetipos macro |
+| **Tasa de Coincidencia de Arquetipos**| 100.00% | **95.37%** | 32,212 / 33,775 iguales | Ajuste fino en fronteras de Platea y VIP |
+| **Golden Set (20 Casos Críticos)** | 20 / 20 (100%) | **20 / 20 (100%)** | 0 regresiones | Precisión intacta en clasificaciones emblemáticas |
+| **Suite de Tests Golden Set** | 12 / 12 PASSED | **12 / 12 PASSED** | 100% verde | Cobertura exacta, drift PSI y calibración GMM |
+
+#### 9.2 Comparativa Arquitectura Jerárquica: v3.0-hier.1 vs v3.0-hier.2
+
+| Criterio / Métrica | v3.0-hier.1 (Nivel 1 v2.3) | v3.0-hier.2 (Nivel 1 v2.4) | Delta / Impacto | Evaluación |
+| :--- | :---: | :---: | :---: | :---: |
+| **Base Nivel 1** | v2.3 (35D) | **v2.4 (36D)** | Taxonomía v2 integrada | Nivel 1 alineado con tipología canónica |
+| **Sub-espacios Nivel 2** | 32D (sin venue one-hot) | **32D (sin venue one-hot)** | Idéntico por diseño | Venue excluido para evitar sobrefragmentación |
+| **Micro-Clusters Totales** | 20 (`AU-0` + 19) | **21 (`AU-0` + 20)** | +1 micro-cluster | Grada General selecciona $k=4$ óptimo no degenerado |
+| **Cobertura de Catálogo** | 100% (33,775 filas) | **100% (33,775 filas)** | Cobertura exacta | Sin pérdida de localidades ni datos descartados |
+| **Clusters Degenerados (< 3%)** | 0 degenerados | **0 degenerados** | Mínimo share: 6.78% | Todas las particiones superan el piso de masa |
+| **Validación Rollup 1:1** | Estricto (0 violaciones) | **Estricto (0 violaciones)** | Preservado | Todo micro-cluster pertenece exactamente a 1 arquetipo |
+| **Estabilidad ARI Promedio** | > 0.85 sub-espacios clave | **> 0.85 sub-espacios clave**| Popular: 0.9740, Platea: 0.9362 | Partición robusta ante remuestreos al 80% |
+
+#### 9.3 Veredicto Final y Asignación de Roles en Producción
+
+| Componente | Configuración Seleccionada | Rol en Producción | Justificación de Negocio |
+| :--- | :--- | :--- | :--- |
+| **Modelo Macro-Clustering** | **Modelo v2.4 (`modelo_clustering_v2_4.joblib`)** | **Producción Vigente** | Supera a v2.3 en compacidad (Davies-Bouldin $1.4784$), silueta ($0.2098$) e inercia, incorporando la taxonomía formal de 10 categorías de venue sin alterar los 6 arquetipos de demanda ni generar regresiones en el Golden Set. |
+| **Generador de Features Fino** | **Jerarquía v3.0-hier.2 (`modelo_jerarquia_v3.joblib`)** | **Aprobado para Modelos Downstream** | Provee 21 variables categóricas de micro-clusters con $100\%$ de cobertura, 0 clusters degenerados, estabilidad bootstrap-ARI $>0.90$ en segmentos clave y rollup 1:1 validado para enriquecer modelos de propensión, elasticidad y pricing. |
 
 
 

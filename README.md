@@ -2,7 +2,7 @@
 
 Proyecto integral de Data Science y Machine Learning para la segmentación y clasificación automatizada de localidades en espectáculos públicos a partir de datos transaccionales almacenados en formato `.parquet` en Azure Blob Storage.
 
-El modelo implementa un **espacio vectorial mixto de 35 dimensiones** (Modelo v2.3: características numéricas relativas *ex-ante*, percentil dentro de tipología de venue, tags estructurales extraídos mediante NLP, tipología de venue one-hot ponderada y representaciones TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
+El modelo implementa un **espacio vectorial mixto de 36 dimensiones** (Modelo v2.4: características numéricas relativas *ex-ante*, percentil dentro de tipología de venue, tags estructurales extraídos mediante NLP, tipología de venue one-hot ponderada con 10 categorías canónicas y representaciones TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
 
 ---
 
@@ -17,7 +17,7 @@ clusterizacion-localidades/
 ├── README.md                                   # Guía general de uso y arquitectura
 ├── requirements.txt                            # Dependencias locales (sin PySpark)
 ├── requirements-databricks.txt                 # Dependencias exclusivas para Databricks
-├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.3)
+├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.4)
 │
 ├── .github/                                    # Integración Continua (CI)
 │   └── workflows/
@@ -26,7 +26,7 @@ clusterizacion-localidades/
 ├── data/                                       # Datos locales y tablas maestras
 │   ├── lookup/                                 # Tablas maestras de venues y trazabilidad
 │   │   ├── recintos_unicos.csv                 # 494 venues únicos extraídos del catálogo
-│   │   ├── site_type_lookup.csv                # Tabla de verdad consolidada (type_site)
+│   │   ├── site_type_lookup.csv                # Tabla de verdad consolidada v2 (type_site)
 │   │   └── site_type_revision_humana.csv       # Discrepancias enviadas a curaduría humana
 │   ├── raw/                                    # Parquets descargados de Azure
 │   └── processed/                              # Datasets con features y clusters asignados
@@ -34,7 +34,7 @@ clusterizacion-localidades/
 ├── notebooks/                                  # Flujo interactivo paso a paso
 │   ├── 00_databricks_raw_data.ipynb            # Extracción y preparación inicial en Databricks
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
-│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (35D), K-Means/GMM y arquetipos (v2.3)
+│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (36D), K-Means/GMM y arquetipos (v2.4)
 │
 ├── src/                                        # Módulos Python reutilizables de producción
 │   ├── __init__.py
@@ -42,22 +42,28 @@ clusterizacion-localidades/
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento, consistencia y venue
 │   ├── llm_classifier.py                       # Clasificador de venues con Gemini 3.8 Flash Medium y auditoría
-│   ├── clustering.py                           # Espacio mixto 35D, clustering bietápico, persistencia e inferencia (v2.3)
-│   └── jerarquia.py                            # Arquitectura jerárquica, scoring y drift de micro-clusters (v3.0-hier.1)
+│   ├── clustering.py                           # Espacio mixto 36D, clustering bietápico, persistencia e inferencia (v2.4)
+│   ├── jerarquia.py                            # Arquitectura jerárquica, scoring y drift de micro-clusters (v3.0-hier.2)
+│   └── validar_frecuencias.py                  # Compuerta de validación de frecuencias de taxonomía
 │
 ├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
 │   ├── __init__.py
 │   ├── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
-│   ├── test_clasificacion_sites.py             # Casos borde toponímicos, límites de palabra y trazabilidad
+│   ├── test_clasificacion_sites.py             # Casos borde toponímicos, límites de palabra y trazabilidad v2
 │   ├── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
-│   ├── test_feature_type_site.py               # Tests del feature type_site y percentil
+│   ├── test_feature_type_site.py               # Tests del feature type_site (10 categorías) y percentil
+│   ├── test_validar_frecuencias.py             # Tests unitarios sintéticos de la compuerta de frecuencias
 │   ├── test_microclusters.py                   # Tests de la exploración de micro-clusters
 │   ├── test_jerarquia.py                       # Tests de arquitectura jerárquica v3.0 (rollup 1:1, Codo-DB)
 │   └── test_diagnostico_subespacios.py         # Tests de diagnóstico de pureza, cobertura y oráculo
 │
 ├── scripts/                                    # Automatización, diagnóstico y análisis
 │   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
-│   ├── comparar_resultados_clustering.py       # Comparativa cuantitativa y matriz de transición v2.0 vs v2.2
+│   ├── migrar_lookup_v2.py                     # Script de migración y trazabilidad de lookup v1 -> v2
+│   ├── validar_frecuencias_taxonomy.py         # Validación formal de frecuencias y compuertas
+│   ├── entrenar_v24.py                         # Re-entrenamiento, evaluación y persistencia modelo v2.4
+│   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0-hier.2 (Nivel 1 v2.4 -> Nivel 2 micro-clusters)
+│   ├── diagnosticar_subespacios.py             # Diagnóstico de separabilidad, oráculo y sweep condicional VIP
 │   ├── comparar_v22_vs_v23.py                  # Comparación y ablación de versiones
 │   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
 │   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (Codo Ortogonal + Davies-Bouldin)
@@ -156,28 +162,54 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
      * **Orientación Espacial:** `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
      * **Restricciones de Acceso:** `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
 
-3. **Arquitectura en Dos Etapas y Espacio Mixto 35D (`src/clustering.py` - Modelo v2.3 Optimizado):**
+3. **Arquitectura en Dos Etapas y Espacio Mixto 36D (`src/clustering.py` - Modelo v2.4 Optimizado):**
    * **Etapa 1 (Determinística):** Aislamiento de funciones de admisión única / tarifa plana a nivel evento ($15,375$ registros, $45.5\%$ del catálogo: Cinemateca, Maloka, museos). Asignación directa a *Admisión Única / Tarifa Plana*.
-   * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 35 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
+   * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 36 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
      * $4$ métricas numéricas relativas *ex-ante* (`RobustScaler`, incluyendo percentil de precio dentro del tipo de venue).
      * $7$ tags estructurales densos (5 comerciales + 2 verticales) en escala $[0, 1]$.
-     * $9$ categorías one-hot de tipología de venue (`type_site`) ponderadas en $\omega_{\text{venue}} = 0.5$.
+     * $10$ categorías canónicas one-hot de tipología de venue (`type_site`) ponderadas en $\omega_{\text{venue}} = 0.5$.
      * $15$ características TF-IDF reentrenadas exclusivamente sobre multi-zona con ponderación calibrada $\omega_{\text{nlp}} = 0.2$.
-   * **Algoritmo & Etiquetado:** K-Means ($k=5$, óptimo formal por codo ortogonal y mínimo Davies-Bouldin) con correspondencia biyectiva de centroides geométricos 1-a-1 mediante el Algoritmo Húngaro.
+   * **Algoritmo & Etiquetado:** K-Means ($k=5$, óptimo formal por codo ortogonal y mínimo Davies-Bouldin) con correspondencia biyectiva de centroides geométricos 1-a-1 mediante el Algoritmo Húngaro en 36D.
 
 ---
 
-##  Los 6 Arquetipos de Demanda (Modelo v2.3 Optimizado)
+## Taxonomía de Venues (type_site) y Migración v2
+
+El modelo v2.4 consolida una taxonomía formal de **10 categorías canónicas de negocio** (más el fallback interno `desconocido` para casos no comerciales fuera del vector one-hot):
+
+1. **`ARENA`**: Escenarios multipropósito modernos cubiertos de gran escala para conciertos internacionales (ej. Movistar Arena).
+2. **`CINEMATECA`**: Salas de cine arte y centros audiovisuales con butacas numeradas individuales.
+3. **`ESTADIO`**: Escenarios deportivos y de conciertos masivos al aire libre con graderías y cancha.
+4. **`COLISEO`**: Escenarios polideportivos municipales tradicionales cerrados con graderías de hormigón.
+5. **`MUSEO`**: Galerías, centros de exposiciones y sedes patrimoniales con aforo controlado.
+6. **`OTROS_RECINTOS`**: Consolidación estratégica de auditorios, centros de convenciones, salas de concierto intermedias y cabaret/comedia.
+7. **`PARQUE`**: Áreas verdes y espacios abiertos para festivales masivos al aire libre sin silletería fija.
+8. **`PARQUEADERO`**: Establecimientos físicos cuya infraestructura es exclusivamente estacionamiento vehicular.
+9. **`RESTAURANTE`**: Bares, restaurantes, clubes nocturnos y gastrobares con consumo de alimentos y bebidas.
+10. **`TEATRO`**: Teatros tradicionales con distribución clásica en platea, palcos y balcones.
+
+> [!NOTE]
+> **Semántica Operativa de PARQUEADERO y Frecuencia Histórica:**  
+> En TuBoleta, las boletas de parqueadero se venden como productos complementarios (*add-on*) asociados a eventos en estadios o arenas, heredando el tipo del venue anfitrión (`ESTADIO` o `ARENA`). Por diseño de negocio, ningún venue histórico opera autónomamente como parqueadero de espectáculos artísticos ($0$ localidades en el histórico). La categoría se preserva canónicamente para futuros desarrollos sin recurrir a buckets genéricos.
+
+### Nota de Migración v1 a v2 y Compuerta de Frecuencias
+* **Mapeo Explícito:** `arena_cubierta` $\rightarrow$ `ARENA`, `cine_sala_cultural` $\rightarrow$ `CINEMATECA`, `estadio_abierto` $\rightarrow$ `ESTADIO`, `coliseo` $\rightarrow$ `COLISEO`, `teatro` $\rightarrow$ `TEATRO`, `parque_aire_libre` $\rightarrow$ `PARQUE`, `bar_club` $\rightarrow$ `RESTAURANTE`, `{auditorio, centro_convenciones, sala_conciertos, cabaret_comedia}` $\rightarrow$ `OTROS_RECINTOS`, y re-clasificación curada del residual `otro` hacia `MUSEO`, `RESTAURANTE`, `PARQUEADERO` y `ARENA`.
+* **Trazabilidad Garantizada:** El archivo `data/lookup/site_type_lookup.csv` mantiene la fuente original de cada asignación e incorpora `taxonomia_version="v2"` y `fecha_reclasificacion="2026-09-28"`.
+* **Compuerta de Frecuencias:** Validada mediante `scripts/validar_frecuencias_taxonomy.py` con reporte generado en `reports/frecuencias_type_site_v2.csv`.
+
+---
+
+## Los 6 Arquetipos de Demanda (Modelo v2.4 Optimizado)
 
 | Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-|  **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.5%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-|  **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 5,861 | **17.4%** | 0.35 | 9.4% | **$44,650** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
-|  **VIP / Palcos / Premium** | Etapa 2 | 5,070 | **15.0%** | 0.81 | 5.6% | **$140,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
-|  **Platea General / Intermedia** | Etapa 2 | 3,270 | **9.7%** | 0.71 | 33.2% | **$48,200** | *Platea Media, Balcón Delantero, Localidades intermedias* |
-|  **Preferencial / Platea Frontal** | Etapa 2 | 3,229 | **9.6%** | 0.86 | 17.1% | **$121,312** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
-|  **Grada General / Masiva** | Etapa 2 | 970 | **2.9%** | 0.81 | 77.9% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
-| **TOTAL CATÁLOGO** | **v2.3** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
+| **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.52%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
+| **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,103 | **18.07%** | 0.35 | 9.5% | **$45,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+| **VIP / Palcos / Premium** | Etapa 2 | 4,935 | **14.61%** | 0.81 | 5.5% | **$142,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+| **Platea General / Intermedia** | Etapa 2 | 3,448 | **10.21%** | 0.71 | 32.8% | **$49,000** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+| **Preferencial / Platea Frontal** | Etapa 2 | 2,928 | **8.67%** | 0.86 | 17.0% | **$122,000** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+| **Grada General / Masiva** | Etapa 2 | 986 | **2.92%** | 0.81 | 78.1% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+| **TOTAL CATÁLOGO** | **v2.4** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
@@ -211,8 +243,8 @@ pytest tests/ -v
 import pandas as pd
 from src.clustering import cargar_modelo_clustering, predecir_arquetipos_demanda
 
-# Cargar modelo serializado
-modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_3.joblib")
+# Cargar modelo serializado v2.4
+modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_4.joblib")
 
 # Predecir arquetipos con observabilidad completa (score de confianza, frontera, OOV)
 df_segmentado = predecir_arquetipos_demanda(df_nuevas_localidades, modelo)
@@ -251,14 +283,14 @@ Evaluación experimental de particiones finas ($k > 10$) sobre las $18,400$ loca
 
 ---
 
-## Jerarquía de micro-clusters (v3.0-hier.1)
+## Jerarquía de micro-clusters (v3.0-hier.2)
 
-Arquitectura jerárquica en dos niveles desarrollada como evolución a la limitación de la exploración plana ($k > 10$ en el espacio unificado 35D, donde la heterogeneidad global colapsa la pureza y separabilidad léxico-estructural).
+Arquitectura jerárquica en dos niveles desarrollada como evolución a la limitación de la exploración plana ($k > 10$ en el espacio unificado, donde la heterogeneidad global colapsa la pureza y separabilidad léxico-estructural).
 
 * **Aprobación de la Jerarquía como Feature Generator:**
-  La jerarquía queda **aprobada como generador de features** bajo sus criterios propios de calidad: estabilidad bootstrap-ARI $> 0.96$ (promedio multizona), cobertura total ($100\%$ del catálogo sin descarte de datos) y 0 clusters degenerados. La compuerta de pureza léxica queda archivada como criterio propio del caso de uso de normalización de nombres, no del de generación de features predictivas (ver diagnóstico en Módulo 3.8). El modelo v2.3 de producción sigue 100% intacto en `src/clustering.py`.
+  La jerarquía queda **aprobada como generador de features** bajo sus criterios propios de calidad: alta estabilidad bootstrap-ARI en sub-espacios clave (hasta $0.9740$ en Popular y $0.9362$ en Platea Intermedia), cobertura total ($100\%$ del catálogo sin descarte de datos), rollup 1:1 estricto y 0 clusters degenerados. La compuerta de pureza léxica queda archivada como criterio propio del caso de uso de normalización de nombres, no del de generación de features predictivas (ver diagnóstico en Módulo 3.8). El modelo v2.4 de producción actúa como baseline de Nivel 1.
 * **Arquitectura de Dos Niveles:**
-  1. **Nivel 1 (Producción v2.3 congelada):** Separa localidades de tarifa plana (`Admisión Única`, $15,375$ registros clasificados directamente como micro-cluster terminal `AU-0`) y clasifica las $18,400$ localidades multi-zona en los 5 arquetipos macro de demanda certificados.
+  1. **Nivel 1 (Producción v2.4):** Separa localidades de tarifa plana (`Admisión Única`, $15,375$ registros clasificados directamente como micro-cluster terminal `AU-0`) y clasifica las $18,400$ localidades multi-zona en los 5 arquetipos macro de demanda certificados (espacio mixto 36D).
   2. **Nivel 2 (Sub-clustering por Arquetipo Macro):** Para cada uno de los 5 arquetipos macro multi-zona, se entrena un sub-modelo K-Means en un sub-espacio propio de **32 dimensiones**:
      * 4 numéricas relativas estandarizadas con `RobustScaler` ajustado localmente.
      * 13 tags estructurales binarios expandidos (`tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`, `tag_lateral`, `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_mesa`).
@@ -267,14 +299,14 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
 * **Selección de k y Calidad Estadística:**
   * Búsqueda en $k \in \{2, 3, 4, 5\}$ mediante optimización Codo-DB local.
   * Filtro de no degeneración: Descalificación de cualquier solución con clusters $< 3\%$ del sub-espacio.
-  * Estabilidad bootstrap-ARI (20 réplicas al 80%) con promedio superior al $96\%$ en multi-zona.
-* **Métricas Obtenidas por Sub-espacio:**
-  * **VIP / Palcos / Premium:** $k=4$, $N=5,070$, bootstrap-ARI $= 0.7896$.
-  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,861$, bootstrap-ARI $= 0.9716$.
-  * **Platea General / Intermedia:** $k=4$, $N=3,270$, bootstrap-ARI $= 0.9830$.
-  * **Preferencial / Platea Frontal:** $k=4$, $N=3,229$, bootstrap-ARI $= 0.9628$ (supera todas las compuertas).
-  * **Grada General / Masiva:** $k=3$, $N=970$, bootstrap-ARI $= 0.9777$.
-  * **Total Micro-Clusters Global:** 20 particiones (1 de Admisión Única + 19 multi-zona).
+  * Estabilidad bootstrap-ARI (20 réplicas al 80%) con promedio superior al $90\%$ en multi-zona clave.
+* **Métricas Obtenidas por Sub-espacio (3.0-hier.2):**
+  * **VIP / Palcos / Premium:** $k=4$, $N=5,135$, bootstrap-ARI $= 0.6716$, min share $= 6.78\%$.
+  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,763$, bootstrap-ARI $= 0.9740$, min share $= 21.74\%$.
+  * **Platea General / Intermedia:** $k=4$, $N=3,288$, bootstrap-ARI $= 0.9362$, min share $= 23.11\%$.
+  * **Preferencial / Platea Frontal:** $k=4$, $N=3,234$, bootstrap-ARI $= 0.9270$, min share $= 12.49\%$ (supera todas las compuertas).
+  * **Grada General / Masiva:** $k=4$, $N=980$, bootstrap-ARI $= 0.7970$, min share $= 7.86\%$.
+  * **Total Micro-Clusters Global:** 21 particiones (1 de Admisión Única + 20 multi-zona).
 * **Lineamientos de Negocio y Trazabilidad:**
   * Preservación irrestricta de `logical_seat_category` comercial.
   * `micro_cluster_id` como clave técnica de backend.
@@ -286,29 +318,29 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
   python scripts/entrenar_jerarquia_microclusters.py
   ```
 * **Artefactos Persistidos (data/processed/):**
-  * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado con versión `3.0-hier.1`, sub-modelos y distribución de referencia.
-  * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 20 micro-clusters con pureza, términos dominantes y etiquetas.
+  * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado con versión `3.0-hier.2`, sub-modelos y distribución de referencia.
+  * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 21 micro-clusters con pureza, términos dominantes y etiquetas.
   * `data/processed/asignacion_microclusters.csv`: Asignación individual para las 33,775 localidades.
 * **Diagnóstico de Pureza y Separabilidad Oracle:** Evaluación formal de la compuerta de pureza ($\ge 0.85$) y sweep condicional en [`scripts/diagnosticar_subespacios.py`](scripts/diagnosticar_subespacios.py) con reporte estructurado en [`reports/diagnostico_subespacios.csv`](reports/diagnostico_subespacios.csv).
 
 ---
 
-## Contrato de Features (v3.0-hier.1)
+## Contrato de Features (v3.0-hier.2)
 
 Especificación técnica para el consumo operativo de micro-clusters y arquetipos como features en modelos de demanda, propensión y pricing:
 
 * **Columnas Entregadas:**
-  * `micro_cluster_id`: Categoría técnica de 20 niveles (`AU-0` terminal para monozona + 19 particiones en 5 arquetipos: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..2`).
+  * `micro_cluster_id`: Categoría técnica de 21 niveles (`AU-0` terminal para monozona + 20 particiones en 5 arquetipos: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..3`).
   * `arquetipo_demanda`: Segmento macro de 6 niveles (`Admisión Única / Tarifa Plana`, `VIP / Palcos / Premium`, `Popular / Balcón / Visibilidad Parcial`, `Platea General / Intermedia`, `Preferencial / Platea Frontal`, `Grada General / Masiva`).
   * Ambas son features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante* (completamente seguras para modelos de demanda, sin fuga de información transaccional).
 * **Encoding Recomendado:**
-  * **One-Hot Encoding** para ambas variables (20 y 6 niveles, trivial y altamente eficiente para modelos basados en árboles como LightGBM, XGBoost o CatBoost).
+  * **One-Hot Encoding** para ambas variables (21 y 6 niveles, trivial y altamente eficiente para modelos basados en árboles como LightGBM, XGBoost o CatBoost).
   * Si el consumidor prefiere *target encoding* o *mean encoding*, debe realizarse obligatoriamente mediante validación cruzada *out-of-fold* (K-Fold CV) para prevenir fuga de datos (*target leakage*).
 * **Freshness:**
   * La feature se asigna dinámicamente vía `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)` al momento de scoring.
-  * El payload se congela por versión (`3.0-hier.1`). Ante nuevos venues o datos faltantes, el predictor asigna flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepciones.
+  * El payload se congela por versión (`3.0-hier.2`). Ante nuevos venues o datos faltantes, el predictor asigna flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepciones.
 * **Monitoreo Continuo:**
-  * Drift estadístico evaluado por lote mediante Population Stability Index (PSI) sobre la distribución observada de los 20 micro-clusters frente a la distribución de referencia persistida.
+  * Drift estadístico evaluado por lote mediante Population Stability Index (PSI) sobre la distribución observada de los 21 micro-clusters frente a la distribución de referencia persistida.
   * Umbrales: $\text{PSI} < 0.10$ (Estable), $0.10 \le \text{PSI} \le 0.25$ (Revisar), $\text{PSI} > 0.25$ (Drift Crítico). Si hay alerta activa, revisar la composición del lote antes de re-scoring masivo.
 * **Snippet de Consumo (5 líneas):**
   ```python
