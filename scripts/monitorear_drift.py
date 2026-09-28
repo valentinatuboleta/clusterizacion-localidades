@@ -59,6 +59,18 @@ def parse_arguments() -> argparse.Namespace:
         default=0.25,
         help="Umbral de PSI para activar alerta de drift critico (por defecto: 0.25)."
     )
+    parser.add_argument(
+        "--modelo_jerarquia",
+        type=str,
+        default="data/processed/modelo_jerarquia_v3.joblib",
+        help="Ruta al artefacto del modelo jerarquico v3 (.joblib)."
+    )
+    parser.add_argument(
+        "--umbral_psi_micro",
+        type=float,
+        default=0.10,
+        help="Umbral de PSI para alerta de drift en micro-clusters (por defecto: 0.10)."
+    )
     return parser.parse_args()
 
 
@@ -100,12 +112,27 @@ def imprimir_reporte_consola(reporte: dict, umbral_psi: float):
         diff = data["diferencia"]
         print(f" {arq:<38} | {esp:<9.2%} | {obs:<9.2%} | {diff:+9.2%}")
 
+    sec_alertas = "3"
+    if "drift_microclusters" in reporte:
+        d_micro = reporte["drift_microclusters"]
+        sec_alertas = "4"
+        print("\n3. DISTRIBUCION Y DRIFT DE MICRO-CLUSTERS (20 PARTICIONES):")
+        print(f" Estado Micro-Clusters:           [{d_micro['estado']}] (PSI Global = {d_micro['psi_global']:.4f}, Umbral: {d_micro['umbral_evaluado']:.2f})")
+        print(f" {'Micro-Cluster':<16} | {'Referencia':<11} | {'Observado':<10} | {'Diferencia':<11} | {'PSI Parcial':<11}")
+        print(f" {'-'*16} | {'-'*11} | {'-'*10} | {'-'*11} | {'-'*11}")
+        for mc, data_m in d_micro["distribucion_microclusters"].items():
+            ref = data_m["referencia"]
+            obs = data_m["observado"]
+            diff = data_m["diferencia"]
+            psi_p = data_m["psi_parcial"]
+            print(f" {mc:<16} | {ref:<11.2%} | {obs:<10.2%} | {diff:+11.2%} | {psi_p:<11.4f}")
+
     if reporte["alertas"]:
-        print("\n3. ALERTAS OPERATIVAS DETECTADAS:")
+        print(f"\n{sec_alertas}. ALERTAS OPERATIVAS DETECTADAS:")
         for al in reporte["alertas"]:
             print(f"   * [ALERTA] {al}")
     else:
-        print("\n3. ALERTAS OPERATIVAS DETECTADAS: Ninguna. Lote en parametros esperados.")
+        print(f"\n{sec_alertas}. ALERTAS OPERATIVAS DETECTADAS: Ninguna. Lote en parametros esperados.")
 
     print("\n" + sep + "\n")
 
@@ -143,6 +170,23 @@ def main():
     # Evaluar drift
     reporte = evaluar_drift_lote(df, args.modelo, umbral_psi_alerta=args.umbral_psi)
 
+    # Evaluar drift de micro-clusters si el modelo jerarquico existe
+    if os.path.exists(args.modelo_jerarquia):
+        from src.jerarquia import predecir_microclusters, evaluar_drift_microclusters
+        try:
+            df_pred_hier = predecir_microclusters(df, args.modelo_jerarquia, payload_v23=args.modelo)
+            rep_micro = evaluar_drift_microclusters(
+                df_pred_hier,
+                args.modelo_jerarquia,
+                umbral_psi=args.umbral_psi_micro
+            )
+            reporte["drift_microclusters"] = rep_micro
+            if rep_micro.get("alerta_activa"):
+                for al in rep_micro.get("alertas", []):
+                    reporte["alertas"].append(f"[MICRO-CLUSTERS] {al}")
+        except Exception as e:
+            print(f"Aviso: No se pudo evaluar drift de micro-clusters: {e}", file=sys.stderr)
+
     # Imprimir consola
     imprimir_reporte_consola(reporte, args.umbral_psi)
 
@@ -154,7 +198,11 @@ def main():
         print(f"Reporte exportado exitosamente a: {args.output}")
 
     # Retorno de codigo de salida
-    if reporte["estado_general"] == "DRIFT_CRITICO":
+    hay_drift_critico = (
+        reporte["estado_general"] == "DRIFT_CRITICO" or
+        reporte.get("drift_microclusters", {}).get("estado") == "DRIFT_CRITICO"
+    )
+    if hay_drift_critico:
         print("[CRITICO] Se detecto drift critico en el lote. Se recomienda revision y re-entrenamiento.")
         sys.exit(1)
     else:

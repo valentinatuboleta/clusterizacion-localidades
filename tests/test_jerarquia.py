@@ -14,6 +14,9 @@ import unittest
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import RobustScaler
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from scripts.entrenar_jerarquia_microclusters import (
     seleccionar_sub_k_codo_db,
@@ -22,6 +25,14 @@ from scripts.entrenar_jerarquia_microclusters import (
 from scripts.explorar_microclusters import (
     calcular_pureza_cluster,
     generar_label_auto
+)
+from src.jerarquia import (
+    HIERARCHY_VERSION,
+    TAGS_SUBESPACIO_13,
+    MICRO_CLUSTERS_CANONICAL,
+    predecir_microclusters,
+    evaluar_drift_microclusters,
+    generar_label_auto_v3
 )
 
 
@@ -172,6 +183,171 @@ class TestJerarquiaMicroclusters(unittest.TestCase):
             df_real = pd.read_csv(asig_path)
             rollup_real = df_real.groupby("micro_cluster_id")["arquetipo_demanda"].nunique()
             self.assertTrue((rollup_real == 1).all())
+
+    def test_scoring_microclusters_hermetico_roundtrip(self):
+        """Valida round-trip de inferencia hermetico sobre payload sintetico."""
+        # 1. DataFrame sintetico de entrada: mitad monozona, mitad multi-zona
+        df_test = pd.DataFrame({
+            "t_performance_id": list(range(20)) + [100] * 20,
+            "performance_quota": [1000] * 40,
+            "dn_quota": [1000] * 20 + [50] * 20,
+            "price_amount": [150000.0] * 40,
+            "logical_seat_category": ["GENERAL"] * 20 + ["PALCO VIP"] * 10 + ["PALCO MESA"] * 10,
+            "type_site": ["arena_estadio"] * 40
+        })
+
+        from src.clustering import construir_espacio_vectorial_mixto
+        from src.nlp_utils import pipeline_procesamiento_nlp
+        from src.jerarquia import construir_subespacio_arquetipo
+
+        df_proc = pipeline_procesamiento_nlp(df_test.copy())
+        df_multi = df_proc[df_proc["t_performance_id"] == 100].copy()
+        for num_col in ["ratio_precio_max", "percentil_precio_evento", "peso_aforo", "percentil_precio_absoluto_dentro_tipo"]:
+            df_multi[num_col] = 0.5
+
+        X_n1, scaler_n1, tfidf_n1, _ = construir_espacio_vectorial_mixto(
+            df_multi,
+            peso_nlp=0.2,
+            peso_type_site=0.5
+        )
+        km_n1 = KMeans(n_clusters=2, random_state=42, n_init=5).fit(X_n1)
+
+        X_sub, sc_sub, tf_sub, _ = construir_subespacio_arquetipo(
+            df_multi,
+            columnas_tags=TAGS_SUBESPACIO_13,
+            max_tfidf=15,
+            peso_nlp=0.2
+        )
+        km_sub = KMeans(n_clusters=2, random_state=42, n_init=5).fit(X_sub)
+
+        payload_synth = {
+            "version": HIERARCHY_VERSION,
+            "nivel_1": {
+                "version_base": "2.3",
+                "kmeans": km_n1,
+                "scaler": scaler_n1,
+                "tfidf": tfidf_n1,
+                "mapa_arquetipos": {0: "VIP / Palcos / Premium", 1: "VIP / Palcos / Premium"}
+            },
+            "sub_modelos": {
+                "VIP / Palcos / Premium": {
+                    "prefix": "VIP",
+                    "k_sub": 2,
+                    "kmeans_sub": km_sub,
+                    "scaler_sub": sc_sub,
+                    "tfidf_sub": tf_sub,
+                    "columnas_tags_sub": TAGS_SUBESPACIO_13,
+                    "mapa_micro_label": {0: "Palco VIP", 1: "Palco Mesa"}
+                }
+            },
+            "distribucion_referencia_microclusters": {
+                "AU-0": 0.50,
+                "VIP-0": 0.25,
+                "VIP-1": 0.25
+            },
+            "categorias_vigentes": ["AU-0", "VIP-0", "VIP-1"]
+        }
+
+        # Inferencia
+        pred1 = predecir_microclusters(df_test, payload_synth)
+        pred2 = predecir_microclusters(df_test, payload_synth)
+
+        # Validar esquema de salida
+        cols_esperadas = [
+            "logical_seat_category",
+            "micro_cluster_id",
+            "label_auto",
+            "arquetipo_demanda",
+            "score_confianza",
+            "es_frontera"
+        ]
+        self.assertEqual(list(pred1.columns), cols_esperadas)
+        self.assertEqual(len(pred1), 40)
+
+        # Validar consistencia deterministica (100% coincidencia round-trip)
+        self.assertTrue((pred1["micro_cluster_id"] == pred2["micro_cluster_id"]).all())
+        self.assertTrue((pred1["label_auto"] == pred2["label_auto"]).all())
+
+        # Monozona asignada a AU-0
+        self.assertTrue((pred1.iloc[:20]["micro_cluster_id"] == "AU-0").all())
+        self.assertTrue((pred1.iloc[:20]["label_auto"] == "Admisión Única").all())
+
+        # Multi-zona asignada a micro-clusters VIP
+        self.assertTrue(pred1.iloc[20:]["micro_cluster_id"].isin(["VIP-0", "VIP-1"]).all())
+
+    def test_scoring_defensivo_venues_desconocidos(self):
+        """Valida que entradas incompletas o venues no vistos nunca lancen excepcion."""
+        df_raro = pd.DataFrame({
+            "venue_desconocido": ["LUGAR_X", "LUGAR_Y"],
+            "valor_random": [999, 123]
+        })
+        payload_min = {
+            "version": HIERARCHY_VERSION,
+            "sub_modelos": {}
+        }
+        res = predecir_microclusters(df_raro, payload_min)
+        self.assertEqual(len(res), 2)
+        self.assertEqual(res["logical_seat_category"].iloc[0], "GENERAL")
+        self.assertEqual(res["micro_cluster_id"].iloc[0], "AU-0")
+        self.assertFalse(res["micro_cluster_id"].isna().any())
+
+    def test_drift_microclusters_referencia_sin_alerta(self):
+        """Valida que una distribucion coincidente con la referencia tenga PSI < 0.05 y sin alerta."""
+        ref_dist = {cat: 1.0 / len(MICRO_CLUSTERS_CANONICAL) for cat in MICRO_CLUSTERS_CANONICAL}
+        payload = {
+            "distribucion_referencia_microclusters": ref_dist,
+            "categorias_vigentes": MICRO_CLUSTERS_CANONICAL
+        }
+        registros = []
+        for cat in MICRO_CLUSTERS_CANONICAL:
+            registros.extend([cat] * 5)
+        df_obs = pd.DataFrame({"micro_cluster_id": registros})
+
+        res = evaluar_drift_microclusters(df_obs, payload, umbral_psi=0.10)
+        self.assertFalse(res["alerta_activa"])
+        self.assertEqual(res["estado"], "ESTABLE")
+        self.assertLess(res["psi_global"], 0.05)
+        self.assertEqual(len(res["alertas"]), 0)
+
+    def test_drift_microclusters_perturbada_con_alerta(self):
+        """Valida que una distribucion concentrada de forma anomala active alerta y supere el umbral PSI."""
+        ref_dist = {cat: 1.0 / len(MICRO_CLUSTERS_CANONICAL) for cat in MICRO_CLUSTERS_CANONICAL}
+        payload = {
+            "distribucion_referencia_microclusters": ref_dist,
+            "categorias_vigentes": MICRO_CLUSTERS_CANONICAL
+        }
+        registros = ["AU-0"] * 90 + ["VIP-0"] * 10
+        df_perturb = pd.DataFrame({"micro_cluster_id": registros})
+
+        res = evaluar_drift_microclusters(df_perturb, payload, umbral_psi=0.10)
+        self.assertTrue(res["alerta_activa"])
+        self.assertIn(res["estado"], ["REVISAR", "DRIFT_CRITICO"])
+        self.assertGreaterEqual(res["psi_global"], 0.10)
+        self.assertGreater(len(res["alertas"]), 0)
+
+    def test_roundtrip_dataset_real_si_existe(self):
+        """Si los artefactos reales v3 existen localmente, valida >=99% de coincidencia round-trip."""
+        mod_path = "data/processed/modelo_jerarquia_v3.joblib"
+        asig_path = "data/processed/asignacion_microclusters.csv"
+        raw_path = "data/raw/localidades_eda.parquet"
+        if os.path.exists(mod_path) and os.path.exists(asig_path) and os.path.exists(raw_path):
+            from src.feature_engineering import preparar_dataset_enriquecido
+            df_raw = pd.read_parquet(raw_path)
+            df_enr = preparar_dataset_enriquecido(df_raw)
+            pred = predecir_microclusters(df_enr, mod_path)
+            asig = pd.read_csv(asig_path)
+
+            ARQ_ORDEN = [
+                "Admisión Única / Tarifa Plana",
+                "VIP / Palcos / Premium",
+                "Popular / Balcón / Visibilidad Parcial",
+                "Platea General / Intermedia",
+                "Preferencial / Platea Frontal",
+                "Grada General / Masiva"
+            ]
+            pred_ord = pd.concat([pred[pred["arquetipo_demanda"] == a] for a in ARQ_ORDEN], ignore_index=True)
+            match_mc = float((pred_ord["micro_cluster_id"].values == asig["micro_cluster_id"].values).mean())
+            self.assertGreaterEqual(match_mc, 0.99, f"Tasa de match real ({match_mc:.4%}) inferior a 99%")
 
 
 if __name__ == "__main__":

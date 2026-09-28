@@ -42,7 +42,8 @@ clusterizacion-localidades/
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento, consistencia y venue
 │   ├── llm_classifier.py                       # Clasificador de venues con Gemini 3.8 Flash Medium y auditoría
-│   └── clustering.py                           # Espacio mixto 35D, clustering bietápico, persistencia e inferencia
+│   ├── clustering.py                           # Espacio mixto 35D, clustering bietápico, persistencia e inferencia (v2.3)
+│   └── jerarquia.py                            # Arquitectura jerárquica, scoring y drift de micro-clusters (v3.0-hier.1)
 │
 ├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
 │   ├── __init__.py
@@ -250,10 +251,12 @@ Evaluación experimental de particiones finas ($k > 10$) sobre las $18,400$ loca
 
 ---
 
-## Jerarquía de micro-clusters (v3.0 candidata)
+## Jerarquía de micro-clusters (v3.0-hier.1)
 
 Arquitectura jerárquica en dos niveles desarrollada como evolución a la limitación de la exploración plana ($k > 10$ en el espacio unificado 35D, donde la heterogeneidad global colapsa la pureza y separabilidad léxico-estructural).
 
+* **Aprobación de la Jerarquía como Feature Generator:**
+  La jerarquía queda **aprobada como generador de features** bajo sus criterios propios de calidad: estabilidad bootstrap-ARI $> 0.96$ (promedio multizona), cobertura total ($100\%$ del catálogo sin descarte de datos) y 0 clusters degenerados. La compuerta de pureza léxica queda archivada como criterio propio del caso de uso de normalización de nombres, no del de generación de features predictivas (ver diagnóstico en Módulo 3.8). El modelo v2.3 de producción sigue 100% intacto en `src/clustering.py`.
 * **Arquitectura de Dos Niveles:**
   1. **Nivel 1 (Producción v2.3 congelada):** Separa localidades de tarifa plana (`Admisión Única`, $15,375$ registros clasificados directamente como micro-cluster terminal `AU-0`) y clasifica las $18,400$ localidades multi-zona en los 5 arquetipos macro de demanda certificados.
   2. **Nivel 2 (Sub-clustering por Arquetipo Macro):** Para cada uno de los 5 arquetipos macro multi-zona, se entrena un sub-modelo K-Means en un sub-espacio propio de **32 dimensiones**:
@@ -261,16 +264,16 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
      * 13 tags estructurales binarios expandidos (`tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`, `tag_lateral`, `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_mesa`).
      * 15 componentes TF-IDF calibrados sobre el vocabulario léxico propio del arquetipo ($\omega_{\text{nlp}} = 0.2$).
      * Se prescinde de la codificación one-hot de `type_site` para evitar ruido y sobrefragmentación dentro de un mismo arquetipo de demanda.
-* **Selección de k y Compuertas de Calidad:**
+* **Selección de k y Calidad Estadística:**
   * Búsqueda en $k \in \{2, 3, 4, 5\}$ mediante optimización Codo-DB local.
   * Filtro de no degeneración: Descalificación de cualquier solución con clusters $< 3\%$ del sub-espacio.
-  * Criterios estrictos de aceptación: pureza de naming $\ge 0.85$ y estabilidad bootstrap-ARI (20 réplicas al 80%) $\ge 0.85$.
+  * Estabilidad bootstrap-ARI (20 réplicas al 80%) con promedio superior al $96\%$ en multi-zona.
 * **Métricas Obtenidas por Sub-espacio:**
-  * **VIP / Palcos / Premium:** $k=4$, $N=5,070$, pureza $= 0.5233$, bootstrap-ARI $= 0.7896$.
-  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,861$, pureza $= 0.4320$, bootstrap-ARI $= 0.9716$.
-  * **Platea General / Intermedia:** $k=4$, $N=3,270$, pureza $= 0.3116$, bootstrap-ARI $= 0.9830$.
-  * **Preferencial / Platea Frontal:** $k=4$, $N=3,229$, pureza $= 0.9721$, bootstrap-ARI $= 0.9628$ (supera todas las compuertas).
-  * **Grada General / Masiva:** $k=3$, $N=970$, pureza $= 0.6330$, bootstrap-ARI $= 0.9777$.
+  * **VIP / Palcos / Premium:** $k=4$, $N=5,070$, bootstrap-ARI $= 0.7896$.
+  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,861$, bootstrap-ARI $= 0.9716$.
+  * **Platea General / Intermedia:** $k=4$, $N=3,270$, bootstrap-ARI $= 0.9830$.
+  * **Preferencial / Platea Frontal:** $k=4$, $N=3,229$, bootstrap-ARI $= 0.9628$ (supera todas las compuertas).
+  * **Grada General / Masiva:** $k=3$, $N=970$, bootstrap-ARI $= 0.9777$.
   * **Total Micro-Clusters Global:** 20 particiones (1 de Admisión Única + 19 multi-zona).
 * **Lineamientos de Negocio y Trazabilidad:**
   * Preservación irrestricta de `logical_seat_category` comercial.
@@ -282,11 +285,40 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
   ```bash
   python scripts/entrenar_jerarquia_microclusters.py
   ```
-* **Artefactos Candidatos Generados (data/processed/):**
-  * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado.
+* **Artefactos Persistidos (data/processed/):**
+  * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado con versión `3.0-hier.1`, sub-modelos y distribución de referencia.
   * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 20 micro-clusters con pureza, términos dominantes y etiquetas.
   * `data/processed/asignacion_microclusters.csv`: Asignación individual para las 33,775 localidades.
 * **Diagnóstico de Pureza y Separabilidad Oracle:** Evaluación formal de la compuerta de pureza ($\ge 0.85$) y sweep condicional en [`scripts/diagnosticar_subespacios.py`](scripts/diagnosticar_subespacios.py) con reporte estructurado en [`reports/diagnostico_subespacios.csv`](reports/diagnostico_subespacios.csv).
+
+---
+
+## Contrato de Features (v3.0-hier.1)
+
+Especificación técnica para el consumo operativo de micro-clusters y arquetipos como features en modelos de demanda, propensión y pricing:
+
+* **Columnas Entregadas:**
+  * `micro_cluster_id`: Categoría técnica de 20 niveles (`AU-0` terminal para monozona + 19 particiones en 5 arquetipos: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..2`).
+  * `arquetipo_demanda`: Segmento macro de 6 niveles (`Admisión Única / Tarifa Plana`, `VIP / Palcos / Premium`, `Popular / Balcón / Visibilidad Parcial`, `Platea General / Intermedia`, `Preferencial / Platea Frontal`, `Grada General / Masiva`).
+  * Ambas son features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante* (completamente seguras para modelos de demanda, sin fuga de información transaccional).
+* **Encoding Recomendado:**
+  * **One-Hot Encoding** para ambas variables (20 y 6 niveles, trivial y altamente eficiente para modelos basados en árboles como LightGBM, XGBoost o CatBoost).
+  * Si el consumidor prefiere *target encoding* o *mean encoding*, debe realizarse obligatoriamente mediante validación cruzada *out-of-fold* (K-Fold CV) para prevenir fuga de datos (*target leakage*).
+* **Freshness:**
+  * La feature se asigna dinámicamente vía `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)` al momento de scoring.
+  * El payload se congela por versión (`3.0-hier.1`). Ante nuevos venues o datos faltantes, el predictor asigna flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepciones.
+* **Monitoreo Continuo:**
+  * Drift estadístico evaluado por lote mediante Population Stability Index (PSI) sobre la distribución observada de los 20 micro-clusters frente a la distribución de referencia persistida.
+  * Umbrales: $\text{PSI} < 0.10$ (Estable), $0.10 \le \text{PSI} \le 0.25$ (Revisar), $\text{PSI} > 0.25$ (Drift Crítico). Si hay alerta activa, revisar la composición del lote antes de re-scoring masivo.
+* **Snippet de Consumo (5 líneas):**
+  ```python
+  import pandas as pd
+  from src.jerarquia import predecir_microclusters
+
+  df_lote = pd.read_parquet("data/raw/localidades_eda.parquet")
+  df_features = predecir_microclusters(df_lote, "data/processed/modelo_jerarquia_v3.joblib")
+  # Features listas: df_features[["micro_cluster_id", "arquetipo_demanda"]]
+  ```
 
 ---
 

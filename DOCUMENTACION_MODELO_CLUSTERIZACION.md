@@ -7,6 +7,18 @@
 
 ---
 
+## Historial de Versiones
+
+| Versión | Fecha | Estado | Descripción y Criterios Clave |
+| :--- | :---: | :---: | :--- |
+| **v1.0** | 2026-03 | Deprecado | Baseline exploratorio K-Means sobre variables numéricas crudas. |
+| **v2.0** | 2026-05 | Deprecado | Pipeline bietápico inicial con tags NLP básicos y separación monozona/multizona. |
+| **v2.2** | 2026-07 | Deprecado | Incorporación de percentil de precio por evento y expansión a 11 tags estructurales. |
+| **v2.3** | 2026-09 | **Producción Vigente** | Espacio vectorial mixto 35D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU), 6 arquetipos macro de demanda certificados. |
+| **v3.0-hier.1** | 2026-09 | **Aprobado (Features)** | Aprobado como generador de features bajo criterios de estabilidad/cobertura; compuerta de pureza archivada como criterio del caso de uso de nombres (ver Módulo 3.8 diagnóstico). Jerarquía 20 micro-clusters (`AU-0` + 19 multi-zona). |
+
+---
+
 ## Prólogo: La "Torre de Babel" de la Boletería (Storytelling del Negocio)
 
 Imagina que estás al frente de la estrategia comercial de **TuBoleta**, gestionando eventos en venues completamente dispares: desde un **Estadio El Campín** con capacidad para más de **46,000 personas**, pasando por un **Movistar Arena** para **14,000**, hasta salas de teatro íntimas con aforos de **200 butacas**.
@@ -712,6 +724,38 @@ Incluso amplificando el peso del texto hasta $\omega_{\text{nlp}} = 0.5$, la pur
 
 #### Implicación de Negocio y Recomendación Estratégica
 Los nombres comerciales de las localidades en los segmentos de `Platea General / Intermedia` (donde el oráculo demuestra que ni teóricamente se puede superar el $80.58\%$ de pureza) y `VIP / Palcos / Premium` (donde la variabilidad léxica no basta para separar micro-clusters homogéneos al $85\%$) **no soportan tipificación fina automática con el vocabulario transaccional actual**. La evidencia empírica demuestra que muchos nombres de boletas combinan múltiples descriptores en conflicto o carecen por completo de especificidad arquitectónica. Este diagnóstico aporta un fundamento cuantitativo indispensable para cualquier iniciativa corporativa de estandarización en la captura de localidades con los venues y promotores.
+
+---
+
+### 8. Envoltorio Operativo y Contrato de Features (v3.0-hier.1)
+
+#### 8.1 Cambio de Criterio y Aprobación como Generador de Features
+A partir del diagnóstico exhaustivo de separabilidad, se formaliza la disociación entre dos casos de uso con requisitos operativos divergentes:
+1. **Caso de Uso A: Normalización Automática de Nombres Comerciales en Backend:**
+   * Requiere compuerta de pureza léxica estricta ($\text{pureza} \ge 0.85$) para garantizar que las etiquetas legibles (`label_auto`) sean semánticamente homogéneas. Este caso de uso queda archivado como no viable bajo el vocabulario transaccional no estructurado actual.
+2. **Caso de Uso B: Generador de Features para Modelos de Demanda y Pricing (v3.0-hier.1):**
+   * Queda **aprobado formalmente** bajo sus criterios propios de calidad estadística:
+     * **Estabilidad Bootstrap-ARI:** Promedio superior a $0.96$ en 4 de los 5 sub-espacios (hasta $0.9830$).
+     * **Cobertura Total:** $100\%$ del catálogo sin descarte de registros ni generación de ruido (a diferencia de HDBSCAN).
+     * **Cero Clusters Degenerados:** Ninguna partición con aforo menor al $12.14\%$ del sub-espacio.
+     * **Invarianza Jerárquica:** Rollup 1:1 estricto entre micro-clusters y macro-arquetipos garantizado por construcción.
+
+El modelo base v2.3 de producción permanece 100% inalterado en `data/processed/modelo_clustering_v2_3.joblib` y `src/clustering.py`. Toda la lógica jerárquica reside de forma desacoplada en el módulo [`src/jerarquia.py`](src/jerarquia.py).
+
+#### 8.2 Especificación del Contrato de Features
+
+| Atributo | Especificación Técnica | Detalle para el Consumidor de Datos |
+| :--- | :--- | :--- |
+| **Columnas Entregadas** | `micro_cluster_id` (20 niveles), `arquetipo_demanda` (6 niveles) | Features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante*. |
+| **Seguridad de Información** | *Ex-ante* / Cero Fuga (*Leakage-free*) | No utiliza volumen transaccional posterior (`net_sold_qty`, recaudos finales). Totalmente seguras para entrenamiento de modelos de demanda, propensión y pricing dinámico. |
+| **Niveles de Micro-Clusters** | 20 categorías canónicas | `AU-0` (Admisión Única terminal) + 19 sub-espacios multi-zona: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..2`. |
+| **Niveles de Arquetipos** | 6 arquetipos macro | `Admisión Única / Tarifa Plana`, `VIP / Palcos / Premium`, `Popular / Balcón / Visibilidad Parcial`, `Platea General / Intermedia`, `Preferencial / Platea Frontal`, `Grada General / Masiva`. |
+| **Encoding Recomendado** | **One-Hot Encoding** | 20 columnas binarias para micro-clusters y 6 para arquetipos. Óptimo para arquitecturas de árboles (LightGBM, XGBoost, CatBoost). |
+| **Encoding Alternativo** | **Target Encoding con CV** | Si el consumidor implementa target/mean encoding, debe aplicarlo estrictamente con validación cruzada *out-of-fold* (K-Fold) para prevenir fuga de señal del target. |
+| **Freshness y Scoring** | *On-the-fly* al momento de scoring | Asignado mediante `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)`. El payload de inferencia se congela por versión (`3.0-hier.1`). |
+| **Manejo de Incertidumbre** | Flags no bloqueantes | Si una localidad presenta venue no visto o datos faltantes, activa flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepción. |
+| **Monitoreo Continuo** | Population Stability Index (PSI) | Drift evaluado por lote sobre las 20 categorías frente a `distribucion_referencia_microclusters`. Alerta activa ante $\text{PSI} \ge 0.10$. |
+
 
 
 

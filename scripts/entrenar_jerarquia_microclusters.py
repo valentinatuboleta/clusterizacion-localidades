@@ -34,29 +34,27 @@ import joblib
 # Asegurar path raíz
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from src.feature_engineering import preparar_dataset_enriquecido
 from src.clustering import (
     separar_admision_unica_multizona,
     pipeline_clustering_dos_etapas,
-    construir_espacio_vectorial_mixto,
     DEFAULT_NUMERIC_FEATURES
 )
-from src.nlp_utils import normalizar_texto
-from scripts.explorar_microclusters import (
+from src.jerarquia import (
+    HIERARCHY_VERSION,
+    TAGS_SUBESPACIO_13,
+    ARQ_PREFIX,
+    MICRO_CLUSTERS_CANONICAL,
+    construir_subespacio_arquetipo,
+    seleccionar_sub_k_codo_db,
+    generar_label_auto_v3,
     calcular_pureza_cluster,
-    generar_label_auto,
-    calcular_estabilidad_bootstrap_ari,
-    TAG_LABEL_MAP
+    calcular_estabilidad_bootstrap_ari
 )
 
-# 13 Tags estructurales expandidos de la Decisión D
-TAGS_EXPANDIDOS_13 = [
-    "tag_palco", "tag_vip", "tag_platea", "tag_preferencial", "tag_general",
-    "tag_balcon", "tag_piso_alto", "tag_lateral", "tag_occidental", "tag_oriental",
-    "tag_norte", "tag_sur", "tag_mesa"
-]
+# Aliases de compatibilidad
+TAGS_EXPANDIDOS_13 = TAGS_SUBESPACIO_13
+generar_label_auto = generar_label_auto_v3
 
 # Arquetipos macro multi-zona sometidos a Nivel 2
 ARQUETIPOS_MULTIZONA = [
@@ -66,135 +64,6 @@ ARQUETIPOS_MULTIZONA = [
     "Preferencial / Platea Frontal",
     "Grada General / Masiva"
 ]
-
-
-def seleccionar_sub_k_codo_db(
-    X_sub: np.ndarray,
-    df_sub: pd.DataFrame,
-    vocab_sub: List[str],
-    k_range: List[int] = [2, 3, 4, 5],
-    min_pct_piso: float = 0.03,
-    sample_size: int = 3000,
-    random_state: int = 42
-) -> Dict[str, Any]:
-    """
-    Selecciona el k óptimo en el sub-espacio mediante score compuesto Codo-DB
-    descartando soluciones con clusters degenerados (< 3% del sub-espacio).
-    """
-    n_sub = len(df_sub)
-    eval_size = min(sample_size, n_sub)
-    rng = np.random.RandomState(random_state)
-    idx_eval = rng.choice(n_sub, size=eval_size, replace=False)
-    X_eval = X_sub[idx_eval]
-
-    candidatos = []
-    inertias = []
-
-    for k in k_range:
-        km = KMeans(n_clusters=k, random_state=random_state, n_init=10)
-        labels = km.fit_predict(X_sub)
-        inertias.append(km.inertia_)
-
-        labels_eval = labels[idx_eval]
-        sil = float(silhouette_score(X_eval, labels_eval))
-        db = float(davies_bouldin_score(X_eval, labels_eval))
-        ch = float(calinski_harabasz_score(X_eval, labels_eval))
-
-        # Distribución de tamaños
-        counts = pd.Series(labels).value_counts()
-        min_cluster_size = counts.min()
-        min_pct = min_cluster_size / n_sub
-        es_degenerado = bool(min_pct < min_pct_piso)
-
-        # Pureza de naming ponderada
-        df_temp = df_sub.copy()
-        df_temp["_cluster"] = labels
-        p_namings = []
-        p_tags = []
-        p_terms = []
-        for c_id in range(k):
-            sub_c = df_temp[df_temp["_cluster"] == c_id]
-            res_p = calcular_pureza_cluster(sub_c, TAGS_EXPANDIDOS_13, vocab_sub)
-            p_namings.append(res_p["purity_naming"])
-            p_tags.append(res_p["purity_tag"])
-            p_terms.append(res_p["purity_term"])
-
-        weights = np.array([len(df_temp[df_temp["_cluster"] == c_id]) for c_id in range(k)])
-        pureza_naming = float(np.sum(weights * np.array(p_namings)) / np.sum(weights))
-        pureza_tag = float(np.sum(weights * np.array(p_tags)) / np.sum(weights))
-        pureza_term = float(np.sum(weights * np.array(p_terms)) / np.sum(weights))
-
-        # Bootstrap-ARI (20 réplicas al 80%)
-        def _estimador(X_s, seed):
-            return KMeans(n_clusters=k, random_state=seed, n_init=5).fit_predict(X_s)
-
-        ari_mean, ari_std, _ = calcular_estabilidad_bootstrap_ari(
-            X_sub, labels, _estimador, n_iter=20, frac=0.80, random_state=random_state
-        )
-
-        candidatos.append({
-            "k": k,
-            "inertia": km.inertia_,
-            "silhouette": sil,
-            "davies_bouldin": db,
-            "calinski_harabasz": ch,
-            "min_cluster_pct": min_pct,
-            "es_degenerado": es_degenerado,
-            "pureza_naming": pureza_naming,
-            "pureza_tag": pureza_tag,
-            "pureza_term": pureza_term,
-            "bootstrap_ari_mean": ari_mean,
-            "bootstrap_ari_std": ari_std,
-            "model": km,
-            "labels": labels
-        })
-
-    # Codo ortogonal
-    k_vals = np.array(k_range, dtype=float)
-    in_vals = np.array(inertias, dtype=float)
-    P1 = np.array([k_vals[0], in_vals[0], 0.0])
-    P2 = np.array([k_vals[-1], in_vals[-1], 0.0])
-    vec_secante = P2 - P1
-    norm_secante = np.linalg.norm(vec_secante)
-    distancias_codo = []
-    for i, k in enumerate(k_range):
-        P0 = np.array([k_vals[i], in_vals[i], 0.0])
-        d = np.linalg.norm(np.cross(vec_secante, P1 - P0)) / (norm_secante + 1e-9)
-        distancias_codo.append(float(d))
-
-    codo_arr = np.array(distancias_codo)
-    db_arr = np.array([c["davies_bouldin"] for c in candidatos])
-
-    norm_codo = (codo_arr - codo_arr.min()) / (codo_arr.max() - codo_arr.min() + 1e-8)
-    norm_db = (db_arr.max() - db_arr) / (db_arr.max() - db_arr.min() + 1e-8)
-    score_compuesto = norm_codo + norm_db
-
-    for i, cand in enumerate(candidatos):
-        cand["distancia_codo"] = distancias_codo[i]
-        cand["score_compuesto"] = float(score_compuesto[i])
-        cand["pasa_compuertas"] = bool(
-            cand["pureza_naming"] >= 0.85 and
-            cand["bootstrap_ari_mean"] >= 0.85 and
-            not cand["es_degenerado"]
-        )
-
-    # Filtrar no degenerados
-    no_degenerados = [c for c in candidatos if not c["es_degenerado"]]
-    if not no_degenerados:
-        no_degenerados = candidatos
-
-    # Priorizar candidatos que pasan compuertas; si varios o ninguno, mayor score compuesto
-    candidatos_validos = [c for c in no_degenerados if c["pasa_compuertas"]]
-    if candidatos_validos:
-        ganador = max(candidatos_validos, key=lambda x: x["score_compuesto"])
-    else:
-        ganador = max(no_degenerados, key=lambda x: x["score_compuesto"])
-
-    return {
-        "k_optimo": ganador["k"],
-        "ganador": ganador,
-        "candidatos": candidatos
-    }
 
 
 def entrenar_jerarquia(
@@ -270,13 +139,11 @@ def entrenar_jerarquia(
         print(f"\n--- Sub-espacio: {arq} (N = {n_sub:,}) ---")
 
         # Construir sub-espacio vectorial propio 32D
-        X_sub, sub_scaler, sub_tfidf, fnames_sub = construir_espacio_vectorial_mixto(
+        X_sub, sub_scaler, sub_tfidf, fnames_sub = construir_subespacio_arquetipo(
             sub_df,
-            columnas_tags=TAGS_EXPANDIDOS_13,
-            usar_tfidf_texto=True,
-            max_tfidf_features=15,
-            peso_nlp=0.2,
-            peso_type_site=0.0
+            columnas_tags=TAGS_SUBESPACIO_13,
+            max_tfidf=15,
+            peso_nlp=0.2
         )
         vocab_sub = list(sub_tfidf.get_feature_names_out())
 
@@ -329,8 +196,8 @@ def entrenar_jerarquia(
             c_mask = (sub_df["sub_cluster_num"] == c_id)
             c_data = sub_df[c_mask]
 
-            p_info = calcular_pureza_cluster(c_data, TAGS_EXPANDIDOS_13, vocab_sub)
-            label_c = generar_label_auto(
+            p_info = calcular_pureza_cluster(c_data, TAGS_SUBESPACIO_13, vocab_sub)
+            label_c = generar_label_auto_v3(
                 cluster_id=c_id,
                 tag_shares=p_info["tag_shares"],
                 term_dominante=p_info["term_dominante"],
@@ -362,11 +229,18 @@ def entrenar_jerarquia(
         sub_modelos[arq] = {
             "prefix": prefix,
             "k": k_opt,
+            "k_sub": k_opt,
             "kmeans": ganador["model"],
+            "kmeans_sub": ganador["model"],
             "scaler": sub_scaler,
+            "scaler_sub": sub_scaler,
             "tfidf": sub_tfidf,
+            "tfidf_sub": sub_tfidf,
+            "columnas_tags": TAGS_SUBESPACIO_13,
+            "columnas_tags_sub": TAGS_SUBESPACIO_13,
             "feature_names": fnames_sub,
-            "mapa_labels": mapa_labels
+            "mapa_labels": mapa_labels,
+            "mapa_micro_label": mapa_labels
         }
 
     # Consolidar asignación y catálogo
@@ -388,8 +262,14 @@ def entrenar_jerarquia(
 
     # 4. Persistencia de Artefactos Candidatos v3.0
     print("\n4. Persistiendo artefactos candidatos v3.0 en data/processed/ (producción v2.3 en models/ permanece intacta)...")
+    dist_referencia = (
+        df_asignacion_total["micro_cluster_id"]
+        .value_counts(normalize=True)
+        .to_dict()
+    )
+
     payload_v3 = {
-        "version": "3.0-hier",
+        "version": HIERARCHY_VERSION,
         "nivel_1": {
             "version_base": "2.3",
             "kmeans": km_n1,
@@ -399,7 +279,9 @@ def entrenar_jerarquia(
             "metricas": met_n1
         },
         "sub_modelos": sub_modelos,
-        "columnas_tags_expandidas": TAGS_EXPANDIDOS_13,
+        "distribucion_referencia_microclusters": dist_referencia,
+        "categorias_vigentes": MICRO_CLUSTERS_CANONICAL,
+        "columnas_tags_expandidas": TAGS_SUBESPACIO_13,
         "total_microclusters": total_microclusters,
         "todos_pasan_compuertas": todos_pasan,
         "metadata": {
