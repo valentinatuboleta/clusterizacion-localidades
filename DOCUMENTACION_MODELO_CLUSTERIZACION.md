@@ -145,6 +145,11 @@ La separación entre `ARENA` y `COLISEO` resuelve una distorsión operativa hist
 * **`ARENA` (ej. Movistar Arena Bogotá):** Infraestructura contemporánea para espectáculos masivos, acústica especializada, aislamiento perimetral, suites corporativas VIP y tarificación altamente diferenciada.
 * **`COLISEO` (ej. Coliseo El Salitre, Coliseo Evangelista Mora):** Infraestructura pública polideportiva tradicional, graderías de hormigón macizo, acústica reflectiva y operación orientada prioritariamente al deporte institucional o festivales comunitarios de tarifa plana.
 
+##### Resoluciones de Curaduría Humana y Criterios de Consistencia
+1. **DISCO MOVISTAR ARENA:** Se ratifica como `RESTAURANTE` (`fuente="revision_humana"`, fecha `2026-09-28`) al operar como club nocturno y gastrobar independiente para warm-ups y espectáculos íntimos de aforo reducido (<500), diferenciado de la sala principal `ARENA`.
+2. **CENTRO INTERACTIVO MALOKA vs MALOKA:** Coexistían registros divergentes; se unifican bajo `MUSEO` (`fuente="revision_humana"`, fecha `2026-09-28`) al corresponder al mismo complejo de divulgación científica interactiva, clarificando que las funciones audiovisuales (domo/cine interactivo) son complementarias a la misión de museo de la sede.
+3. **Criterio Institución Sede vs Función del Espacio:** Prevalece la naturaleza de la institución matriz (`MUSEO` o `OTROS_RECINTOS`) sobre descriptores funcionales subordinados (`TEATRO`, `CINEMATECA`, `SALA`), garantizando consistencia en casos como salas de concierto en bibliotecas/museos (`SALA DE CONCIERTOS DE LA BIBLIOTECA LUIS ANGEL ARANGO` -> `MUSEO`, `TEATRO MUSEO DEL ARTE - PEREIRA` -> `MUSEO`) y auditorios de conservatorios (`SALA BEETHOVEN - CALI` -> `OTROS_RECINTOS`).
+
 ---
 
 ### MÓDULO 1: Procesamiento de Lenguaje Natural ([`src/nlp_utils.py`](src/nlp_utils.py))

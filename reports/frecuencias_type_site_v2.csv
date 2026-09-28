@@ -1,9 +1,9 @@
 categoria,conteo_localidades,porcentaje_localidades,conteo_sites_unicos,flag_vacia,flag_cold_start,flag_dominancia
 TEATRO,11550,33.94,109,False,False,False
-CINEMATECA,7011,20.6,6,False,False,False
+CINEMATECA,7008,20.59,5,False,False,False
 OTROS_RECINTOS,3784,11.12,180,False,False,False
 ESTADIO,3499,10.28,31,False,False,False
-MUSEO,3213,9.44,9,False,False,False
+MUSEO,3216,9.45,10,False,False,False
 ARENA,2216,6.51,7,False,False,False
 RESTAURANTE,1455,4.28,71,False,False,False
 PARQUE,1100,3.23,71,False,False,False
