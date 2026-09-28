@@ -12,182 +12,219 @@ from typing import Optional, Tuple
 import pandas as pd
 
 CATEGORIAS_VALIDAS = [
-    "teatro",
-    "estadio_abierto",
-    "arena_cubierta",
-    "centro_eventos_carpa",
-    "cine_sala_cultural",
-    "auditorio",
-    "bar_club",
-    "parque_aire_libre",
-    "otro"
+    "ARENA",
+    "CINEMATECA",
+    "ESTADIO",
+    "COLISEO",
+    "MUSEO",
+    "OTROS_RECINTOS",
+    "PARQUE",
+    "PARQUEADERO",
+    "RESTAURANTE",
+    "TEATRO",
+    "desconocido"
 ]
 
 
 from src.nlp_utils import normalizar_venue
 normalizar_recinto = normalizar_venue
 
-# Diccionario maestro de recintos emblemáticos de Colombia con asignación certificada
+# Diccionario maestro de venues emblemáticos de Colombia con asignación certificada
 DICCIONARIO_EMBLEMATICO = {
     # Teatros
-    "TEATRO MAYOR JULIO MARIO SANTO DOMINGO": "teatro",
-    "CENTRO NACIONAL DE LAS ARTES - SALA TEATRO COLON CLL10 #5-32": "teatro",
-    "TEATRO COLON": "teatro",
-    "TEATRO JORGE ELIECER GAITAN": "teatro",
-    "TEATRO SANTANDER": "teatro",
-    "TEATRO COLSUBSIDIO": "teatro",
-    "TEATRO ASTOR PLAZA": "teatro",
-    "TEATRO METROPOLITANO DE MEDELLIN": "teatro",
-    "TEATRO PABLO TOBON URIBE": "teatro",
-    "TEATRO MUNICIPAL ENRIQUE BUENAVENTURA": "teatro",
-    "TEATRO JORGE ISAACS - CRA 3 #12-28 CALI": "teatro",
-    "TEATRO ADOLFO MEJIA": "teatro",
-    "TEATRO CAFAM - AV CAR 68 NO 90 - 88": "teatro",
-    "TEATRO PETRA": "teatro",
-    "TEATRO FUNDADORES": "teatro",
-    "TEATRO EL ENSUEO - TV 70 D # 60 - 90 SUR, BOGOTA": "teatro",
-    "TEATRO EL TESORO": "teatro",
-    "ROYAL CENTER": "teatro",  # Tradicional teatro/sala de conciertos acústica
+    "TEATRO MAYOR JULIO MARIO SANTO DOMINGO": "TEATRO",
+    "CENTRO NACIONAL DE LAS ARTES - SALA TEATRO COLON CLL10 #5-32": "TEATRO",
+    "TEATRO COLON": "TEATRO",
+    "TEATRO JORGE ELIECER GAITAN": "TEATRO",
+    "TEATRO SANTANDER": "TEATRO",
+    "TEATRO COLSUBSIDIO": "TEATRO",
+    "TEATRO ASTOR PLAZA": "TEATRO",
+    "TEATRO METROPOLITANO DE MEDELLIN": "TEATRO",
+    "TEATRO PABLO TOBON URIBE": "TEATRO",
+    "TEATRO MUNICIPAL ENRIQUE BUENAVENTURA": "TEATRO",
+    "TEATRO JORGE ISAACS - CRA 3 #12-28 CALI": "TEATRO",
+    "TEATRO ADOLFO MEJIA": "TEATRO",
+    "TEATRO CAFAM - AV CAR 68 NO 90 - 88": "TEATRO",
+    "TEATRO PETRA": "TEATRO",
+    "TEATRO FUNDADORES": "TEATRO",
+    "TEATRO EL ENSUEO - TV 70 D # 60 - 90 SUR, BOGOTA": "TEATRO",
+    "TEATRO EL TESORO": "TEATRO",
+    "ROYAL CENTER": "TEATRO",
     
-    # Arenas y Coliseos
-    "MOVISTAR ARENA": "arena_cubierta",
-    "COLISEO MEDPLUS": "arena_cubierta",
-    "COLISEO ELIAS CHEGWIN": "arena_cubierta",
-    "COLISEO MAYOR JORGE ARANGO URIBE": "arena_cubierta",
-    "PALACIO DE LOS DEPORTES": "arena_cubierta",
-    "ARENA CAAVERALEJO": "arena_cubierta",
-    "ARENA CAAVERALEJO - CALI (AJUSTE)": "arena_cubierta",
-    "NECTAR ARENA CENTRO DE EVENTOS": "arena_cubierta",
-    "COLISEO BICENTENARIO - BUCARAMANGA": "arena_cubierta",
-    "COLISEO MAYOR DE IBAGUE": "arena_cubierta",
+    # Arenas
+    "MOVISTAR ARENA": "ARENA",
+    "ARENA CAAVERALEJO": "ARENA",
+    "ARENA CAAVERALEJO - CALI (AJUSTE)": "ARENA",
+    "NECTAR ARENA CENTRO DE EVENTOS": "ARENA",
+    "INDIGO - MOVISTAR ARENA": "ARENA",
+    "DAVIARENA": "ARENA",
+    "ARENA LAS MEJORES PRODUCCIONES": "ARENA",
+
+    # Coliseos
+    "COLISEO MEDPLUS": "COLISEO",
+    "COLISEO ELIAS CHEGWIN": "COLISEO",
+    "COLISEO MAYOR JORGE ARANGO URIBE": "COLISEO",
+    "PALACIO DE LOS DEPORTES": "COLISEO",
+    "COLISEO BICENTENARIO - BUCARAMANGA": "COLISEO",
+    "COLISEO MAYOR DE IBAGUE": "COLISEO",
+    "COLISEO BERNARDO CARABALLO": "COLISEO",
+    "COLISEO DEL COLEGIO DE LA PRESENTACION": "COLISEO",
+    "COLISEO LAS BETHLEMITAS - CARRERA 13 #24-12": "COLISEO",
+    "COLISEO ARENA DE SAL": "COLISEO",
 
     # Estadios
-    "ESTADIO EL CAMPIN": "estadio_abierto",
-    "ESTADIO ATANASIO GIRARDOT": "estadio_abierto",
-    "ESTADIO PASCUAL GUERRERO": "estadio_abierto",
-    "ESTADIO METROPOLITANO": "estadio_abierto",
-    "ESTADIO PALOGRANDE - MANIZALES": "estadio_abierto",
-    "ESTADIO MANUEL MURILLO TORO": "estadio_abierto",
-    "ESTADIO METROPOLITANO DE TECHO": "estadio_abierto",
-    "ESTADIO ROMELIO MARTINEZ": "estadio_abierto",
-    "ESTADIO BELLO HORIZONTE - REY PELE (VILLAVICENCIO)": "estadio_abierto",
-    "ESTADIO EDGAR RENTERIA": "estadio_abierto",
-    "ESTADIO GENERAL SANTANDER": "estadio_abierto",
-    "CUCUTA ESTADIO GENERAL SANTANDER": "estadio_abierto",
-    "ESTADIO GUILLERMO PLAZAS ALCID": "estadio_abierto",
-    "ESTADIO LA INDEPENDENCIA": "estadio_abierto",
-    "ESTADIO JAIME MORON": "estadio_abierto",
-    "ESTADIO JOSE AMERICO MONTANINI": "estadio_abierto",
-    "ESTADIO HERNAN RAMIREZ VILLEGAS": "estadio_abierto",
-    "ESTADIO SIERRA NEVADA": "estadio_abierto",
-    "ESTADIO JARAGUAY": "estadio_abierto",
-    "ESTADIO FRANCISCO RIVERA ESCOBAR - PALMIRA": "estadio_abierto",
-    "COPA AMERICA - NRG STADIUM, HOUSTON, TEXAS": "estadio_abierto",
+    "ESTADIO EL CAMPIN": "ESTADIO",
+    "ESTADIO ATANASIO GIRARDOT": "ESTADIO",
+    "ESTADIO PASCUAL GUERRERO": "ESTADIO",
+    "ESTADIO METROPOLITANO": "ESTADIO",
+    "ESTADIO PALOGRANDE - MANIZALES": "ESTADIO",
+    "ESTADIO MANUEL MURILLO TORO": "ESTADIO",
+    "ESTADIO METROPOLITANO DE TECHO": "ESTADIO",
+    "ESTADIO ROMELIO MARTINEZ": "ESTADIO",
+    "ESTADIO BELLO HORIZONTE - REY PELE (VILLAVICENCIO)": "ESTADIO",
+    "ESTADIO EDGAR RENTERIA": "ESTADIO",
+    "ESTADIO GENERAL SANTANDER": "ESTADIO",
+    "CUCUTA ESTADIO GENERAL SANTANDER": "ESTADIO",
+    "ESTADIO GUILLERMO PLAZAS ALCID": "ESTADIO",
+    "ESTADIO LA INDEPENDENCIA": "ESTADIO",
+    "ESTADIO JAIME MORON": "ESTADIO",
+    "ESTADIO JOSE AMERICO MONTANINI": "ESTADIO",
+    "ESTADIO HERNAN RAMIREZ VILLEGAS": "ESTADIO",
+    "ESTADIO SIERRA NEVADA": "ESTADIO",
+    "ESTADIO JARAGUAY": "ESTADIO",
+    "ESTADIO FRANCISCO RIVERA ESCOBAR - PALMIRA": "ESTADIO",
+    "COPA AMERICA - NRG STADIUM, HOUSTON, TEXAS": "ESTADIO",
 
-    # Salas de Cine, Museos, Culturales
-    "SALA 3 CINEMATECA": "cine_sala_cultural",
-    "SALA CAPITAL CINEMATECA": "cine_sala_cultural",
-    "SALA 2 CINEMATECA": "cine_sala_cultural",
-    "MALOKA": "cine_sala_cultural",
-    "PLANETARIO DE BOGOTA": "cine_sala_cultural",
-    "YAWA, CENTRO DE CIENCIA, ARTE Y TECNOLOGIA - CALI": "cine_sala_cultural",
-    "MUSEO LA TERTULIA": "cine_sala_cultural",
-    "SALA DE CONCIERTOS DE LA BIBLIOTECA LUIS ANGEL ARANGO": "cine_sala_cultural",
-    "BIBLIOTECA NACIONAL DE COLOMBIA": "cine_sala_cultural",
-    "CINE COLOMBO, MEDELLIN": "cine_sala_cultural",
+    # Cinematecas
+    "SALA 3 CINEMATECA": "CINEMATECA",
+    "SALA CAPITAL CINEMATECA": "CINEMATECA",
+    "SALA 2 CINEMATECA": "CINEMATECA",
+    "CINE COLOMBO, MEDELLIN": "CINEMATECA",
+    "CINEMATECA DE BOGOTA - CENTRO GRAL": "CINEMATECA",
 
-    # Centros de Eventos y Carpas
-    "CARPA DELIRIO": "centro_eventos_carpa",
-    "COMPLEJO CULTURAL DELIRIO": "centro_eventos_carpa",
-    "CORFERIAS": "centro_eventos_carpa",
-    "CARPA AMERICAS CORFERIAS": "centro_eventos_carpa",
-    "CHAMORRO CITY HALL - AUTO NTE #153-81": "centro_eventos_carpa",
-    "CENTRO DE CONVENCIONES CARTAGENA": "centro_eventos_carpa",
-    "CENTRO DE EVENTOS CENFER": "centro_eventos_carpa",
-    "PUERTA DE ORO BARRANQUILLA": "centro_eventos_carpa",
-    "PUERTA DE ORO BARRANQUILLA - LA EXPLANADA": "centro_eventos_carpa",
-    "EXPLANADA- PUERTA DE ORO": "centro_eventos_carpa",
-    "EXPOFUTURO - PEREIRA": "centro_eventos_carpa",
-    "CENTRO DE CONVENCIONES G12": "centro_eventos_carpa",
-    "PLAZA MAYOR": "centro_eventos_carpa",
-    "CENTRO DE EVENTOS AUTOPISTA NORTE": "centro_eventos_carpa",
-    "PABELLON DE CRISTAL - GRAN MALECON": "centro_eventos_carpa",
+    # Museos
+    "MALOKA": "MUSEO",
+    "PLANETARIO DE BOGOTA": "MUSEO",
+    "YAWA, CENTRO DE CIENCIA, ARTE Y TECNOLOGIA - CALI": "MUSEO",
+    "MUSEO LA TERTULIA": "MUSEO",
+    "SALA DE CONCIERTOS DE LA BIBLIOTECA LUIS ANGEL ARANGO": "MUSEO",
+    "BIBLIOTECA NACIONAL DE COLOMBIA": "MUSEO",
+    "PARQUE MUSEO EL CHICO": "MUSEO",
+    "TEATRO MUSEO DEL ARTE - PEREIRA": "MUSEO",
+    "CIUDAD DEL RIO - DETRAS DEL MUSEO DE ARTE MODERNO": "MUSEO",
+
+    # Otros Recintos (Auditorios, Carpas, Centros de Convenciones)
+    "CARPA DELIRIO": "OTROS_RECINTOS",
+    "COMPLEJO CULTURAL DELIRIO": "OTROS_RECINTOS",
+    "CORFERIAS": "OTROS_RECINTOS",
+    "CARPA AMERICAS CORFERIAS": "OTROS_RECINTOS",
+    "CHAMORRO CITY HALL - AUTO NTE #153-81": "OTROS_RECINTOS",
+    "CENTRO DE CONVENCIONES CARTAGENA": "OTROS_RECINTOS",
+    "CENTRO DE EVENTOS CENFER": "OTROS_RECINTOS",
+    "PUERTA DE ORO BARRANQUILLA": "OTROS_RECINTOS",
+    "PUERTA DE ORO BARRANQUILLA - LA EXPLANADA": "OTROS_RECINTOS",
+    "EXPLANADA- PUERTA DE ORO": "OTROS_RECINTOS",
+    "EXPOFUTURO - PEREIRA": "OTROS_RECINTOS",
+    "CENTRO DE CONVENCIONES G12": "OTROS_RECINTOS",
+    "PLAZA MAYOR": "OTROS_RECINTOS",
+    "CENTRO DE EVENTOS AUTOPISTA NORTE": "OTROS_RECINTOS",
+    "PABELLON DE CRISTAL - GRAN MALECON": "OTROS_RECINTOS",
 
     # Salas CNA y Teatro Satélites
-    "CENTRO NACIONAL DE LAS ARTES - SALA DELIA ZAPATA": "teatro",
-    "CENTRO NACIONAL DE LAS ARTES - SALA FANNY MIKEY": "teatro",
-    "CENTRO NACIONAL DE LAS ARTES - SALA TERESITA GOMEZ": "teatro",
-    "CENTRO NACIONAL DE LAS ARTES - SALA FOYER CLL10 NO 5-32": "teatro",
-    "CENTRO NACIONAL DE LAS ARTES - SALA TEATRO": "teatro",
-    "SALA GAITAN": "teatro",
-    "SALON ESPEJOS TEATRO JORGE ELIECER GAITAN": "teatro",
-    "TEATRO ESTUDIO - JULIO MARIO SANTO DOMINGO": "teatro",
-    "CENTRO CULTURAL DEL GIMNASIO MODERNO": "teatro",
-    "CENTRO CULTURAL GIMNASIO MODERNO": "teatro",
+    "CENTRO NACIONAL DE LAS ARTES - SALA DELIA ZAPATA": "TEATRO",
+    "CENTRO NACIONAL DE LAS ARTES - SALA FANNY MIKEY": "TEATRO",
+    "CENTRO NACIONAL DE LAS ARTES - SALA TERESITA GOMEZ": "TEATRO",
+    "CENTRO NACIONAL DE LAS ARTES - SALA FOYER CLL10 NO 5-32": "TEATRO",
+    "CENTRO NACIONAL DE LAS ARTES - SALA TEATRO": "TEATRO",
+    "SALA GAITAN": "TEATRO",
+    "SALON ESPEJOS TEATRO JORGE ELIECER GAITAN": "TEATRO",
+    "TEATRO ESTUDIO - JULIO MARIO SANTO DOMINGO": "TEATRO",
+    "CENTRO CULTURAL DEL GIMNASIO MODERNO": "TEATRO",
+    "CENTRO CULTURAL GIMNASIO MODERNO": "TEATRO",
+    "COLECTIVO TEATRAL INFINITO - CALI": "TEATRO",
+    "MBS THEATER": "TEATRO",
 
     # Escenarios Deportivos Masivos Adicionales
-    "DIAMANTE DE BEISBOL - MEDELLIN": "estadio_abierto",
-    "DIAMANTE DE SOFTBOL": "estadio_abierto",
-    "ESTADIO DE BEISBOL LA ESPERANZA": "estadio_abierto",
-    "ESTADIO DITAIRES": "estadio_abierto",
-    "ESTADIO HERMIDES PADILLA": "estadio_abierto",
-    "ESTADIO MUNICIPAL DE VILLETA": "estadio_abierto",
-    "ESTADIO DE FUTBOL - INMACULADA CONCEPCION": "estadio_abierto",
+    "DIAMANTE DE BEISBOL - MEDELLIN": "ESTADIO",
+    "DIAMANTE DE SOFTBOL": "ESTADIO",
+    "ESTADIO DE BEISBOL LA ESPERANZA": "ESTADIO",
+    "ESTADIO DITAIRES": "ESTADIO",
+    "ESTADIO HERMIDES PADILLA": "ESTADIO",
+    "ESTADIO MUNICIPAL DE VILLETA": "ESTADIO",
+    "ESTADIO DE FUTBOL - INMACULADA CONCEPCION": "ESTADIO",
 
-    # Bares, Comedy Clubs, Discotecas
-    "BOOM STAND UP BAR - BOGOTA": "bar_club",
-    "BOOM STAND UP BAR - CL 26 #43G-30 BARRIO COLOMBIA": "bar_club",
-    "WOW RESTAURANTE BAR": "bar_club",
-    "LOURDES MUSIC HALL  - BOGOTA": "bar_club",
-    "CANTINA LA 70 - CRA 70 #44B - 76 (MEDELLIN)": "bar_club",
-    "SAFARI DISCO CLUB, AV SANTANDER #63 - 122, MANIZALES": "bar_club",
-    "440 MUSIC HALL": "bar_club",
-    "MONASTERY CLUB": "bar_club",
-    "FROGG CLUB": "bar_club",
-    "DISCO MOVISTAR ARENA": "bar_club",
-    "RANCHO MX": "bar_club",
-    "MOYS RESTAURANTE BAR": "bar_club",
-    "CINARUCO BAR - CRA 14 NO 24A -15 - YOPAL": "bar_club",
-    "KABALA BAR - MANIZALES": "bar_club",
+    # Restaurantes, Gastrobares, Bares y Comedy Clubs
+    "BOOM STAND UP BAR - BOGOTA": "RESTAURANTE",
+    "BOOM STAND UP BAR - CL 26 #43G-30 BARRIO COLOMBIA": "RESTAURANTE",
+    "WOW RESTAURANTE BAR": "RESTAURANTE",
+    "LOURDES MUSIC HALL  - BOGOTA": "RESTAURANTE",
+    "CANTINA LA 70 - CRA 70 #44B - 76 (MEDELLIN)": "RESTAURANTE",
+    "SAFARI DISCO CLUB, AV SANTANDER #63 - 122, MANIZALES": "RESTAURANTE",
+    "440 MUSIC HALL": "RESTAURANTE",
+    "MONASTERY CLUB": "RESTAURANTE",
+    "FROGG CLUB": "RESTAURANTE",
+    "DISCO MOVISTAR ARENA": "RESTAURANTE",
+    "RANCHO MX": "RESTAURANTE",
+    "MOYS RESTAURANTE BAR": "RESTAURANTE",
+    "CINARUCO BAR - CRA 14 NO 24A -15 - YOPAL": "RESTAURANTE",
+    "KABALA BAR - MANIZALES": "RESTAURANTE",
+    "RESTAURANTE LA ZIMA": "RESTAURANTE",
+    "RESTAURANTE EL PORTICO - EL PORTICO KM 19 AUTOPISTA NORTE": "RESTAURANTE",
+    "RESTAURANTE BAR AMAZONICA VILLAVICENCIO": "RESTAURANTE",
+    "ITO RESTOBAR": "RESTAURANTE",
+    "JUANKA PUNTA DE ANCA - SOGAMOSO": "RESTAURANTE",
+    "KIMERA FOOD AND DRINKS": "RESTAURANTE",
+    "LOS CAPACHOS - KM 4 VIA ACACIAS, 472 (VILLAVICENCIO)": "RESTAURANTE",
+    "MEZCAL MEXICAN CANTINA - BOGOTA": "RESTAURANTE",
+    "MR BEEF - FUSAGASUGA": "RESTAURANTE",
+    "EL TEMPLO DEL ROCK - CRA 44 #74-05 B/QUILLA": "RESTAURANTE",
 
     # Parques / Aire Libre
-    "PARQUE NORTE": "parque_aire_libre",
-    "PARQUE METROPOLITANO SIMON BOLIVAR": "parque_aire_libre",
-    "GRAN MALECON BARRANQUILLA": "parque_aire_libre",
-    "PARQUE DE LA LEYENDA VALLENATA": "parque_aire_libre",
-    "AUTODROMO DE TOCANCIPA": "parque_aire_libre",
-    "PARQUE DE LA 93": "parque_aire_libre",
-    "PARQUE MUSEO EL CHICO": "parque_aire_libre",
-    "PARQUE DE EVENTOS - LA INDEPENDENCIA": "parque_aire_libre",
-    "JARDIN BOTANICO - ORQUIDEORAMA": "parque_aire_libre",
-    "JARDIN BOTANICO ORQUIDEORAMA - ANOTR": "parque_aire_libre",
-    "SALITRE MAGICO": "parque_aire_libre",
-    "MUNDO AVENTURA": "parque_aire_libre",
-    "AEROPARQUE JUAN PABLO SEGUNDO": "parque_aire_libre",
-    "CARRERA 50 BARRANQUILLA": "parque_aire_libre",
-    "BIBLOS CAR WASH": "otro",
-    "PLAZA DE BOLIVAR": "parque_aire_libre",
-    "PLAZA DE LA PAZ": "parque_aire_libre",
-    "LA MEDIA TORTA": "parque_aire_libre",
+    "PARQUE NORTE": "PARQUE",
+    "PARQUE METROPOLITANO SIMON BOLIVAR": "PARQUE",
+    "GRAN MALECON BARRANQUILLA": "PARQUE",
+    "PARQUE DE LA LEYENDA VALLENATA": "PARQUE",
+    "AUTODROMO DE TOCANCIPA": "PARQUE",
+    "PARQUE DE LA 93": "PARQUE",
+    "PARQUE DE EVENTOS - LA INDEPENDENCIA": "PARQUE",
+    "JARDIN BOTANICO - ORQUIDEORAMA": "PARQUE",
+    "JARDIN BOTANICO ORQUIDEORAMA - ANOTR": "PARQUE",
+    "SALITRE MAGICO": "PARQUE",
+    "MUNDO AVENTURA": "PARQUE",
+    "AEROPARQUE JUAN PABLO SEGUNDO": "PARQUE",
+    "CARRERA 50 BARRANQUILLA": "PARQUE",
+    "PLAZA DE BOLIVAR": "PARQUE",
+    "PLAZA DE LA PAZ": "PARQUE",
+    "LA MEDIA TORTA": "PARQUE",
 
-    # Instituciones Académicas (Auditorios)
-    "UNIVERSIDAD DE LA SABANA": "auditorio",
-    "COLEGIO LA ENSEANZA - CL 9 SUR #37-345, MEDELLIN": "auditorio",
-    "AUDITORIO UNIVERSIDAD NACIONAL MANIZALES - CRA 27 #62-56": "auditorio",
-    "UNIVERSIDAD EAN - CARRERA 11 # 78-47": "auditorio",
-    "UNIVERSIDAD DE IBAGUE": "auditorio",
-    "UNIVERSIDAD INDUSTRIAL DE SANTANDER": "auditorio",
+    # Instituciones Académicas y Auditorios
+    "UNIVERSIDAD DE LA SABANA": "OTROS_RECINTOS",
+    "COLEGIO LA ENSEANZA - CL 9 SUR #37-345, MEDELLIN": "OTROS_RECINTOS",
+    "AUDITORIO UNIVERSIDAD NACIONAL MANIZALES - CRA 27 #62-56": "OTROS_RECINTOS",
+    "UNIVERSIDAD EAN - CARRERA 11 # 78-47": "OTROS_RECINTOS",
+    "UNIVERSIDAD DE IBAGUE": "OTROS_RECINTOS",
+    "UNIVERSIDAD INDUSTRIAL DE SANTANDER": "OTROS_RECINTOS",
 
-    # Otros / No recintos fijos
-    "TREN TURISTICO": "otro",
-    "TRANSPORTE": "otro",
-    "TRANSPORTE LEGACY TOUR": "otro",
-    "FINAL COPA": "otro",
-    "BOGOTA (DIRECCION EXACTA SE COMPARTE TRAS INSCRIPCION)": "otro",
-    "LABORARTORIO 1 Y 2": "otro",
-    "ESTACION METRO LA ESTRELLA": "otro",
-    "CAFE INTERNET - SAN FELIPE - CALLE 76 # 20B - 65": "otro",
-    "CAFE INTERNET - BOGOTA": "otro",
+    # Parqueaderos emblemáticos
+    "PARQUEADERO CORFERIAS": "PARQUEADERO",
+    "PARQUEADERO MOVISTAR ARENA": "PARQUEADERO",
+    "PARQUEADERO CENTRAL": "PARQUEADERO",
+    "PARKING NORTE": "PARQUEADERO",
+    "ESTACIONAMIENTO EL CAMPIN": "PARQUEADERO",
+
+    # Otros / Servicios complementarios
+    "TREN TURISTICO": "OTROS_RECINTOS",
+    "TRANSPORTE": "OTROS_RECINTOS",
+    "TRANSPORTE LEGACY TOUR": "OTROS_RECINTOS",
+    "FINAL COPA": "OTROS_RECINTOS",
+    "BOGOTA (DIRECCION EXACTA SE COMPARTE TRAS INSCRIPCION)": "OTROS_RECINTOS",
+    "LABORARTORIO 1 Y 2": "OTROS_RECINTOS",
+    "ESTACION METRO LA ESTRELLA": "OTROS_RECINTOS",
+    "CAFE INTERNET - SAN FELIPE - CALLE 76 # 20B - 65": "RESTAURANTE",
+    "CAFE INTERNET - BOGOTA": "RESTAURANTE",
+    "BIBLOS CAR WASH": "OTROS_RECINTOS",
+    "CABARET ROSA": "OTROS_RECINTOS",
+    "AEROPUERTO INTERNACIONAL JOSE MARIA CORDOVA": "OTROS_RECINTOS",
 }
 
 # Diccionario pre-normalizado para busquedas exactas y delimitadas
@@ -227,60 +264,66 @@ def pasaje_a_clasificar(recinto: str, aforo_max: int) -> tuple[str, float]:
 
     # 2. Casos especiales prioritarios: Parqueaderos, Car Wash, Vias publicas
     if re.search(r"\b(PARQUEADERO|PARKING|ESTACIONAMIENTO)\b", rec_norm):
-        return "otro", 0.90
+        return "PARQUEADERO", 0.95
 
     if re.search(r"\b(CAR\s*WASH|LAVADERO)\b", rec_norm):
-        return "otro", 0.90
+        return "OTROS_RECINTOS", 0.90
 
     if re.search(r"\b(VIA\s*40|CARRERA\s*50)\b", rec_norm):
-        return "parque_aire_libre", 0.90
+        return "PARQUE", 0.90
 
     # 3. Reglas estructurales léxicas primarias con límites de palabra
     if re.search(r"\b(ESTADIO|CAMPIN|ATANASIO|PASCUAL\s*GUERRERO|PALMASECA|PALOGRANDE|MURILLO\s*TORO|GIRARDOT|STADIUM)\b", rec_norm):
-        return "estadio_abierto", 0.95
+        return "ESTADIO", 0.95
 
-    if re.search(r"\b(MOVISTAR\s*ARENA|COLISEO|ARENA\s+CA[NÑ]AVERALEJO|ARENA\s+BOGOTA|PALACIO\s+DE\s+LOS\s+DEPORTES)\b", rec_norm):
-        return "arena_cubierta", 0.92
+    if re.search(r"\b(MOVISTAR\s*ARENA|ARENA\s+CA[NÑ]AVERALEJO|ARENA\s+BOGOTA|DAVIARENA)\b", rec_norm):
+        return "ARENA", 0.95
+
+    if re.search(r"\b(COLISEO|PALACIO\s+DE\s+LOS\s+DEPORTES)\b", rec_norm):
+        return "COLISEO", 0.95
 
     if re.search(r"\b(TEATRO|TEATRINO|SALA\s+TEATRO|SALA\s+TEATRAL)\b", rec_norm):
-        return "teatro", 0.95
+        return "TEATRO", 0.95
 
     if re.search(r"\b(AUDITORIO|AULA\s+MAXIMA)\b", rec_norm):
-        return "auditorio", 0.92
+        return "OTROS_RECINTOS", 0.92
 
-    if re.search(r"\b(CINEMATECA|PLANETARIO|MALOKA|MUSEO|BIBLIOTECA|SALA\s+DE\s+CINE|CINE\s+COLOMBO)\b", rec_norm):
-        return "cine_sala_cultural", 0.94
+    if re.search(r"\b(CINEMATECA|CINE\s+COLOMBO)\b", rec_norm):
+        return "CINEMATECA", 0.94
+
+    if re.search(r"\b(PLANETARIO|MALOKA|MUSEO|BIBLIOTECA)\b", rec_norm):
+        return "MUSEO", 0.94
 
     if re.search(r"\b(CARPA|CORFERIAS|CHAMORRO|CENTRO\s+DE\s+EVENTOS|PABELLON|CONVENCIONES|EXPOFUTURO|CENFER|PUERTA\s+DE\s+ORO|CITY\s+HALL)\b", rec_norm):
-        return "centro_eventos_carpa", 0.93
+        return "OTROS_RECINTOS", 0.93
 
-    if re.search(r"\b(BAR|CLUB|RESTAURANTE|DISCOTECA|PUB|GASTROBAR|CANTA\s*BAR|FONDA|STAND\s*UP)\b", rec_norm):
-        return "bar_club", 0.91
+    if re.search(r"\b(BAR|CLUB|RESTAURANTE|DISCOTECA|PUB|GASTROBAR|CANTA\s*BAR|FONDA|STAND\s*UP|RESTOBAR)\b", rec_norm):
+        return "RESTAURANTE", 0.91
 
     if re.search(r"\b(PARQUE|MALECON|BOTANICO|AUTODROMO|PLAZA\s+DE\s+TOROS|CANCHA|DIAMANTE\s+DE\s+BEISBOL|POLIDEPORTIVO)\b", rec_norm):
-        return "parque_aire_libre", 0.90
+        return "PARQUE", 0.90
 
     if re.search(r"\b(HOTEL)\b", rec_norm):
-        return ("centro_eventos_carpa" if aforo_max > 400 else "otro"), 0.80
+        return "OTROS_RECINTOS", 0.80
 
     if re.search(r"\b(TREN|TRANSPORTE|AEROPUERTO|FINAL\s+COPA|LABORATORIO)\b", rec_norm):
-        return "otro", 0.92
+        return "OTROS_RECINTOS", 0.90
 
-    # Salas genéricas sin cualificador de cinemateca o teatro van a bajo score
+    # Salas genéricas sin cualificador de cinemateca o teatro van a OTROS_RECINTOS
     if re.search(r"\bSALA\b", rec_norm):
-        return "otro", 0.60
+        return "OTROS_RECINTOS", 0.60
 
     # Fallbacks de baja confianza por aforo
     if aforo_max >= 15000:
-        return "estadio_abierto", 0.75
+        return "ESTADIO", 0.75
 
     if aforo_max >= 4000:
-        return "centro_eventos_carpa", 0.70
+        return "OTROS_RECINTOS", 0.70
 
     if aforo_max < 300:
-        return ("bar_club" if re.search(r"\b(CAFE|CASA)\b", rec_norm) else "otro"), 0.72
+        return ("RESTAURANTE" if re.search(r"\b(CAFE|CASA)\b", rec_norm) else "OTROS_RECINTOS"), 0.72
 
-    return "otro", 0.60
+    return "OTROS_RECINTOS", 0.60
 
 
 def pasaje_b_clasificar(recinto: str, aforo_max: int) -> tuple[str, float]:
@@ -296,67 +339,74 @@ def pasaje_b_clasificar(recinto: str, aforo_max: int) -> tuple[str, float]:
 
     # 2. Casos prioritarios: Parqueaderos, Car Wash, Vias públicas
     if re.search(r"\b(PARQUEADERO|PARKING|ESTACIONAMIENTO)\b", rec_norm):
-        return "otro", 0.90
+        return "PARQUEADERO", 0.95
 
     if re.search(r"\b(CAR\s*WASH|LAVADERO)\b", rec_norm):
-        return "otro", 0.90
+        return "OTROS_RECINTOS", 0.90
 
     if re.search(r"\b(VIA\s*40|CARRERA\s*50)\b", rec_norm):
-        return "parque_aire_libre", 0.90
+        return "PARQUE", 0.90
 
     # 3. Análisis por patrones de texto alternativos con límites estrictos de palabra
     if re.search(r"\b(ESTADIO|STADIUM|BEISBOL|DIAMANTE)\b", rec_norm):
-        return "estadio_abierto", 0.95
+        return "ESTADIO", 0.95
 
-    if re.search(r"\b(ARENA|COLISEO|POLIDEPORTIVO)\b", rec_norm):
-        return ("parque_aire_libre" if "POLIDEPORTIVO" in rec_norm else "arena_cubierta"), 0.90
+    if re.search(r"\b(MOVISTAR\s*ARENA|ARENA\s+CA[NÑ]AVERALEJO|DAVIARENA)\b", rec_norm):
+        return "ARENA", 0.95
+
+    if re.search(r"\b(COLISEO|POLIDEPORTIVO)\b", rec_norm):
+        return ("PARQUE" if "POLIDEPORTIVO" in rec_norm else "COLISEO"), 0.90
 
     if re.search(r"\b(TEATRO|TEATRINO|SALA\s+TEATRAL)\b", rec_norm):
-        return "teatro", 0.95
+        return "TEATRO", 0.95
 
     if re.search(r"\b(AUDITORIO|AULA)\b", rec_norm):
-        return "auditorio", 0.94
+        return "OTROS_RECINTOS", 0.94
 
-    if re.search(r"\b(CINE|CINEMATECA|MUSEO|PLANETARIO|BIBLIOTECA)\b", rec_norm):
-        return "cine_sala_cultural", 0.93
+    if re.search(r"\b(CINEMATECA|CINE)\b", rec_norm):
+        return "CINEMATECA", 0.93
+
+    if re.search(r"\b(MUSEO|PLANETARIO|BIBLIOTECA)\b", rec_norm):
+        return "MUSEO", 0.93
 
     if re.search(r"\b(CARPA|EXPO|FERIA|CONVENCION|PABELLON|CENTRO\s+DE\s+EVENTOS|CITY\s+HALL)\b", rec_norm):
-        return "centro_eventos_carpa", 0.92
+        return "OTROS_RECINTOS", 0.92
 
-    if re.search(r"\b(BAR|CLUB|DISCO|LOUNGE|RESTAURANTE|PUB|GASTRO|TASCA|BARRIL|BEER)\b", rec_norm):
-        return "bar_club", 0.92
+    if re.search(r"\b(BAR|CLUB|DISCO|LOUNGE|RESTAURANTE|PUB|GASTRO|TASCA|BARRIL|BEER|RESTOBAR)\b", rec_norm):
+        return "RESTAURANTE", 0.92
 
     if re.search(r"\b(PARQUE|PLAZA|JARDIN|BOULEVARD|MALECON|PLAYA|BEACH|AVENIDA|CARRERA|AUTOPISTA|CALLE)\b", rec_norm):
-        return "parque_aire_libre", 0.89
+        return "PARQUE", 0.89
 
     if re.search(r"\b(HOTEL|RESORT)\b", rec_norm):
-        return ("centro_eventos_carpa" if aforo_max >= 500 else "otro"), 0.78
+        return "OTROS_RECINTOS", 0.78
 
     if re.search(r"\b(TREN|BUS|TRANSPORTE|AEROPUERTO|VIAJE)\b", rec_norm):
-        return "otro", 0.95
+        return "OTROS_RECINTOS", 0.95
 
     if re.search(r"\bSALA\b", rec_norm):
         if re.search(r"\b(CINEMATECA|CINE)\b", rec_norm):
-            return "cine_sala_cultural", 0.88
+            return "CINEMATECA", 0.88
         if re.search(r"\b(TEATRO|TEATRAL)\b", rec_norm):
-            return "teatro", 0.85
-        return "otro", 0.60
+            return "TEATRO", 0.85
+        return "OTROS_RECINTOS", 0.60
 
     if re.search(r"\b(CAPILLA|IGLESIA|CATEDRAL)\b", rec_norm):
-        return "otro", 0.85
+        return "OTROS_RECINTOS", 0.85
 
     if re.search(r"\b(COLEGIO|UNIVERSIDAD|CAMPUS)\b", rec_norm):
-        return "auditorio", 0.83
+        return "OTROS_RECINTOS", 0.83
 
     # Fallback contextual por aforo
     if aforo_max >= 20000:
-        return "estadio_abierto", 0.72
+        return "ESTADIO", 0.72
     elif aforo_max >= 5000:
-        return "centro_eventos_carpa", 0.68
+        return "OTROS_RECINTOS", 0.68
     elif aforo_max <= 200:
-        return "otro", 0.65
+        return "OTROS_RECINTOS", 0.65
 
-    return "otro", 0.55
+    return "OTROS_RECINTOS", 0.55
+
 
 
 def consolidar_revision_humana(ruta_lookup: str = "data/lookup/site_type_lookup.csv",
@@ -389,7 +439,9 @@ def consolidar_revision_humana(ruta_lookup: str = "data/lookup/site_type_lookup.
         "funciones": df_rev["funciones"].fillna(0).astype(int),
         "fecha_clasificacion": fecha_hoy,
         "fuente": "revision_humana",
-        "modelo_llm": None
+        "modelo_llm": None,
+        "taxonomia_version": "v2",
+        "fecha_reclasificacion": fecha_hoy
     })
 
     # Cargar o crear site_type_lookup.csv
@@ -505,7 +557,9 @@ def main():
                 "funciones": funcs,
                 "fecha_clasificacion": fecha_hoy,
                 "fuente": "revision_humana",
-                "modelo_llm": clasificador_llm.model_name if clasificador_llm else None
+                "modelo_llm": clasificador_llm.model_name if clasificador_llm else None,
+                "taxonomia_version": "v2",
+                "fecha_reclasificacion": fecha_hoy
             })
             continue
 
@@ -521,7 +575,9 @@ def main():
                     "funciones": funcs,
                     "fecha_clasificacion": fecha_hoy,
                     "fuente": "llm",
-                    "modelo_llm": clasificador_llm.model_name
+                    "modelo_llm": clasificador_llm.model_name,
+                    "taxonomia_version": "v2",
+                    "fecha_reclasificacion": fecha_hoy
                 })
                 continue
 
@@ -542,7 +598,9 @@ def main():
                 "funciones": funcs,
                 "fecha_clasificacion": fecha_hoy,
                 "fuente": "reglas_heuristicas",
-                "modelo_llm": None
+                "modelo_llm": None,
+                "taxonomia_version": "v2",
+                "fecha_reclasificacion": fecha_hoy
             })
         else:
             motivo = "Desacuerdo entre pasadas" if not coinciden else "Baja confianza (< 0.85)"

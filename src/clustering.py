@@ -28,8 +28,39 @@ from src.nlp_utils import vectorizar_texto_limpio
 
 MODEL_VERSION = "2.3"
 
-# Categorias canonicas estandarizadas de type_site (excluyendo 'desconocido')
+# Categorias canonicas estandarizadas de type_site (10 categorias de negocio; 'desconocido' queda fuera del one-hot)
 CANONICAL_TYPE_SITE_CATEGORIES = [
+    "ARENA",
+    "CINEMATECA",
+    "ESTADIO",
+    "COLISEO",
+    "MUSEO",
+    "OTROS_RECINTOS",
+    "PARQUE",
+    "PARQUEADERO",
+    "RESTAURANTE",
+    "TEATRO"
+]
+
+# Mapeo explicito de migracion de taxonomia v1 a v2
+MAPEO_TAXONOMIA_V1_A_V2 = {
+    "arena_cubierta": "ARENA",
+    "cine_sala_cultural": "CINEMATECA",
+    "estadio_abierto": "ESTADIO",
+    "coliseo": "COLISEO",
+    "teatro": "TEATRO",
+    "parque_aire_libre": "PARQUE",
+    "bar_club": "RESTAURANTE",
+    "auditorio": "OTROS_RECINTOS",
+    "centro_eventos_carpa": "OTROS_RECINTOS",
+    "centro_convenciones": "OTROS_RECINTOS",
+    "sala_conciertos": "OTROS_RECINTOS",
+    "cabaret_comedia": "OTROS_RECINTOS",
+    "otro": "re-clasificar"
+}
+
+# Categorias v1 historicas para retrocompatibilidad con artefactos previos de 35 dimensiones
+LEGACY_V1_TYPE_SITE_CATEGORIES = [
     "arena_cubierta",
     "auditorio",
     "bar_club",

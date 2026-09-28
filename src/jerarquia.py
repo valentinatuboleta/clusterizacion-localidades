@@ -468,6 +468,14 @@ def predecir_microclusters(
         tf_n1 = n1_info["tfidf"]
         mapa_n1 = n1_info.get("metricas", {}).get("mapa_arquetipos") or n1_info.get("mapa_arquetipos", {})
 
+        cats_n1 = n1_info.get("categorias_type_site")
+        if cats_n1 is None and hasattr(km_n1, "n_features_in_") and km_n1.n_features_in_ == 35:
+            from src.clustering import LEGACY_V1_TYPE_SITE_CATEGORIES
+            cats_n1 = LEGACY_V1_TYPE_SITE_CATEGORIES
+        elif cats_n1 is None:
+            from src.clustering import CANONICAL_TYPE_SITE_CATEGORIES
+            cats_n1 = CANONICAL_TYPE_SITE_CATEGORIES
+
         df_mono, df_multi = separar_admision_unica_multizona(df_input)
         df_mono = df_mono.copy()
         df_mono["arquetipo_demanda"] = "Admisión Única / Tarifa Plana"
@@ -482,7 +490,8 @@ def predecir_microclusters(
                 scaler=sc_n1,
                 tfidf_vectorizer=tf_n1,
                 peso_nlp=0.2,
-                peso_type_site=0.5
+                peso_type_site=0.5,
+                categorias_type_site=cats_n1
             )
             dist_n1 = km_n1.transform(X_multi)
             orden_dist = np.argsort(dist_n1, axis=1)

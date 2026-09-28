@@ -47,13 +47,13 @@ class TestFeatureTypeSite(unittest.TestCase):
         self.assertIn("flag_site_desconocido", df_enr.columns)
 
         # Venues conocidos normalizados deben mapear a sus tipos correctos
-        self.assertEqual(df_enr.loc[0, "type_site"], "teatro")
+        self.assertEqual(df_enr.loc[0, "type_site"], "TEATRO")
         self.assertEqual(df_enr.loc[0, "flag_site_desconocido"], 0)
 
-        self.assertEqual(df_enr.loc[1, "type_site"], "teatro")
+        self.assertEqual(df_enr.loc[1, "type_site"], "TEATRO")
         self.assertEqual(df_enr.loc[1, "flag_site_desconocido"], 0)
 
-        self.assertEqual(df_enr.loc[2, "type_site"], "arena_cubierta")
+        self.assertEqual(df_enr.loc[2, "type_site"], "ARENA")
         self.assertEqual(df_enr.loc[2, "flag_site_desconocido"], 0)
 
         # Venue desconocido debe recibir fallback y activar bandera
@@ -72,7 +72,7 @@ class TestFeatureTypeSite(unittest.TestCase):
             "t_performance_id": [1000 + i for i in range(n_locs)],
             "site": sites,
             "logical_seat_category": [f"LOC_{i}" for i in range(n_locs)],
-            "type_site": ["teatro"] * n_locs,
+            "type_site": ["TEATRO"] * n_locs,
             "med_unit_amt_itx": prices,
             "dn_quota": [500] * n_locs,
             "performance_quota": [500] * n_locs,
@@ -93,9 +93,9 @@ class TestFeatureTypeSite(unittest.TestCase):
         df_train_calc = calcular_percentil_precio_absoluto_dentro_tipo(df_train)
         ref_distribucion = generar_referencia_percentil_tipo(df_train)
 
-        self.assertIn("teatro", ref_distribucion)
-        self.assertFalse(ref_distribucion["teatro"]["es_cold_start"])
-        self.assertEqual(len(ref_distribucion["teatro"]["precios_referencia"]), n_locs)
+        self.assertIn("TEATRO", ref_distribucion)
+        self.assertFalse(ref_distribucion["TEATRO"]["es_cold_start"])
+        self.assertEqual(len(ref_distribucion["TEATRO"]["precios_referencia"]), n_locs)
 
         # 2. Inferencia evaluada con la referencia guardada sobre una submuestra
         df_inferencia = df_train.sample(20, random_state=7).copy()
@@ -121,13 +121,13 @@ class TestFeatureTypeSite(unittest.TestCase):
         """Valida inferencia con monozona, multi-zona, site desconocido y type_site con < 50 localidades."""
         # Configurar referencia de distribucion con un tipo normal y un tipo cold start
         ref_distribucion = {
-            "teatro": {
+            "TEATRO": {
                 "conteo": 100,
                 "es_cold_start": False,
                 "bin_edges": list(np.linspace(10000, 100000, 101)),
                 "precios_referencia": list(np.linspace(10000, 100000, 100))
             },
-            "cine_sala_cultural": {
+            "CINEMATECA": {
                 "conteo": 15,
                 "es_cold_start": True,
                 "bin_edges": [],
@@ -149,7 +149,7 @@ class TestFeatureTypeSite(unittest.TestCase):
                 "ratio_precio_max": 1.0,
                 "percentil_precio_evento": 1.0,
                 "texto_limpio": "GENERAL",
-                "type_site": "teatro"
+                "type_site": "TEATRO"
             },
             # 2. Multi-zona VIP
             {
@@ -163,7 +163,7 @@ class TestFeatureTypeSite(unittest.TestCase):
                 "ratio_precio_max": 1.0,
                 "percentil_precio_evento": 1.0,
                 "texto_limpio": "PALCO VIP",
-                "type_site": "teatro"
+                "type_site": "TEATRO"
             },
             # 3. Multi-zona General
             {
@@ -177,7 +177,7 @@ class TestFeatureTypeSite(unittest.TestCase):
                 "ratio_precio_max": 0.21,
                 "percentil_precio_evento": 0.0,
                 "texto_limpio": "BALCON",
-                "type_site": "teatro"
+                "type_site": "TEATRO"
             },
             # 4. Venue desconocido
             {
@@ -193,7 +193,7 @@ class TestFeatureTypeSite(unittest.TestCase):
                 "texto_limpio": "GENERAL",
                 "type_site": "desconocido"
             },
-            # 5. type_site con < 50 localidades (cold start cine_sala_cultural)
+            # 5. type_site con < 50 localidades (cold start CINEMATECA)
             {
                 "t_performance_id": 504,
                 "site": "CINEMATECA SALA 1",
@@ -205,7 +205,7 @@ class TestFeatureTypeSite(unittest.TestCase):
                 "ratio_precio_max": 1.0,
                 "percentil_precio_evento": 1.0,
                 "texto_limpio": "GENERAL",
-                "type_site": "cine_sala_cultural"
+                "type_site": "CINEMATECA"
             }
         ])
 
@@ -220,7 +220,7 @@ class TestFeatureTypeSite(unittest.TestCase):
         self.assertEqual(df_eval.loc[3, "flag_cold_start_tipo"], 1)
 
         # Comprobar caso 5 (cold start < 50 localidades): percentil 0.50 y flag_cold_start_tipo=1
-        self.assertEqual(df_eval.loc[4, "type_site"], "cine_sala_cultural")
+        self.assertEqual(df_eval.loc[4, "type_site"], "CINEMATECA")
         self.assertEqual(df_eval.loc[4, "percentil_precio_absoluto_dentro_tipo"], 0.50)
         self.assertEqual(df_eval.loc[4, "flag_cold_start_tipo"], 1)
 
@@ -228,7 +228,7 @@ class TestFeatureTypeSite(unittest.TestCase):
         self.assertGreater(df_eval.loc[1, "percentil_precio_absoluto_dentro_tipo"], 0.80)
         self.assertEqual(df_eval.loc[1, "flag_cold_start_tipo"], 0)
 
-        # Verificar espacio vectorial estructural sin TF-IDF: 4 continuas + 7 tags + 9 type_site = 20 dimensiones
+        # Verificar espacio vectorial estructural sin TF-IDF: 4 continuas + 7 tags + 10 type_site = 21 dimensiones
         X_base, _, _, feat_names_base = construir_espacio_vectorial_mixto(
             df_eval,
             peso_type_site=0.5,
@@ -236,27 +236,27 @@ class TestFeatureTypeSite(unittest.TestCase):
             categorias_type_site=CANONICAL_TYPE_SITE_CATEGORIES
         )
         self.assertEqual(X_base.shape[0], len(df_eval))
-        self.assertEqual(X_base.shape[1], 20)
+        self.assertEqual(X_base.shape[1], 21)
 
         # La categoria 'desconocido' no debe figurar en feature_names
         self.assertNotIn("type_site_desconocido", feat_names_base)
         for cat in CANONICAL_TYPE_SITE_CATEGORIES:
             self.assertIn(f"type_site_{cat}", feat_names_base)
 
-        # Con vectorizador de 15 features: 20 + 15 = 35 dimensiones
+        # Con vectorizador de 15 features: 21 + 15 = 36 dimensiones
         from sklearn.feature_extraction.text import TfidfVectorizer
         tfidf_mock = TfidfVectorizer(max_features=15)
         # Ajustar con corpus sintetico de 15 tokens
         corpus_15 = [" ".join([f"token_{i}" for i in range(15)])]
         tfidf_mock.fit(corpus_15)
 
-        X_35, _, _, feat_names_35 = construir_espacio_vectorial_mixto(
+        X_36, _, _, feat_names_36 = construir_espacio_vectorial_mixto(
             df_eval,
             peso_type_site=0.5,
             tfidf_vectorizer=tfidf_mock,
             categorias_type_site=CANONICAL_TYPE_SITE_CATEGORIES
         )
-        self.assertEqual(X_35.shape[1], 35)
+        self.assertEqual(X_36.shape[1], 36)
 
 
 

@@ -41,7 +41,7 @@ class MockLLMClient:
         # Respuesta por defecto en formato JSON
         default_json = json.dumps({
             "site": "VENUE_TEST",
-            "type_site": "teatro",
+            "type_site": "TEATRO",
             "confianza": 0.95,
             "justificacion_semantica": "Venue simulado por mock para pruebas unitarias hermeticas."
         })
@@ -62,7 +62,7 @@ class TestLLMVenueClassifier(unittest.TestCase):
         mock_client = MockLLMClient({
             "BOOM STAND UP BAR": json.dumps({
                 "site": "BOOM STAND UP BAR",
-                "type_site": "bar_club",
+                "type_site": "RESTAURANTE",
                 "confianza": 0.93,
                 "justificacion_semantica": "Comedy club y bar nocturno."
             })
@@ -79,7 +79,7 @@ class TestLLMVenueClassifier(unittest.TestCase):
 
         self.assertIsNotNone(res)
         self.assertEqual(res["site"], "BOOM STAND UP BAR")
-        self.assertEqual(res["type_site"], "bar_club")
+        self.assertEqual(res["type_site"], "RESTAURANTE")
         self.assertEqual(res["confianza"], 0.93)
         self.assertEqual(res["modelo_llm"], "gemini-3.8-flash-medium")
         self.assertIn("Comedy club", res["justificacion_semantica"])
@@ -124,7 +124,7 @@ class TestLLMVenueClassifier(unittest.TestCase):
     def test_manejo_markdown_en_salida_json(self):
         """Valida que si el LLM envuelve el JSON en ```json ... ```, se limpie correctamente."""
         mock_client = MockLLMClient({
-            "CORFERIAS": "```json\n{\n  \"site\": \"CORFERIAS\",\n  \"type_site\": \"centro_eventos_carpa\",\n  \"confianza\": 0.98,\n  \"justificacion_semantica\": \"Recinto ferial de gran escala.\"\n}\n```"
+            "CORFERIAS": "```json\n{\n  \"site\": \"CORFERIAS\",\n  \"type_site\": \"OTROS_RECINTOS\",\n  \"confianza\": 0.98,\n  \"justificacion_semantica\": \"Recinto ferial de gran escala.\"\n}\n```"
         })
 
         classifier = GeminiVenueClassifier(
@@ -134,11 +134,11 @@ class TestLLMVenueClassifier(unittest.TestCase):
 
         res = classifier.clasificar_venue("CORFERIAS", aforo_max=15000)
         self.assertIsNotNone(res)
-        self.assertEqual(res["type_site"], "centro_eventos_carpa")
+        self.assertEqual(res["type_site"], "OTROS_RECINTOS")
         self.assertEqual(res["confianza"], 0.98)
 
-    def test_categoria_invalida_mapea_a_otro(self):
-        """Si el LLM inventa una categoría no válida, el clasificador debe coaccionarla a 'otro'."""
+    def test_categoria_invalida_mapea_a_desconocido(self):
+        """Si el LLM inventa una categoría no válida, el clasificador debe coaccionarla a 'desconocido'."""
         mock_client = MockLLMClient({
             "SITIO RARO": json.dumps({
                 "site": "SITIO RARO",
@@ -155,7 +155,7 @@ class TestLLMVenueClassifier(unittest.TestCase):
 
         res = classifier.clasificar_venue("SITIO RARO", 500)
         self.assertIsNotNone(res)
-        self.assertEqual(res["type_site"], "otro")
+        self.assertEqual(res["type_site"], "desconocido")
 
     def test_verificacion_diccionario_y_discrepancias_llm(self):
         """
@@ -165,7 +165,7 @@ class TestLLMVenueClassifier(unittest.TestCase):
         mock_client = MockLLMClient({
             "TEATRO MAYOR JULIO MARIO SANTO DOMINGO": json.dumps({
                 "site": "TEATRO MAYOR JULIO MARIO SANTO DOMINGO",
-                "type_site": "estadio_abierto",
+                "type_site": "ESTADIO",
                 "confianza": 0.90,
                 "justificacion_semantica": "Clasificacion erronea simulada para prueba de discrepancia."
             })
@@ -177,9 +177,10 @@ class TestLLMVenueClassifier(unittest.TestCase):
         from scripts.clasificar_sites import DICCIONARIO_EMBLEMATICO
         dicc_tipo = DICCIONARIO_EMBLEMATICO.get("TEATRO MAYOR JULIO MARIO SANTO DOMINGO")
 
-        self.assertEqual(dicc_tipo, "teatro")
-        self.assertEqual(res["type_site"], "estadio_abierto")
+        self.assertEqual(dicc_tipo, "TEATRO")
+        self.assertEqual(res["type_site"], "ESTADIO")
         self.assertNotEqual(dicc_tipo, res["type_site"])
+
 
 
 if __name__ == "__main__":

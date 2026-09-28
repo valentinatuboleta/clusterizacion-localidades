@@ -17,34 +17,37 @@ from typing import Dict, Any, Optional, Protocol, Tuple, List
 
 
 CATEGORIAS_VALIDAS = [
-    "teatro",
-    "estadio_abierto",
-    "arena_cubierta",
-    "centro_eventos_carpa",
-    "cine_sala_cultural",
-    "auditorio",
-    "bar_club",
-    "parque_aire_libre",
-    "otro"
+    "ARENA",
+    "CINEMATECA",
+    "ESTADIO",
+    "COLISEO",
+    "MUSEO",
+    "OTROS_RECINTOS",
+    "PARQUE",
+    "PARQUEADERO",
+    "RESTAURANTE",
+    "TEATRO",
+    "desconocido"
 ]
 
-PROMPT_SISTEMA_VENUE = """Eres un experto en infraestructura de entretenimiento, arquitectura de venues y espectáculos en Colombia.
-Tu misión es clasificar con máxima precisión el tipo de espacio físico de un venue donde se realizan eventos de boletería (TuBoleta).
+PROMPT_SISTEMA_VENUE = """Eres un experto en infraestructura de entretenimiento, arquitectura de venues y espectaculos en Colombia.
+Tu mision es clasificar con maxima precision el tipo de espacio fisico de un venue donde se realizan eventos de boleteria (TuBoleta).
 
-Debes seleccionar exactamente una de las siguientes 9 categorías canónicas:
-1. teatro: Teatros tradicionales con platea y balcones acústicos (ej. Teatro Mayor, Teatro Colón).
-2. estadio_abierto: Estadios masivos descubiertos de fútbol, béisbol o atletismo (ej. El Campín, Atanasio Girardot).
-3. arena_cubierta: Arenas y coliseos cerrados multi-propósito (ej. Movistar Arena, Coliseo MedPlus).
-4. centro_eventos_carpa: Pabellones feriales, centros de convenciones, carpas estructurales gigantes o hangares (ej. Corferias, Chamorro City Hall, Carpa Delirio).
-5. cine_sala_cultural: Salas de cine, cinematecas, planetarios, museos o bibliotecas (ej. Cinemateca de Bogotá, Maloka).
-6. auditorio: Auditorios y aulas magnas académicas o corporativas (ej. Auditorio León de Greiff, universidades).
-7. bar_club: Bares, discotecas, gastrobares, comedy clubs o restaurantes con música en vivo (ej. Boom Stand Up Bar).
-8. parque_aire_libre: Parques públicos, malecones, plazas, praderas al aire libre, playas o circuitos viales para festivales (ej. Parque Simón Bolívar, Gran Malecón).
-9. otro: Estacionamientos, transporte, puntos de encuentro o recintos no categorizables.
+Debes seleccionar exactamente una de las siguientes 10 categorias canonicas:
+1. ARENA: Arenas cubiertas multi-proposito de gran formato para conciertos y eventos masivos (ej. Movistar Arena, Arena Canaveralejo).
+2. CINEMATECA: Salas de cine arte, cinematecas y proyeccion audiovisual (ej. Cinemateca de Bogota, Cine Colombo).
+3. ESTADIO: Estadios masivos descubiertos de futbol, beisbol o atletismo (ej. El Campin, Atanasio Girardot).
+4. COLISEO: Coliseos deportivos y escenarios cubiertos tradicionales (ej. Coliseo MedPlus, Coliseo Elias Chegwin).
+5. MUSEO: Museos, salas de exposiciones, bibliotecas y centros interactivos de ciencia/cultura (ej. Museo La Tertulia, Maloka, Planetario).
+6. OTROS_RECINTOS: Pabellones feriales, centros de convenciones, carpas estructurales, auditorios universitarios y salas multiproposito (ej. Corferias, Chamorro City Hall, Carpa Delirio, auditorios).
+7. PARQUE: Parques publicos, malecones, plazas, praderas al aire libre, playas o circuitos viales para festivales (ej. Parque Simon Bolivar, Gran Malecon).
+8. PARQUEADERO: Venues fisicos destinados a estacionamiento de vehiculos (ej. Parqueadero Corferias, Parking Norte).
+9. RESTAURANTE: Restaurantes, gastrobares, bares, discotecas o comedy clubs con servicio a la mesa (ej. Wow Restaurante Bar, Cantina La 70).
+10. TEATRO: Teatros tradicionales con platea, balcones acusticos y caja escenica (ej. Teatro Mayor, Teatro Colon).
 
 Reglas obligatorias:
-- Considera el contexto toponímico en Colombia (ciudades, avenidas, nombres de centros culturales).
-- Si el venue es ambiguo, utiliza conocimiento del mundo para inferir su arquitectura física.
+- Considera el contexto toponimico en Colombia (ciudades, avenidas, nombres de centros culturales).
+- Si el venue es ambiguo, utiliza conocimiento del mundo para inferir su arquitectura fisica.
 - Responde estrictamente con un objeto JSON sin formato markdown extra."""
 
 
@@ -103,7 +106,7 @@ class GeminiVenueClassifier:
             f"Responde ÚNICAMENTE en formato JSON con la siguiente estructura exacta:\n"
             f'{{\n'
             f'  "site": "{site}",\n'
-            f'  "type_site": "<una de las 9 categorias>",\n'
+            f'  "type_site": "<una de las 10 categorias>",\n'
             f'  "confianza": <numero entre 0.0 y 1.0>,\n'
             f'  "justificacion_semantica": "<breve justificacion de 1 linea>"\n'
             f'}}'
@@ -146,9 +149,9 @@ class GeminiVenueClassifier:
             limpio = re.sub(r"\s*```$", "", limpio.strip(), flags=re.MULTILINE)
 
             parsed = json.loads(limpio)
-            tipo_asignado = str(parsed.get("type_site", "otro")).strip().lower()
+            tipo_asignado = str(parsed.get("type_site", "desconocido")).strip().upper()
             if tipo_asignado not in CATEGORIAS_VALIDAS:
-                tipo_asignado = "otro"
+                tipo_asignado = "desconocido"
 
             confianza = float(parsed.get("confianza", 0.85))
             confianza = min(max(confianza, 0.50), 0.99)
