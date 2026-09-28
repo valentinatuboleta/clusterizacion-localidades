@@ -106,11 +106,11 @@ VARIABLES_MONITOREO_DRIFT = [
 
 DISTRIBUCION_ESPERADA_ARQUETIPOS = {
     "Admisión Única / Tarifa Plana": 15375 / 33775,
-    "Popular / Balcón / Visibilidad Parcial": 6103 / 33775,
-    "VIP / Palcos / Premium": 4935 / 33775,
-    "Platea General / Intermedia": 3448 / 33775,
-    "Preferencial / Platea Frontal": 2928 / 33775,
-    "Grada General / Masiva": 986 / 33775,
+    "Popular / Balcón / Visibilidad Parcial": 6128 / 33775,
+    "VIP / Palcos / Premium": 4885 / 33775,
+    "Platea General / Intermedia": 3463 / 33775,
+    "Preferencial / Platea Frontal": 2934 / 33775,
+    "Grada General / Masiva": 990 / 33775,
 }
 
 

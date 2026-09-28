@@ -774,15 +774,15 @@ El modelo base v2.4 de producción permanece como baseline en `data/processed/mo
 
 | Atributo | Especificación Técnica | Detalle para el Consumidor de Datos |
 | :--- | :--- | :--- |
-| **Columnas Entregadas** | `micro_cluster_id` (21 niveles), `arquetipo_demanda` (6 niveles) | Features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante*. |
+| **Columnas Entregadas** | `micro_cluster_id` (19 niveles), `arquetipo_demanda` (6 niveles) | Features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante*. |
 | **Seguridad de Información** | *Ex-ante* / Cero Fuga (*Leakage-free*) | No utiliza volumen transaccional posterior (`net_sold_qty`, recaudos finales). Totalmente seguras para entrenamiento de modelos de demanda, propensión y pricing dinámico. |
-| **Niveles de Micro-Clusters** | 21 categorías canónicas | `AU-0` (Admisión Única terminal) + 20 sub-espacios multi-zona: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..3`. |
+| **Niveles de Micro-Clusters** | 19 categorías canónicas | `AU-0` (Admisión Única terminal) + 18 sub-espacios multi-zona: `VIP-0..2`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..2`. |
 | **Niveles de Arquetipos** | 6 arquetipos macro | `Admisión Única / Tarifa Plana`, `VIP / Palcos / Premium`, `Popular / Balcón / Visibilidad Parcial`, `Platea General / Intermedia`, `Preferencial / Platea Frontal`, `Grada General / Masiva`. |
-| **Encoding Recomendado** | **One-Hot Encoding** | 21 columnas binarias para micro-clusters y 6 para arquetipos. Óptimo para arquitecturas de árboles (LightGBM, XGBoost, CatBoost). |
+| **Encoding Recomendado** | **One-Hot Encoding** | 19 columnas binarias para micro-clusters y 6 para arquetipos. Óptimo para arquitecturas de árboles (LightGBM, XGBoost, CatBoost). |
 | **Encoding Alternativo** | **Target Encoding con CV** | Si el consumidor implementa target/mean encoding, debe aplicarlo estrictamente con validación cruzada *out-of-fold* (K-Fold) para prevenir fuga de señal del target. |
 | **Freshness y Scoring** | *On-the-fly* al momento de scoring | Asignado mediante `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)`. El payload de inferencia se congela por versión (`3.0-hier.2`). |
 | **Manejo de Incertidumbre** | Flags no bloqueantes | Si una localidad presenta venue no visto o datos faltantes, activa flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepción. |
-| **Monitoreo Continuo** | Population Stability Index (PSI) | Drift evaluado por lote sobre las 21 categorías frente a `distribucion_referencia_microclusters`. Alerta activa ante $\text{PSI} \ge 0.10$. |
+| **Monitoreo Continuo** | Population Stability Index (PSI) | Drift evaluado por lote sobre las 19 categorías frente a `distribucion_referencia_microclusters`. Alerta activa ante $\text{PSI} \ge 0.10$. |
 
 ---
 
@@ -796,12 +796,12 @@ A continuación se sintetiza el desempeño cuantitativo de cada familia de model
 | :--- | :---: | :---: | :---: | :---: |
 | **Dimensionalidad Espacio Mixto** | 35D | 36D | +1 dimensión | Incorpora diferenciación limpia ARENA vs COLISEO |
 | **Categorías Canónicas de Venue** | 9 categorías | 10 categorías | +1 categoría | Taxonomía estandarizada sin categoría residual `otro` |
-| **Silueta Multi-Zona** | 0.2094 | **0.2098** | +0.0004 | Ligera mejora en definición de fronteras |
-| **Davies-Bouldin (menor es mejor)** | 1.4865 | **1.4784** | -0.0081 | Mayor compacidad intracluster y separación |
-| **Calinski-Harabasz (mayor es mejor)**| 4672.7 | **4676.9** | +4.2 | Mayor dispersión entre centroides |
-| **Inercia K-Means (menor es mejor)** | 26,293.5 | **26,075.4** | -218.1 | Mayor concentración geométrica global |
-| **Estabilidad ARI vs v2.3** | 1.0000 (base) | **0.9416** | Consistencia > 94% | Transición suave sin desestabilizar arquetipos macro |
-| **Tasa de Coincidencia de Arquetipos**| 100.00% | **95.37%** | 32,212 / 33,775 iguales | Ajuste fino en fronteras de Platea y VIP |
+| **Silueta Multi-Zona** | 0.2094 | **0.2105** | +0.0011 | Mayor nitidez en fronteras globales |
+| **Davies-Bouldin (menor es mejor)** | 1.4865 | **1.4797** | -0.0068 | Mayor compacidad intracluster y separación |
+| **Calinski-Harabasz (mayor es mejor)**| 4672.7 | **4688.6** | +15.9 | Mayor dispersión entre centroides |
+| **Inercia K-Means (menor es mejor)** | 26,293.5 | **26,058.5** | -235.0 | Mayor concentración geométrica global |
+| **Estabilidad ARI vs v2.3** | 1.0000 (base) | **0.9394** | Consistencia > 93.9% | Transición suave sin desestabilizar arquetipos macro |
+| **Tasa de Coincidencia de Arquetipos**| 100.00% | **95.19%** | 32,150 / 33,775 iguales | Ajuste fino en fronteras de Platea y VIP |
 | **Golden Set (20 Casos Críticos)** | 20 / 20 (100%) | **20 / 20 (100%)** | 0 regresiones | Precisión intacta en clasificaciones emblemáticas |
 | **Suite de Tests Golden Set** | 12 / 12 PASSED | **12 / 12 PASSED** | 100% verde | Cobertura exacta, drift PSI y calibración GMM |
 
@@ -811,18 +811,18 @@ A continuación se sintetiza el desempeño cuantitativo de cada familia de model
 | :--- | :---: | :---: | :---: | :---: |
 | **Base Nivel 1** | v2.3 (35D) | **v2.4 (36D)** | Taxonomía v2 integrada | Nivel 1 alineado con tipología canónica |
 | **Sub-espacios Nivel 2** | 32D (sin venue one-hot) | **32D (sin venue one-hot)** | Idéntico por diseño | Venue excluido para evitar sobrefragmentación |
-| **Micro-Clusters Totales** | 20 (`AU-0` + 19) | **21 (`AU-0` + 20)** | +1 micro-cluster | Grada General selecciona $k=4$ óptimo no degenerado |
+| **Micro-Clusters Totales** | 20 (`AU-0` + 19) | **19 (`AU-0` + 18)** | -1 partición | Particiones más densas y compactas por arquetipo |
 | **Cobertura de Catálogo** | 100% (33,775 filas) | **100% (33,775 filas)** | Cobertura exacta | Sin pérdida de localidades ni datos descartados |
-| **Clusters Degenerados (< 3%)** | 0 degenerados | **0 degenerados** | Mínimo share: 6.78% | Todas las particiones superan el piso de masa |
+| **Clusters Degenerados (< 3%)** | 0 degenerados | **0 degenerados** | Mínimo share: 12.03% | Muy por encima del umbral mínimo de 3% |
 | **Validación Rollup 1:1** | Estricto (0 violaciones) | **Estricto (0 violaciones)** | Preservado | Todo micro-cluster pertenece exactamente a 1 arquetipo |
-| **Estabilidad ARI Promedio** | > 0.85 sub-espacios clave | **> 0.85 sub-espacios clave**| Popular: 0.9740, Platea: 0.9362 | Partición robusta ante remuestreos al 80% |
+| **Estabilidad ARI Promedio** | > 0.85 sub-espacios clave | **> 0.88 en todos los sub-espacios**| POP: 0.9846, PGI: 0.9793, GGM: 0.9611 | Gran estabilidad estructural ante remuestreos al 80% |
 
 #### 9.3 Veredicto Final y Asignación de Roles en Producción
 
 | Componente | Configuración Seleccionada | Rol en Producción | Justificación de Negocio |
 | :--- | :--- | :--- | :--- |
-| **Modelo Macro-Clustering** | **Modelo v2.4 (`modelo_clustering_v2_4.joblib`)** | **Producción Vigente** | Supera a v2.3 en compacidad (Davies-Bouldin $1.4784$), silueta ($0.2098$) e inercia, incorporando la taxonomía formal de 10 categorías de venue sin alterar los 6 arquetipos de demanda ni generar regresiones en el Golden Set. |
-| **Generador de Features Fino** | **Jerarquía v3.0-hier.2 (`modelo_jerarquia_v3.joblib`)** | **Aprobado para Modelos Downstream** | Provee 21 variables categóricas de micro-clusters con $100\%$ de cobertura, 0 clusters degenerados, estabilidad bootstrap-ARI $>0.90$ en segmentos clave y rollup 1:1 validado para enriquecer modelos de propensión, elasticidad y pricing. |
+| **Modelo Macro-Clustering** | **Modelo v2.4 (`modelo_clustering_v2_4.joblib`)** | **Producción Vigente** | Supera a v2.3 en compacidad (Davies-Bouldin $1.4797$), silueta ($0.2105$), Calinski-Harabasz ($4,688.6$) e inercia ($26,058.5$), incorporando la taxonomía formal de 10 categorías de venue sin alterar los 6 arquetipos de demanda ni generar regresiones en el Golden Set. |
+| **Generador de Features Fino** | **Jerarquía v3.0-hier.2 (`modelo_jerarquia_v3.joblib`)** | **Aprobado para Modelos Downstream** | Provee 19 variables categóricas de micro-clusters con $100\%$ de cobertura, 0 clusters degenerados (mínimo aforo $12.03\%$), estabilidad bootstrap-ARI $>0.88$ generalizada y rollup 1:1 validado para enriquecer modelos de propensión, elasticidad y pricing. |
 
 
 

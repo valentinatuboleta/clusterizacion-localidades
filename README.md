@@ -204,11 +204,11 @@ El modelo v2.4 consolida una taxonomía formal de **10 categorías canónicas de
 | Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Admisión Única / Tarifa Plana** | Etapa 1 | 15,375 | **45.52%** | 0.99 | 100.0% | **$13,572** | *Cinemateca Bogotá, Maloka, YAWA, funciones monozona* |
-| **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,103 | **18.07%** | 0.35 | 9.5% | **$45,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
-| **VIP / Palcos / Premium** | Etapa 2 | 4,935 | **14.61%** | 0.81 | 5.5% | **$142,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
-| **Platea General / Intermedia** | Etapa 2 | 3,448 | **10.21%** | 0.71 | 32.8% | **$49,000** | *Platea Media, Balcón Delantero, Localidades intermedias* |
-| **Preferencial / Platea Frontal** | Etapa 2 | 2,928 | **8.67%** | 0.86 | 17.0% | **$122,000** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
-| **Grada General / Masiva** | Etapa 2 | 986 | **2.92%** | 0.81 | 78.1% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
+| **Popular / Balcón / Visibilidad Parcial** | Etapa 2 | 6,128 | **18.14%** | 0.35 | 9.5% | **$45,000** | *Balcón 2do/3er Piso, Grada Alta Posterior, Visibilidad Parcial* |
+| **VIP / Palcos / Premium** | Etapa 2 | 4,885 | **14.46%** | 0.81 | 5.5% | **$142,000** | *Palcos Corporativos, Suites, Mesas VIP, Boxes de lujo* |
+| **Platea General / Intermedia** | Etapa 2 | 3,463 | **10.25%** | 0.71 | 32.8% | **$49,000** | *Platea Media, Balcón Delantero, Localidades intermedias* |
+| **Preferencial / Platea Frontal** | Etapa 2 | 2,934 | **8.69%** | 0.86 | 17.0% | **$122,000** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
+| **Grada General / Masiva** | Etapa 2 | 990 | **2.93%** | 0.81 | 78.1% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
 | **TOTAL CATÁLOGO** | **v2.4** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
@@ -301,12 +301,12 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
   * Filtro de no degeneración: Descalificación de cualquier solución con clusters $< 3\%$ del sub-espacio.
   * Estabilidad bootstrap-ARI (20 réplicas al 80%) con promedio superior al $90\%$ en multi-zona clave.
 * **Métricas Obtenidas por Sub-espacio (3.0-hier.2):**
-  * **VIP / Palcos / Premium:** $k=4$, $N=5,135$, bootstrap-ARI $= 0.6716$, min share $= 6.78\%$.
-  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,763$, bootstrap-ARI $= 0.9740$, min share $= 21.74\%$.
-  * **Platea General / Intermedia:** $k=4$, $N=3,288$, bootstrap-ARI $= 0.9362$, min share $= 23.11\%$.
-  * **Preferencial / Platea Frontal:** $k=4$, $N=3,234$, bootstrap-ARI $= 0.9270$, min share $= 12.49\%$ (supera todas las compuertas).
-  * **Grada General / Masiva:** $k=4$, $N=980$, bootstrap-ARI $= 0.7970$, min share $= 7.86\%$.
-  * **Total Micro-Clusters Global:** 21 particiones (1 de Admisión Única + 20 multi-zona).
+  * **VIP / Palcos / Premium:** $k=3$, $N=5,100$, bootstrap-ARI $= 0.9342$, min share $= 15.75\%$.
+  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,775$, bootstrap-ARI $= 0.9846$, min share $= 21.21\%$.
+  * **Platea General / Intermedia:** $k=4$, $N=3,299$, bootstrap-ARI $= 0.9793$, min share $= 22.73\%$.
+  * **Preferencial / Platea Frontal:** $k=4$, $N=3,243$, bootstrap-ARI $= 0.8803$, min share $= 12.03\%$ (supera todas las compuertas).
+  * **Grada General / Masiva:** $k=3$, $N=983$, bootstrap-ARI $= 0.9611$, min share $= 30.93\%$.
+  * **Total Micro-Clusters Global:** 19 particiones (1 de Admisión Única + 18 multi-zona).
 * **Lineamientos de Negocio y Trazabilidad:**
   * Preservación irrestricta de `logical_seat_category` comercial.
   * `micro_cluster_id` como clave técnica de backend.
@@ -319,7 +319,7 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
   ```
 * **Artefactos Persistidos (data/processed/):**
   * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado con versión `3.0-hier.2`, sub-modelos y distribución de referencia.
-  * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 21 micro-clusters con pureza, términos dominantes y etiquetas.
+  * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 19 micro-clusters con pureza, términos dominantes y etiquetas.
   * `data/processed/asignacion_microclusters.csv`: Asignación individual para las 33,775 localidades.
 * **Diagnóstico de Pureza y Separabilidad Oracle:** Evaluación formal de la compuerta de pureza ($\ge 0.85$) y sweep condicional en [`scripts/diagnosticar_subespacios.py`](scripts/diagnosticar_subespacios.py) con reporte estructurado en [`reports/diagnostico_subespacios.csv`](reports/diagnostico_subespacios.csv).
 
@@ -330,17 +330,17 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
 Especificación técnica para el consumo operativo de micro-clusters y arquetipos como features en modelos de demanda, propensión y pricing:
 
 * **Columnas Entregadas:**
-  * `micro_cluster_id`: Categoría técnica de 21 niveles (`AU-0` terminal para monozona + 20 particiones en 5 arquetipos: `VIP-0..3`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..3`).
+  * `micro_cluster_id`: Categoría técnica de 19 niveles (`AU-0` terminal para monozona + 18 particiones en 5 arquetipos: `VIP-0..2`, `POP-0..3`, `PGI-0..3`, `PPF-0..3`, `GGM-0..2`).
   * `arquetipo_demanda`: Segmento macro de 6 niveles (`Admisión Única / Tarifa Plana`, `VIP / Palcos / Premium`, `Popular / Balcón / Visibilidad Parcial`, `Platea General / Intermedia`, `Preferencial / Platea Frontal`, `Grada General / Masiva`).
   * Ambas son features categóricas derivadas de nombre, precio relativo, aforo y venue *ex-ante* (completamente seguras para modelos de demanda, sin fuga de información transaccional).
 * **Encoding Recomendado:**
-  * **One-Hot Encoding** para ambas variables (21 y 6 niveles, trivial y altamente eficiente para modelos basados en árboles como LightGBM, XGBoost o CatBoost).
+  * **One-Hot Encoding** para ambas variables (19 y 6 niveles, trivial y altamente eficiente para modelos basados en árboles como LightGBM, XGBoost o CatBoost).
   * Si el consumidor prefiere *target encoding* o *mean encoding*, debe realizarse obligatoriamente mediante validación cruzada *out-of-fold* (K-Fold CV) para prevenir fuga de datos (*target leakage*).
 * **Freshness:**
   * La feature se asigna dinámicamente vía `src.jerarquia.predecir_microclusters(df_lote, payload_jerarquia)` al momento de scoring.
   * El payload se congela por versión (`3.0-hier.2`). Ante nuevos venues o datos faltantes, el predictor asigna flags seguros (`segmento_incierto`, `tipo_desconocido`) sin arrojar excepciones.
 * **Monitoreo Continuo:**
-  * Drift estadístico evaluado por lote mediante Population Stability Index (PSI) sobre la distribución observada de los 21 micro-clusters frente a la distribución de referencia persistida.
+  * Drift estadístico evaluado por lote mediante Population Stability Index (PSI) sobre la distribución observada de los 19 micro-clusters frente a la distribución de referencia persistida.
   * Umbrales: $\text{PSI} < 0.10$ (Estable), $0.10 \le \text{PSI} \le 0.25$ (Revisar), $\text{PSI} > 0.25$ (Drift Crítico). Si hay alerta activa, revisar la composición del lote antes de re-scoring masivo.
 * **Snippet de Consumo (5 líneas):**
   ```python

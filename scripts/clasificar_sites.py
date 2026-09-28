@@ -5,11 +5,14 @@ Separa consensos en site_type_lookup.csv (fuente='reglas_heuristicas') y discrep
 """
 
 import os
+import sys
 import re
 import datetime
 import unicodedata
 from typing import Optional, Tuple
 import pandas as pd
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 CATEGORIAS_VALIDAS = [
     "ARENA",
