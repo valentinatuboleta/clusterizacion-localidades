@@ -1,0 +1,21 @@
+micro_cluster_id,arquetipo_macro,n,es_frontera_pct,purity_tag,tag_dominante,purity_term,term_dominante,label_auto
+AU-0,Admisión Única / Tarifa Plana,15375,0.0,1.0,tag_general,1.0,admision,Admisión Única
+VIP-0,VIP / Palcos / Premium,1474,29.58,0.6988,tag_palco,0.4708,palco,hibrido_k0
+VIP-1,VIP / Palcos / Premium,1812,7.73,0.4581,tag_palco,0.2489,palco,hibrido_k1
+VIP-2,VIP / Palcos / Premium,1132,1.5,0.538,tag_palco,0.2809,palco,hibrido_k2
+VIP-3,VIP / Palcos / Premium,652,65.8,0.2822,tag_palco,0.2285,balcon,hibrido_k3
+POP-0,Popular / Balcón / Visibilidad Parcial,1422,38.54,0.4937,tag_piso_alto,0.2743,piso,hibrido_k0
+POP-1,Popular / Balcón / Visibilidad Parcial,1452,0.48,0.4614,tag_piso_alto,0.4456,piso,hibrido_k1
+POP-2,Popular / Balcón / Visibilidad Parcial,1533,11.48,0.3881,tag_balcon,0.3881,balcon,hibrido_k2
+POP-3,Popular / Balcón / Visibilidad Parcial,1454,28.06,0.3886,tag_balcon,0.3879,balcon,hibrido_k3
+PGI-0,Platea General / Intermedia,855,23.74,0.2222,tag_preferencial,0.2152,preferencial,hibrido_k0
+PGI-1,Platea General / Intermedia,722,46.95,0.4501,tag_balcon,0.4363,balcon,hibrido_k1
+PGI-2,Platea General / Intermedia,872,23.74,0.219,tag_general,0.219,general,hibrido_k2
+PGI-3,Platea General / Intermedia,821,36.18,0.3812,tag_balcon,0.3812,balcon,hibrido_k3
+PPF-0,Preferencial / Platea Frontal,930,23.87,0.9989,tag_platea,0.9946,platea,Platea
+PPF-1,Preferencial / Platea Frontal,1104,1.81,1.0,tag_platea,0.9937,platea,Platea
+PPF-2,Preferencial / Platea Frontal,392,58.42,1.0,tag_platea,1.0,platea,Platea
+PPF-3,Preferencial / Platea Frontal,803,16.94,0.8892,tag_platea,0.8829,platea,Platea
+GGM-0,Grada General / Masiva,299,27.09,0.3679,tag_platea,0.3679,platea,hibrido_k0
+GGM-1,Grada General / Masiva,350,12.57,0.5971,tag_general,0.5914,general,hibrido_k1
+GGM-2,Grada General / Masiva,321,0.31,0.919,tag_general,0.8536,tiquete,General Tiquete
