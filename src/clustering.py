@@ -26,7 +26,7 @@ from scipy.optimize import linear_sum_assignment
 from src.nlp_utils import vectorizar_texto_limpio
 
 
-MODEL_VERSION = "2.3"
+MODEL_VERSION = "2.4"
 
 # Categorias canonicas estandarizadas de type_site (10 categorias de negocio; 'desconocido' queda fuera del one-hot)
 CANONICAL_TYPE_SITE_CATEGORIES = [
@@ -106,11 +106,11 @@ VARIABLES_MONITOREO_DRIFT = [
 
 DISTRIBUCION_ESPERADA_ARQUETIPOS = {
     "Admisión Única / Tarifa Plana": 15375 / 33775,
-    "Popular / Balcón / Visibilidad Parcial": 5861 / 33775,
-    "VIP / Palcos / Premium": 5070 / 33775,
-    "Platea General / Intermedia": 3270 / 33775,
-    "Preferencial / Platea Frontal": 3229 / 33775,
-    "Grada General / Masiva": 970 / 33775,
+    "Popular / Balcón / Visibilidad Parcial": 6103 / 33775,
+    "VIP / Palcos / Premium": 4935 / 33775,
+    "Platea General / Intermedia": 3448 / 33775,
+    "Preferencial / Platea Frontal": 2928 / 33775,
+    "Grada General / Masiva": 986 / 33775,
 }
 
 
