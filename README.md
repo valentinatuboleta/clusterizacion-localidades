@@ -50,7 +50,8 @@ clusterizacion-localidades/
 │   ├── test_clasificacion_sites.py             # Casos borde toponímicos, límites de palabra y trazabilidad
 │   ├── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
 │   ├── test_feature_type_site.py               # Tests del feature type_site y percentil
-│   └── test_microclusters.py                   # Tests de la exploración de micro-clusters
+│   ├── test_microclusters.py                   # Tests de la exploración de micro-clusters
+│   └── test_jerarquia.py                       # Tests de arquitectura jerárquica v3.0 (rollup 1:1, Codo-DB)
 │
 ├── scripts/                                    # Automatización, diagnóstico y análisis
 │   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
@@ -61,6 +62,7 @@ clusterizacion-localidades/
 │   ├── verificar_k5_perfiles.py                # Inspección de centroides y activación de tags
 │   ├── monitorear_drift.py                     # Monitoreo PSI de drift
 │   ├── explorar_microclusters.py               # Exploración de micro-clusters para normalización de nombres
+│   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0 (Nivel 1 macro -> Nivel 2 micro-clusters)
 │   ├── build_presentation.py                   # Generación de presentación ejecutiva de EDA (10 diapositivas)
 │   ├── build_presentation_from_template.py     # Inyección de insights en plantilla corporativa PPTX
 │   ├── build_full_notebook_presentation.py     # Generación de presentación ejecutiva completa
@@ -246,7 +248,47 @@ Evaluación experimental de particiones finas ($k > 10$) sobre las $18,400$ loca
 
 ---
 
+## Jerarquía de micro-clusters (v3.0 candidata)
+
+Arquitectura jerárquica en dos niveles desarrollada como evolución a la limitación de la exploración plana ($k > 10$ en el espacio unificado 35D, donde la heterogeneidad global colapsa la pureza y separabilidad léxico-estructural).
+
+* **Arquitectura de Dos Niveles:**
+  1. **Nivel 1 (Producción v2.3 congelada):** Separa localidades de tarifa plana (`Admisión Única`, $15,375$ registros clasificados directamente como micro-cluster terminal `AU-0`) y clasifica las $18,400$ localidades multi-zona en los 5 arquetipos macro de demanda certificados.
+  2. **Nivel 2 (Sub-clustering por Arquetipo Macro):** Para cada uno de los 5 arquetipos macro multi-zona, se entrena un sub-modelo K-Means en un sub-espacio propio de **32 dimensiones**:
+     * 4 numéricas relativas estandarizadas con `RobustScaler` ajustado localmente.
+     * 13 tags estructurales binarios expandidos (`tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`, `tag_lateral`, `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_mesa`).
+     * 15 componentes TF-IDF calibrados sobre el vocabulario léxico propio del arquetipo ($\omega_{\text{nlp}} = 0.2$).
+     * Se prescinde de la codificación one-hot de `type_site` para evitar ruido y sobrefragmentación dentro de un mismo arquetipo de demanda.
+* **Selección de k y Compuertas de Calidad:**
+  * Búsqueda en $k \in \{2, 3, 4, 5\}$ mediante optimización Codo-DB local.
+  * Filtro de no degeneración: Descalificación de cualquier solución con clusters $< 3\%$ del sub-espacio.
+  * Criterios estrictos de aceptación: pureza de naming $\ge 0.85$ y estabilidad bootstrap-ARI (20 réplicas al 80%) $\ge 0.85$.
+* **Métricas Obtenidas por Sub-espacio:**
+  * **VIP / Palcos / Premium:** $k=4$, $N=5,070$, pureza $= 0.5233$, bootstrap-ARI $= 0.7896$.
+  * **Popular / Balcón / Visibilidad Parcial:** $k=4$, $N=5,861$, pureza $= 0.4320$, bootstrap-ARI $= 0.9716$.
+  * **Platea General / Intermedia:** $k=4$, $N=3,270$, pureza $= 0.3116$, bootstrap-ARI $= 0.9830$.
+  * **Preferencial / Platea Frontal:** $k=4$, $N=3,229$, pureza $= 0.9721$, bootstrap-ARI $= 0.9628$ (supera todas las compuertas).
+  * **Grada General / Masiva:** $k=3$, $N=970$, pureza $= 0.6330$, bootstrap-ARI $= 0.9777$.
+  * **Total Micro-Clusters Global:** 20 particiones (1 de Admisión Única + 19 multi-zona).
+* **Lineamientos de Negocio y Trazabilidad:**
+  * Preservación irrestricta de `logical_seat_category` comercial.
+  * `micro_cluster_id` como clave técnica de backend.
+  * Generación determinística de `label_auto` (Title Case con tags activos $\ge 60\%$, deduplicación insensible a acentos y fallback a `hibrido_k{n}`).
+  * Propagación de incertidumbre: Si `es_frontera=True` en Nivel 1, se activa `segmento_incierto=True` y se audita mediante `es_frontera_pct` en el catálogo.
+  * Invarianza de Rollup Jerárquico: Todo micro-cluster pertenece a un único arquetipo macro (asociación 1:1 estricta validada por construcción).
+* **Script de Ejecución:**
+  ```bash
+  python scripts/entrenar_jerarquia_microclusters.py
+  ```
+* **Artefactos Candidatos Generados (data/processed/):**
+  * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado.
+  * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 20 micro-clusters con pureza, términos dominantes y etiquetas.
+  * `data/processed/asignacion_microclusters.csv`: Asignación individual para las 33,775 localidades.
+
+---
+
 ## Documentación Técnica Detallada
 Para consultar la justificación matemática, fórmulas de normalización, descomposiciones de varianza PCA y pseudocódigo, consulta:
  **[DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md)**
+
 

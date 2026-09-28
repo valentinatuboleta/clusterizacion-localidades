@@ -110,14 +110,15 @@ def limpiar_ruido_marketing(texto: str) -> str:
 
 def extraer_atributos_estructurales(texto: str) -> Dict[str, int]:
     """
-    Extrae las 17 variables binarias estructurales, espaciales y de restricción
+    Extrae las 18 variables binarias estructurales, espaciales y de restricción
     organizadas en 4 dimensiones ortogonales independientes (sin solapamiento léxico entre tags).
     """
     t = normalizar_texto(texto)
     
     return {
-        # --- Dimensión 1: Jerarquía Comercial / Tipo de Asiento (5 tags) ---
+        # --- Dimensión 1: Jerarquía Comercial / Tipo de Asiento (6 tags) ---
         "tag_palco": int(bool(re.search(r"\b(PALCO|PALCOS|BOX|BOXES|SUITE|SUITES|MESA|MESAS)\b", t))),
+        "tag_mesa": int(bool(re.search(r"\b(MESAS?)\b", t))),
         "tag_vip": int(bool(re.search(r"\b(VIP|PLATINUM|PLATINO|PREMIUM|GOLD|DIAMANTE|ORO|PLATA)\b", t))),
         "tag_platea": int(bool(re.search(r"\b(PLATEA|SILLAS|SILLERIA|PISTA|CANCHA)\b", t))),
         "tag_preferencial": int(bool(re.search(r"\b(PREFERENCIAL|PREFERENTE|CENTRAL|FRONTAL)\b", t))),

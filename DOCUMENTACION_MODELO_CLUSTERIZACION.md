@@ -624,5 +624,67 @@ Un algoritmo califica formalmente como candidato si satisface simultáneamente t
   * En **HDBSCAN**, si bien los núcleos densos alcanzan purezas léxicas del $86.4\%$, esto ocurre a expensas de descartar entre el $18\%$ y $26\%$ de los datos como ruido/outliers, con una inestabilidad severa (ARI $= 0.5250$ en $1.5\%$) y múltiples clusters degenerados.
 * **Decisión de Implementación:** Con base en la evidencia empírica, **no se persiste ningún modelo de micro-clusters ni se altera el pipeline de producción**. El modelo canónico v2.3 ($k=5$) permanece inmutable como la versión certificada para el negocio.
 
+---
+
+## 3.8 Arquitectura Jerárquica de Micro-Clusters (v3.0 Candidata)
+
+### 1. Motivación y Formulación Teórica
+La exploración plana documentada en la sección anterior demostró que particionar las $18,400$ localidades multi-zona en un único espacio vectorial de 35 dimensiones con $k > 10$ provoca colapso de pureza léxica (máximo $72.0\%$) debido a la coexistencia simultánea de variables ortogonales de precio, aforo, venue y tags en todo el catálogo.
+
+Para resolver esta limitación sin perturbar el modelo de producción certificado, se diseñó la **Arquitectura Jerárquica de Dos Niveles (v3.0 candidata)**:
+1. **Nivel 1 (Macro Arquetipos v2.3 Inmutables):**
+   * Las localidades de tarifa plana ($15,375$ registros, $45.5\%$ del volumen) no sufren fragmentación y se mapean directamente como el micro-cluster terminal `AU-0` (`Admisión Única`).
+   * Las $18,400$ localidades multi-zona se asignan a los 5 arquetipos macro certificados mediante el pipeline congelado de v2.3.
+2. **Nivel 2 (Sub-clustering por Arquetipo Macro):**
+   * Cada arquetipo macro define un sub-espacio vectorial propio y restringido donde los efectos de escala de precio ya fueron absorbidos por el Nivel 1.
+   * La segmentación interna se enfoca en resolver la heterogeneidad arquitectónica y comercial fina dentro de la categoría.
+
+### 2. Espacio Vectorial de Sub-clustering (32 Dimensiones)
+A diferencia del espacio global de 35D de v2.3, cada sub-modelo de Nivel 2 opera en un espacio vectorial de **32 dimensiones**:
+* **4 Variables Numéricas Relativas ($4\text{D}$):** `ratio_precio_max`, `percentil_precio_evento`, `peso_aforo` y `percentil_precio_absoluto_dentro_tipo`, re-escaladas localmente con un `RobustScaler` ajustado sobre el sub-espacio.
+* **13 Tags Estructurales Expandidos ($13\text{D}$):**
+  * Comerciales y de ubicación base: `tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`.
+  * Espaciales y orientación: `tag_lateral`, `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`.
+  * Mobiliario específico: `tag_mesa` (extraído mediante límites de palabra con el patrón léxico de mesas).
+* **15 Componentes Léxicos TF-IDF ($15\text{D}$, $\omega_{\text{nlp}} = 0.2$):** Reentrenados específicamente sobre los términos más informativos presentes en el sub-espacio del arquetipo.
+* **Exclusión de `type_site` One-Hot:** Se excluyen las 9 columnas de venue porque la tipología de venue actúa como ruido disperso cuando la localidad ya pertenece a un arquetipo macro homogéneo.
+
+### 3. Comparativa de Métricas: Jerarquía vs Exploración Plana
+
+| Enfoque / Espacio | Partición / Arquetipo | $k$ | Pureza Naming | Bootstrap-ARI (std) | Silueta | Davies-Bouldin | Min Cluster % | Pasa Compuertas |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Plano (35D v2.3)** | K-Means Global | 12 | 0.6543 | 0.7493 (0.093) | 0.2235 | 1.4601 | 3.52% | **No** |
+| **Plano (35D v2.3)** | K-Means Global | 14 | 0.6762 | 0.7824 (0.076) | 0.2258 | 1.4866 | 2.80% | **No** |
+| **Plano (35D v2.3)** | K-Means Global | 16 | 0.7200 | 0.7823 (0.066) | 0.2301 | 1.4733 | 2.15% | **No** |
+| **Jerárquico (32D)** | **VIP / Palcos / Premium** | 4 | 0.5233 | 0.7896 (0.139) | 0.1806 | 1.6899 | 12.86% | **No** |
+| **Jerárquico (32D)** | **Popular / Balcón / Vis. Parcial** | 4 | 0.4320 | 0.9716 (0.013) | 0.1691 | 1.9238 | 24.26% | **No** |
+| **Jerárquico (32D)** | **Platea General / Intermedia** | 4 | 0.3116 | 0.9830 (0.010) | 0.1861 | 1.6824 | 22.08% | **No** |
+| **Jerárquico (32D)** | **Preferencial / Platea Frontal** | 4 | **0.9721** | **0.9628 (0.035)** | **0.2825** | **1.2722** | **12.14%** | **Sí** |
+| **Jerárquico (32D)** | **Grada General / Masiva** | 3 | 0.6330 | 0.9777 (0.039) | 0.3559 | 1.0122 | 30.82% | **No** |
+
+### 4. Hallazgos Cuantitativos y Diagnóstico de Calidad
+1. **Estabilidad Estructural Radicalmente Superior:**
+   * En 4 de los 5 sub-espacios evaluados, la estabilidad bootstrap-ARI supera el $96\%$ ($0.9628$ a $0.9830$), frente al techo de $0.7824$ de la exploración plana.
+2. **Cero Degeneración de Clusters:**
+   * El cluster más pequeño en toda la partición jerárquica representa el $12.14\%$ del sub-espacio (muy por encima del piso de seguridad del $3\%$).
+3. **Comportamiento de Pureza Léxica:**
+   * En `Preferencial / Platea Frontal`, el sub-clustering alcanza una pureza casi perfecta ($97.21\%$) aislando coherentemente las localidades de Platea.
+   * En arquetipos como `Platea General / Intermedia` y `Popular / Balcón / Visibilidad Parcial`, la pureza numérica es más baja ($31.2\%$ y $43.2\%$) debido a que en el catálogo transaccional real conviven denominaciones genéricas o combinaciones complejas que carecen de tags unívocos en el nombre.
+4. **Cardinalidad Global:**
+   * Total de micro-clusters generados: **20** ($1$ de Admisión Única + $19$ multi-zona distribuidos en $4 + 4 + 4 + 4 + 3$).
+
+### 5. Reglas de Negocio, Trazabilidad y Rollup Invariante
+* **Inmutabilidad Comercial:** El nombre comercial `logical_seat_category` nunca se altera ni sobreescribe.
+* **Clave de Backend:** El código `micro_cluster_id` (ej. `VIP-0`, `PPF-1`, `AU-0`) es la clave de agregación en bases de datos analíticas.
+* **Etiquetado Determinístico (`label_auto`):** Compuesto en Title Case a partir de tags activos con frecuencia $\ge 60\%$ en el cluster y término dominante léxico, con deduplicación insensible a acentos (evitando redundancias como "Balcón Balcon") y fallback seguro a `hibrido_k{id}` cuando no se alcanzan los umbrales mínimos.
+* **Propagación de Incertidumbre:** Toda localidad con `es_frontera = True` en Nivel 1 activa automáticamente `segmento_incierto = True` en la tabla de asignaciones y alimenta la columna `es_frontera_pct` en el catálogo maestro.
+* **Rollup Jerárquico 1:1 Estricto:** Se garantiza matemáticamente que cada micro-cluster pertenece a exactamente un único arquetipo macro de demanda.
+
+### 6. Artefactos Persistidos (Candidatos v3.0)
+* **Modelo Serializado:** [`data/processed/modelo_jerarquia_v3.joblib`](data/processed/modelo_jerarquia_v3.joblib) (payload completo con Nivel 1 v2.3 y los 5 sub-modelos de Nivel 2).
+* **Catálogo de Micro-clusters:** [`data/processed/cluster_catalog_v3.csv`](data/processed/cluster_catalog_v3.csv) (20 registros con métricas de pureza, tags dominantes y porcentaje de frontera).
+* **Asignación Individual:** [`data/processed/asignacion_microclusters.csv`](data/processed/asignacion_microclusters.csv) (33,775 filas con `micro_cluster_id`, `label_auto`, `arquetipo_demanda` y `segmento_incierto`).
+
+
 
 

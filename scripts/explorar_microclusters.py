@@ -59,6 +59,7 @@ from src.nlp_utils import normalizar_texto
 # Mapeo limpio de tags a etiquetas Title Case
 TAG_LABEL_MAP = {
     "tag_palco": "Palco",
+    "tag_mesa": "Mesa",
     "tag_vip": "VIP",
     "tag_platea": "Platea",
     "tag_preferencial": "Preferencial",
