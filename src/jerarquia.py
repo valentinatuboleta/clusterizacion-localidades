@@ -396,7 +396,7 @@ def predecir_microclusters(
     Asigna micro-clusters y arquetipos de demanda para un nuevo DataFrame de localidades.
     
     Flujo:
-    1. Ejecuta Nivel 1 v2.3 para determinar arquetipo_demanda, score_confianza y es_frontera.
+    1. Ejecuta Nivel 1 v2.5 para determinar arquetipo_demanda, score_confianza y es_frontera.
     2. Monozona / Admision Unica -> 'AU-0' con label 'Admisión Única'.
     3. Multi-zona: enriquece con tags NLP, transforma en el sub-espacio del arquetipo
        y predice con su sub-KMeans local.
@@ -453,7 +453,7 @@ def predecir_microclusters(
             if num_col not in df_input.columns:
                 df_input[num_col] = 0.50 if "percentil" in num_col else 0.0
 
-    # 1. Ejecutar Nivel 1 (v2.3)
+    # 1. Ejecutar Nivel 1 (v2.5)
     if payload_v23 is not None:
         if isinstance(payload_v23, str):
             p_v23 = cargar_modelo_clustering(payload_v23)

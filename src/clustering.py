@@ -26,7 +26,7 @@ from scipy.optimize import linear_sum_assignment
 from src.nlp_utils import vectorizar_texto_limpio
 
 
-MODEL_VERSION = "2.4"
+MODEL_VERSION = "2.5"
 
 # Categorias canonicas estandarizadas de type_site (10 categorias de negocio; 'desconocido' queda fuera del one-hot)
 CANONICAL_TYPE_SITE_CATEGORIES = [
@@ -163,15 +163,15 @@ def construir_espacio_vectorial_mixto(
     tfidf_vectorizer: Optional[Any] = None
 ) -> Tuple[np.ndarray, Any, Any, List[str]]:
     """
-    Construye el espacio vectorial mixto de 35 dimensiones (Modelo v2.3) combinando:
+    Construye el espacio vectorial mixto de 36 dimensiones (Modelo v2.5) combinando:
     1. Metricas numericas relativas ex-ante escaladas (4 variables: ratio_precio_max, percentil_precio_evento,
        peso_aforo, percentil_precio_absoluto_dentro_tipo).
     2. Tags estructurales densos (7 variables: 5 de jerarquia comercial + 2 de nivel vertical).
-    3. One-hot encoding de type_site ponderado (9 categorias canonicas ponderadas por peso_type_site,
+    3. One-hot encoding de type_site ponderado (10 categorias canonicas ponderadas por peso_type_site,
        excluyendo 'desconocido' del one-hot pero preservando su flag).
     4. Embeddings/TF-IDF del texto limpio de la localidad (15 n-gramas) ponderados por peso_nlp.
     
-    Total de dimensiones por defecto: 4 + 7 + 9 + 15 = 35 dimensiones.
+    Total de dimensiones por defecto: 4 + 7 + 10 + 15 = 36 dimensiones.
     """
     df_work = df.copy()
     if "type_site" not in df_work.columns:
@@ -323,7 +323,7 @@ def construir_perfiles_ideales_escalados(
 ) -> Dict[str, np.ndarray]:
     """
     Construye las representaciones vectoriales ideales para cada arquetipo multi-zona
-    dentro del espacio geométrico escalado (35 dimensiones en v2.3).
+    dentro del espacio geométrico escalado (36 dimensiones en v2.5).
     
     Refactor robusto: Mapea cada dimensión explícitamente por nombre en lugar de
     asumir posiciones fijas o slices posicionales [3:].
@@ -431,7 +431,7 @@ def etiquetar_por_centroides_escalados(
 ) -> Dict[int, str]:
     """
     Asigna arquetipos a los clusters evaluando la distancia euclidiana entre los centroides
-    reales del modelo (en el espacio transformado de 35D v2.3 / 25D v2.2) y los perfiles ideales de negocio.
+    reales del modelo (en el espacio transformado de 36D v2.5 / 25D v2.2) y los perfiles ideales de negocio.
     
     Aplica el algoritmo de asignación óptima 1 a 1 (Hungarian / Munkres) para garantizar
     una correspondencia biyectiva estricta sin duplicidades ni heurísticas frágiles de ordenamiento.
@@ -472,11 +472,11 @@ def asignar_arquetipos_demanda(
     Interpreta los centroides de cada cluster en términos de precio relativo, peso de aforo y semántica,
     asignando nombres de arquetipos estandarizados de negocio.
     Si se suministra el objeto kmeans y feature_names, utiliza el motor de asignación geométrica
-    en el espacio escalado (35D en v2.3). En caso contrario, recurre al clasificador heurístico.
+    en el espacio escalado (36D en v2.5). En caso contrario, recurre al clasificador heurístico.
     """
     df_res = df_clustered.copy()
     
-    # 1. Asignación geométrica basada en centroides escalados (35D v2.3 / 25D v2.2)
+    # 1. Asignación geométrica basada en centroides escalados (36D v2.5 / 25D v2.2)
     if kmeans is not None and feature_names is not None:
         mapa_arquetipos = etiquetar_por_centroides_escalados(
             kmeans=kmeans,
@@ -552,10 +552,10 @@ def pipeline_clustering_dos_etapas(
     columnas_numericas: Optional[List[str]] = None
 ) -> Tuple[pd.DataFrame, KMeans, Any, Any, List[str], Dict[str, Any]]:
     """
-    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.3 optimizado):
+    Ejecuta el pipeline de clustering en dos etapas (Modelo v2.5 optimizado):
     1. Etapa 1 (Determinística): Aísla funciones monozona / tarifa plana (~45.5%).
        Se asignan directamente a 'Admisión Única / Tarifa Plana' con cluster = -1.
-    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 35D sobre multi-zona (~54.5%)
+    2. Etapa 2 (Machine Learning): Construye el espacio vectorial mixto de 36D sobre multi-zona (~54.5%)
        con peso_nlp calibrado en 0.2 y peso_type_site en 0.5 para enriquecimiento por tipo de venue.
        Ajusta K-Means con k óptimo (k=5 por defecto, determinado por codo ortogonal y mínimo Davies-Bouldin,
        o selección automática balanceada mediante n_clusters_multizona='auto') y etiqueta mediante geometría húngara.
