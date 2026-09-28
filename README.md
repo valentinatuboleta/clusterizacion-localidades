@@ -51,7 +51,8 @@ clusterizacion-localidades/
 │   ├── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
 │   ├── test_feature_type_site.py               # Tests del feature type_site y percentil
 │   ├── test_microclusters.py                   # Tests de la exploración de micro-clusters
-│   └── test_jerarquia.py                       # Tests de arquitectura jerárquica v3.0 (rollup 1:1, Codo-DB)
+│   ├── test_jerarquia.py                       # Tests de arquitectura jerárquica v3.0 (rollup 1:1, Codo-DB)
+│   └── test_diagnostico_subespacios.py         # Tests de diagnóstico de pureza, cobertura y oráculo
 │
 ├── scripts/                                    # Automatización, diagnóstico y análisis
 │   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
@@ -63,6 +64,7 @@ clusterizacion-localidades/
 │   ├── monitorear_drift.py                     # Monitoreo PSI de drift
 │   ├── explorar_microclusters.py               # Exploración de micro-clusters para normalización de nombres
 │   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0 (Nivel 1 macro -> Nivel 2 micro-clusters)
+│   ├── diagnosticar_subespacios.py             # Diagnóstico de separabilidad, oráculo y sweep condicional VIP
 │   ├── build_presentation.py                   # Generación de presentación ejecutiva de EDA (10 diapositivas)
 │   ├── build_presentation_from_template.py     # Inyección de insights en plantilla corporativa PPTX
 │   ├── build_full_notebook_presentation.py     # Generación de presentación ejecutiva completa
@@ -284,6 +286,7 @@ Arquitectura jerárquica en dos niveles desarrollada como evolución a la limita
   * `data/processed/modelo_jerarquia_v3.joblib`: Modelo jerárquico serializado.
   * `data/processed/cluster_catalog_v3.csv`: Catálogo de los 20 micro-clusters con pureza, términos dominantes y etiquetas.
   * `data/processed/asignacion_microclusters.csv`: Asignación individual para las 33,775 localidades.
+* **Diagnóstico de Pureza y Separabilidad Oracle:** Evaluación formal de la compuerta de pureza ($\ge 0.85$) y sweep condicional en [`scripts/diagnosticar_subespacios.py`](scripts/diagnosticar_subespacios.py) con reporte estructurado en [`reports/diagnostico_subespacios.csv`](reports/diagnostico_subespacios.csv).
 
 ---
 

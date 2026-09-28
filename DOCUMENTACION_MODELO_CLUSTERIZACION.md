@@ -685,6 +685,35 @@ A diferencia del espacio global de 35D de v2.3, cada sub-modelo de Nivel 2 opera
 * **Catálogo de Micro-clusters:** [`data/processed/cluster_catalog_v3.csv`](data/processed/cluster_catalog_v3.csv) (20 registros con métricas de pureza, tags dominantes y porcentaje de frontera).
 * **Asignación Individual:** [`data/processed/asignacion_microclusters.csv`](data/processed/asignacion_microclusters.csv) (33,775 filas con `micro_cluster_id`, `label_auto`, `arquetipo_demanda` y `segmento_incierto`).
 
+### 7. Diagnóstico de Pureza por Sub-espacio e Intervención en VIP
+
+Para dilucidar la causa subyacente del déficit de pureza en los cuatro sub-espacios que no superaron la compuerta ($\ge 0.85$), se implementó el protocolo formal de diagnóstico en [`scripts/diagnosticar_subespacios.py`](scripts/diagnosticar_subespacios.py) evaluando la presencia de tags de identidad (los 13 tags expandidos excluyendo los tags que definen el arquetipo macro), la cobertura léxico-estructural y la pureza máxima alcanzable teórica mediante un oráculo combinatorio.
+
+#### Tabla de Diagnóstico de Pureza por Sub-espacio
+
+| Arquetipo Macro | $N$ | Tags Excluidos (Definen Macro) | Tags Identidad | % Tag Identidad | % Término Distintivo | Cobertura Identidad | Pureza Actual | Pureza Oracle | Veredicto |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **VIP / Palcos / Premium** | 5,070 | `tag_palco`, `tag_vip` | 11 | 84.44% | 5.19% | 86.37% | 0.5233 | 0.8667 | `senal_ahogada` |
+| **Popular / Balcón / Vis. Parcial** | 5,861 | `tag_balcon`, `tag_piso_alto` | 11 | 78.81% | 7.00% | 84.87% | 0.4320 | 0.8659 | `senal_ahogada` |
+| **Platea General / Intermedia** | 3,270 | `tag_platea`, `tag_general` | 11 | 39.69% | 15.11% | 50.40% | 0.3116 | 0.8058 | `senial_inexistente` |
+| **Grada General / Masiva** | 970 | `tag_general` | 12 | 36.49% | 18.76% | 54.02% | 0.6330 | 0.8825 | `senal_ahogada` |
+
+#### Intervención Condicional en VIP (Sweep de Ponderación Textual)
+Al calificar como `senal_ahogada`, el sub-espacio VIP fue sometido a un sweep controlado de peso léxico $\omega_{\text{nlp}} \in \{0.2, 0.35, 0.5\}$ con optimización Codo-DB local:
+
+| $\omega_{\text{nlp}}$ | $k$ Elegido | Pureza Naming | Pureza Tag | Pureza Término | Bootstrap-ARI (std) | Silueta | Davies-Bouldin | Min Cluster % | Pasa Compuertas |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 0.20 | 4 | 0.5797 | 0.5797 | 0.5481 | 0.9918 (0.017) | 0.4181 | 1.1217 | 19.80% | No |
+| 0.35 | 4 | 0.5807 | 0.5807 | 0.5491 | 0.9546 (0.109) | 0.4137 | 1.1364 | 19.82% | No |
+| 0.50 | 4 | 0.5809 | 0.5809 | 0.5493 | 0.9705 (0.080) | 0.4082 | 1.1573 | 19.78% | No |
+
+**Tope Duro y Declaración de Irreducibilidad:**
+Incluso amplificando el peso del texto hasta $\omega_{\text{nlp}} = 0.5$, la pureza máxima alcanzada en VIP es de $0.5809$, permaneciendo muy por debajo del umbral innegociable de $0.85$. Conforme al protocolo, se declara el sub-espacio VIP como **irreducible** bajo el espacio léxico-estructural actual y se da por cerrado el sweep sin incurrir en sobreajuste de la compuerta.
+
+#### Implicación de Negocio y Recomendación Estratégica
+Los nombres comerciales de las localidades en los segmentos de `Platea General / Intermedia` (donde el oráculo demuestra que ni teóricamente se puede superar el $80.58\%$ de pureza) y `VIP / Palcos / Premium` (donde la variabilidad léxica no basta para separar micro-clusters homogéneos al $85\%$) **no soportan tipificación fina automática con el vocabulario transaccional actual**. La evidencia empírica demuestra que muchos nombres de boletas combinan múltiples descriptores en conflicto o carecen por completo de especificidad arquitectónica. Este diagnóstico aporta un fundamento cuantitativo indispensable para cualquier iniciativa corporativa de estandarización en la captura de localidades con los venues y promotores.
+
+
 
 
 

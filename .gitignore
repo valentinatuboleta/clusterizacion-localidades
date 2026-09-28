@@ -229,6 +229,7 @@ data/*
 *.csv
 !data/lookup/*.csv
 !reports/microclusters_resultados.csv
+!reports/diagnostico_subespacios.csv
 !data/processed/cluster_catalog_v3.csv
 !data/processed/asignacion_microclusters.csv
 

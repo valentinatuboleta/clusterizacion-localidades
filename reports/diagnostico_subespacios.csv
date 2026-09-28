@@ -1,0 +1,5 @@
+arquetipo_macro,n,tags_excluidos,n_tags_identidad,pct_tag_identidad,pct_termino_distintivo,cobertura_identidad,pureza_actual,pureza_oracle,veredicto
+VIP / Palcos / Premium,5070,"tag_palco,tag_vip",11,84.44,5.19,86.37,0.5233,0.8667,senal_ahogada
+Popular / Balcón / Visibilidad Parcial,5861,"tag_balcon,tag_piso_alto",11,78.81,7.0,84.87,0.432,0.8659,senal_ahogada
+Platea General / Intermedia,3270,"tag_platea,tag_general",11,39.69,15.11,50.4,0.3116,0.8058,senial_inexistente
+Grada General / Masiva,970,tag_general,12,36.49,18.76,54.02,0.633,0.8825,senal_ahogada
