@@ -2,7 +2,7 @@
 
 Proyecto integral de Data Science y Machine Learning para la segmentación y clasificación automatizada de localidades en espectáculos públicos a partir de datos transaccionales almacenados en formato `.parquet` en Azure Blob Storage.
 
-El modelo implementa un **espacio vectorial mixto de 36 dimensiones** (Modelo v2.4: características numéricas relativas *ex-ante*, percentil dentro de tipología de venue, tags estructurales extraídos mediante NLP, tipología de venue one-hot ponderada con 10 categorías canónicas y representaciones TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
+El modelo implementa un **espacio vectorial mixto de 36 dimensiones** (Modelo v2.5: características numéricas relativas *ex-ante*, percentil dentro de tipología de venue, tags estructurales extraídos mediante NLP, tipología de venue one-hot ponderada con 10 categorías canónicas y representaciones TF-IDF) para agrupar el catálogo en **6 arquetipos estandarizados de demanda** a través de una arquitectura en dos etapas.
 
 ---
 
@@ -17,7 +17,7 @@ clusterizacion-localidades/
 ├── README.md                                   # Guía general de uso y arquitectura
 ├── requirements.txt                            # Dependencias locales (sin PySpark)
 ├── requirements-databricks.txt                 # Dependencias exclusivas para Databricks
-├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.4)
+├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.5)
 │
 ├── .github/                                    # Integración Continua (CI)
 │   └── workflows/
@@ -34,7 +34,7 @@ clusterizacion-localidades/
 ├── notebooks/                                  # Flujo interactivo paso a paso
 │   ├── 00_databricks_raw_data.ipynb            # Extracción y preparación inicial en Databricks
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
-│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (36D), K-Means/GMM y arquetipos (v2.4)
+│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (36D), K-Means/GMM y arquetipos (v2.5)
 │
 ├── src/                                        # Módulos Python reutilizables de producción
 │   ├── __init__.py
@@ -42,7 +42,7 @@ clusterizacion-localidades/
 │   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento, consistencia y venue
 │   ├── llm_classifier.py                       # Clasificador de venues con Gemini 3.8 Flash Medium y auditoría
-│   ├── clustering.py                           # Espacio mixto 36D, clustering bietápico, persistencia e inferencia (v2.4)
+│   ├── clustering.py                           # Espacio mixto 36D, clustering bietápico, persistencia e inferencia (v2.5)
 │   ├── jerarquia.py                            # Arquitectura jerárquica, scoring y drift de micro-clusters (v3.0-hier.2)
 │   └── validar_frecuencias.py                  # Compuerta de validación de frecuencias de taxonomía
 │
@@ -61,8 +61,8 @@ clusterizacion-localidades/
 │   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
 │   ├── migrar_lookup_v2.py                     # Script de migración y trazabilidad de lookup v1 -> v2
 │   ├── validar_frecuencias_taxonomy.py         # Validación formal de frecuencias y compuertas
-│   ├── entrenar_v24.py                         # Re-entrenamiento, evaluación y persistencia modelo v2.4
-│   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0-hier.2 (Nivel 1 v2.4 -> Nivel 2 micro-clusters)
+│   ├── entrenar_v24.py                         # Re-entrenamiento, evaluación y persistencia modelo v2.4 / v2.5
+│   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0-hier.2 (Nivel 1 v2.5 -> Nivel 2 micro-clusters)
 │   ├── diagnosticar_subespacios.py             # Diagnóstico de separabilidad, oráculo y sweep condicional VIP
 │   ├── comparar_v22_vs_v23.py                  # Comparación y ablación de versiones
 │   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
@@ -162,7 +162,7 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
      * **Orientación Espacial:** `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_lateral`, `tag_vista_parcial`.
      * **Restricciones de Acceso:** `tag_familiar`, `tag_menores`, `tag_movilidad_reducida`.
 
-3. **Arquitectura en Dos Etapas y Espacio Mixto 36D (`src/clustering.py` - Modelo v2.4 Optimizado):**
+3. **Arquitectura en Dos Etapas y Espacio Mixto 36D (`src/clustering.py` - Modelo v2.5 Optimizado):**
    * **Etapa 1 (Determinística):** Aislamiento de funciones de admisión única / tarifa plana a nivel evento ($15,375$ registros, $45.5\%$ del catálogo: Cinemateca, Maloka, museos). Asignación directa a *Admisión Única / Tarifa Plana*.
    * **Etapa 2 (Machine Learning Multi-Zona):** Modelado en espacio mixto de 36 dimensiones sobre el catálogo zonificado ($18,400$ registros, $54.5\%$):
      * $4$ métricas numéricas relativas *ex-ante* (`RobustScaler`, incluyendo percentil de precio dentro del tipo de venue).
@@ -175,7 +175,7 @@ El pipeline transforma $33,775$ registros certificados a través de 3 componente
 
 ## Taxonomía de Venues (type_site) y Migración v2
 
-El modelo v2.4 consolida una taxonomía formal de **10 categorías canónicas de negocio** (más el fallback interno `desconocido` para casos no comerciales fuera del vector one-hot):
+El modelo v2.5 consolida una taxonomía formal de **10 categorías canónicas de negocio** (más el fallback interno `desconocido` para casos no comerciales fuera del vector one-hot):
 
 1. **`ARENA`**: Escenarios multipropósito modernos cubiertos de gran escala para conciertos internacionales (ej. Movistar Arena).
 2. **`CINEMATECA`**: Salas de cine arte y centros audiovisuales con butacas numeradas individuales.
@@ -199,7 +199,7 @@ El modelo v2.4 consolida una taxonomía formal de **10 categorías canónicas de
 
 ---
 
-## Los 6 Arquetipos de Demanda (Modelo v2.4 Optimizado)
+## Los 6 Arquetipos de Demanda (Modelo v2.5 Optimizado)
 
 | Arquetipo Estandarizado | Etapa | Registros | % Catálogo | Ratio Precio | Peso Aforo | Precio Mediano COP | Localidades Típicas Clasificadas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -209,7 +209,7 @@ El modelo v2.4 consolida una taxonomía formal de **10 categorías canónicas de
 | **Platea General / Intermedia** | Etapa 2 | 3,463 | **10.25%** | 0.71 | 32.8% | **$49,000** | *Platea Media, Balcón Delantero, Localidades intermedias* |
 | **Preferencial / Platea Frontal** | Etapa 2 | 2,934 | **8.69%** | 0.86 | 17.0% | **$122,000** | *Platea 1, Platea Delantera, Sillas Centrales, Preferencial* |
 | **Grada General / Masiva** | Etapa 2 | 990 | **2.93%** | 0.81 | 78.1% | **$66,000** | *Graderías masivas de estadios, Gradas Norte/Sur completas* |
-| **TOTAL CATÁLOGO** | **v2.4** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
+| **TOTAL CATÁLOGO** | **v2.5** | **33,775** | **100.0%** | — | — | — | *Calidad y consistencia física 100% certificada* |
 
 ---
 
@@ -243,8 +243,8 @@ pytest tests/ -v
 import pandas as pd
 from src.clustering import cargar_modelo_clustering, predecir_arquetipos_demanda
 
-# Cargar modelo serializado v2.4
-modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_4.joblib")
+# Cargar modelo serializado v2.5
+modelo = cargar_modelo_clustering("data/processed/modelo_clustering_v2_5.joblib")
 
 # Predecir arquetipos con observabilidad completa (score de confianza, frontera, OOV)
 df_segmentado = predecir_arquetipos_demanda(df_nuevas_localidades, modelo)
@@ -288,9 +288,9 @@ Evaluación experimental de particiones finas ($k > 10$) sobre las $18,400$ loca
 Arquitectura jerárquica en dos niveles desarrollada como evolución a la limitación de la exploración plana ($k > 10$ en el espacio unificado, donde la heterogeneidad global colapsa la pureza y separabilidad léxico-estructural).
 
 * **Aprobación de la Jerarquía como Feature Generator:**
-  La jerarquía queda **aprobada como generador de features** bajo sus criterios propios de calidad: alta estabilidad bootstrap-ARI en sub-espacios clave (hasta $0.9740$ en Popular y $0.9362$ en Platea Intermedia), cobertura total ($100\%$ del catálogo sin descarte de datos), rollup 1:1 estricto y 0 clusters degenerados. La compuerta de pureza léxica queda archivada como criterio propio del caso de uso de normalización de nombres, no del de generación de features predictivas (ver diagnóstico en Módulo 3.8). El modelo v2.4 de producción actúa como baseline de Nivel 1.
+  La jerarquía queda **aprobada como generador de features** bajo sus criterios propios de calidad: alta estabilidad bootstrap-ARI en sub-espacios clave (hasta $0.9740$ en Popular y $0.9362$ en Platea Intermedia), cobertura total ($100\%$ del catálogo sin descarte de datos), rollup 1:1 estricto y 0 clusters degenerados. La compuerta de pureza léxica queda archivada como criterio propio del caso de uso de normalización de nombres, no del de generación de features predictivas (ver diagnóstico en Módulo 3.8). El modelo v2.5 de producción actúa como baseline de Nivel 1.
 * **Arquitectura de Dos Niveles:**
-  1. **Nivel 1 (Producción v2.4):** Separa localidades de tarifa plana (`Admisión Única`, $15,375$ registros clasificados directamente como micro-cluster terminal `AU-0`) y clasifica las $18,400$ localidades multi-zona en los 5 arquetipos macro de demanda certificados (espacio mixto 36D).
+  1. **Nivel 1 (Producción v2.5):** Separa localidades de tarifa plana (`Admisión Única`, $15,375$ registros clasificados directamente como micro-cluster terminal `AU-0`) y clasifica las $18,400$ localidades multi-zona en los 5 arquetipos macro de demanda certificados (espacio mixto 36D).
   2. **Nivel 2 (Sub-clustering por Arquetipo Macro):** Para cada uno de los 5 arquetipos macro multi-zona, se entrena un sub-modelo K-Means en un sub-espacio propio de **32 dimensiones**:
      * 4 numéricas relativas estandarizadas con `RobustScaler` ajustado localmente.
      * 13 tags estructurales binarios expandidos (`tag_palco`, `tag_vip`, `tag_platea`, `tag_preferencial`, `tag_general`, `tag_balcon`, `tag_piso_alto`, `tag_lateral`, `tag_occidental`, `tag_oriental`, `tag_norte`, `tag_sur`, `tag_mesa`).
