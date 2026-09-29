@@ -273,7 +273,7 @@ Este módulo resuelve la distorsión del dinero y el tamaño del venue calculand
 * **¿Por qué se usa?**: Entrenar un modelo de clustering con datos inconsistentes desplazaría los centroides hacia valores espurios.
 * **Condición de filtrado**:
   ```python
-  (dn_quota > 0) & (performance_quota > 0) & (med_unit_amt_itx >= 0) & 
+  (dn_quota > 0) & (performance_quota > 0) & (med_base_unit_amt_itx >= 0) & 
   (net_sold_p_qty >= 0) & (net_sold_c_qty >= 0) &
   (suma_dn_quota_por_evento == performance_quota)
   ```

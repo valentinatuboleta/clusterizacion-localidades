@@ -197,7 +197,7 @@ def ejecutar_comparativa_v22_vs_v23():
     casos_teatro_gen = pd.DataFrame({
         "site": df_enr.loc[mask_teatro_gen, "site"],
         "localidad": df_enr.loc[mask_teatro_gen, "logical_seat_category"],
-        "precio": df_enr.loc[mask_teatro_gen, "med_unit_amt_itx"],
+        "precio": df_enr.loc[mask_teatro_gen, "med_base_unit_amt_itx"],
         "percentil_tipo": df_enr.loc[mask_teatro_gen, "percentil_precio_absoluto_dentro_tipo"].round(3),
         "arquetipo_v22": df_v22.loc[mask_teatro_gen, "arquetipo_demanda"],
         "arquetipo_v26": df_v26.loc[mask_teatro_gen, "arquetipo_demanda"],

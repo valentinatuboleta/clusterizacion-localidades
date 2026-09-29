@@ -72,7 +72,7 @@ def generar_referencia_percentil_tipo(
     df: pd.DataFrame,
     site_column: str = "site",
     localidad_column: Optional[str] = None,
-    precio_column: str = "med_unit_amt_itx",
+    precio_column: Optional[str] = None,
     min_localidades_historicas: int = 50
 ) -> Dict[str, Any]:
     """
@@ -89,7 +89,10 @@ def generar_referencia_percentil_tipo(
     else:
         loc_col = localidad_column
 
-    col_p = precio_column if precio_column in df_work.columns else "ave_unit_amt_itx"
+    if precio_column is not None:
+        col_p = precio_column if precio_column in df_work.columns else "med_base_unit_amt_itx"
+    else:
+        col_p = "med_base_unit_amt_itx" if "med_base_unit_amt_itx" in df_work.columns else "ave_unit_amt_itx"
     if col_p not in df_work.columns:
         return {}
 
@@ -127,7 +130,7 @@ def calcular_percentil_precio_absoluto_dentro_tipo(
     df: pd.DataFrame,
     site_column: str = "site",
     localidad_column: Optional[str] = None,
-    precio_column: str = "med_unit_amt_itx",
+    precio_column: Optional[str] = None,
     referencia_distribucion: Optional[Dict[str, Any]] = None,
     min_localidades_historicas: int = 50
 ) -> pd.DataFrame:
@@ -147,7 +150,10 @@ def calcular_percentil_precio_absoluto_dentro_tipo(
     else:
         loc_col = localidad_column
 
-    col_p = precio_column if precio_column in df_res.columns else "ave_unit_amt_itx"
+    if precio_column is not None:
+        col_p = precio_column if precio_column in df_res.columns else "med_base_unit_amt_itx"
+    else:
+        col_p = "med_base_unit_amt_itx" if "med_base_unit_amt_itx" in df_res.columns else "ave_unit_amt_itx"
     if col_p not in df_res.columns:
         df_res["percentil_precio_absoluto_dentro_tipo"] = 0.50
         df_res["flag_cold_start_tipo"] = 1
@@ -202,20 +208,29 @@ def calcular_percentil_precio_absoluto_dentro_tipo(
     return df_res
 
 
-def filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame:
+def filtrar_consistencia_localidades(
+    df: pd.DataFrame,
+    col_precio: Optional[str] = None
+) -> pd.DataFrame:
     """
     Aplica filtros de consistencia para el análisis y modelado de localidades:
     - dn_quota > 0 (la localidad debe tener capacidad física asignada).
     - performance_quota > 0 (el evento debe tener aforo registrado).
-    - med_unit_amt_itx >= 0 (precios no negativos).
+    - col_precio >= 0 (precios no negativos, compatible con med_base_unit_amt_itx).
     - net_sold_p_qty >= 0 y net_sold_c_qty >= 0 (cantidades no negativas).
     - Consistencia física del evento: suma(dn_quota) == performance_quota por t_performance_id.
     """
     # 1. Filtros básicos de validez física y monetaria
+    if col_precio is not None:
+        precio_col = col_precio if col_precio in df.columns else "med_base_unit_amt_itx"
+    else:
+        precio_col = "med_base_unit_amt_itx" if "med_base_unit_amt_itx" in df.columns else None
+
+    precio_valido = df[precio_col].abs() >= 0 if (precio_col and precio_col in df.columns) else True
     df_clean = df[
         (df["dn_quota"] > 0) &
         (df["performance_quota"] > 0) &
-        (df["med_unit_amt_itx"] >= 0) &
+        precio_valido &
         (df["net_sold_p_qty"] >= 0) &
         (df["net_sold_c_qty"] >= 0)
     ].copy()
@@ -227,7 +242,10 @@ def filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame:
     return df_clean
 
 
-def calcular_metricas_relativas(df: pd.DataFrame) -> pd.DataFrame:
+def calcular_metricas_relativas(
+    df: pd.DataFrame,
+    col_precio: Optional[str] = None
+) -> pd.DataFrame:
     """
     Calcula variables relativas normalizadas dentro de cada evento (t_performance_id):
     - peso_aforo: Capacidad relativa de la localidad frente al aforo total del evento.
@@ -244,25 +262,31 @@ def calcular_metricas_relativas(df: pd.DataFrame) -> pd.DataFrame:
     df_res["peso_aforo"] = np.clip(df_res["dn_quota"] / df_res["performance_quota"], 0.0, 1.0)
     
     # 2. Métricas de precio relativo dentro de cada función/evento
-    evento_max_precio = df_res.groupby("t_performance_id")["med_unit_amt_itx"].transform("max")
-    evento_mean_precio = df_res.groupby("t_performance_id")["med_unit_amt_itx"].transform("mean")
+    if col_precio is not None:
+        col_p = col_precio if col_precio in df_res.columns else "med_base_unit_amt_itx"
+    else:
+        col_p = "med_base_unit_amt_itx" if "med_base_unit_amt_itx" in df_res.columns else "ave_unit_amt_itx"
+    s_precio = df_res[col_p].abs()
+    
+    evento_max_precio = df_res.groupby("t_performance_id")[col_p].transform(lambda x: x.abs().max())
+    evento_mean_precio = df_res.groupby("t_performance_id")[col_p].transform(lambda x: x.abs().mean())
     
     # Ratio frente al precio máximo
     df_res["ratio_precio_max"] = np.where(
         evento_max_precio > 0, 
-        df_res["med_unit_amt_itx"] / evento_max_precio, 
+        s_precio / evento_max_precio, 
         0.0
     )
     
     # Ratio frente al precio promedio
     df_res["ratio_precio_mean"] = np.where(
         evento_mean_precio > 0, 
-        df_res["med_unit_amt_itx"] / evento_mean_precio, 
+        s_precio / evento_mean_precio, 
         1.0
     )
     
     # Percentil relativo de precio dentro de la misma función (0 a 1)
-    df_res["percentil_precio_evento"] = df_res.groupby("t_performance_id")["med_unit_amt_itx"].rank(pct=True)
+    df_res["percentil_precio_evento"] = df_res.groupby("t_performance_id")[col_p].rank(pct=True)
     
     # 3. Métricas de absorción de demanda y ocupación
     total_vendido = df_res["net_sold_p_qty"] + df_res["net_sold_c_qty"]
@@ -278,25 +302,29 @@ def calcular_metricas_relativas(df: pd.DataFrame) -> pd.DataFrame:
     return df_res
 
 
-def preparar_dataset_enriquecido(df: pd.DataFrame) -> pd.DataFrame:
+def preparar_dataset_enriquecido(
+    df: pd.DataFrame,
+    col_precio: Optional[str] = None
+) -> pd.DataFrame:
     """
     Ejecuta el pipeline de enriquecimiento completo:
     1. Filtrado de consistencia.
     2. Adjuntar categoría estandarizada de venue (type_site).
-    3. Cálculo de métricas relativas por evento.
-    4. Extracción de variables semánticas, espaciales y limpieza de texto NLP.
+    3. Cálculo de métricas relativas por evento (soporta med_base_unit_amt_itx).
+    4. Cálculo de percentil de precio absoluto dentro de type_site.
+    5. Extracción de variables semánticas, espaciales y limpieza de texto NLP.
     """
     print("1. Aplicando filtros de consistencia...")
-    df_clean = filtrar_consistencia_localidades(df)
+    df_clean = filtrar_consistencia_localidades(df, col_precio=col_precio)
     
     print("2. Adjuntando tipología estandarizada de venue (type_site)...")
     df_site = adjuntar_tipo_venue(df_clean)
 
     print("3. Calculando métricas numéricas relativas por evento...")
-    df_rel = calcular_metricas_relativas(df_site)
+    df_rel = calcular_metricas_relativas(df_site, col_precio=col_precio)
 
     print("4. Calculando percentil de precio absoluto dentro de type_site...")
-    df_pct = calcular_percentil_precio_absoluto_dentro_tipo(df_rel)
+    df_pct = calcular_percentil_precio_absoluto_dentro_tipo(df_rel, precio_column=col_precio)
     
     print("5. Extrayendo variables estructurales y limpiando texto NLP...")
     df_final = pipeline_procesamiento_nlp(df_pct, col_nombre="logical_seat_category")

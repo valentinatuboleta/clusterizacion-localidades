@@ -431,11 +431,11 @@ def predecir_microclusters(
     # Metricas relativas
     if any(c not in df_input.columns for c in DEFAULT_NUMERIC_FEATURES):
         if "t_performance_id" in df_input.columns and "performance_quota" in df_input.columns and "dn_quota" in df_input.columns:
-            if "med_unit_amt_itx" not in df_input.columns:
+            if "med_base_unit_amt_itx" not in df_input.columns:
                 col_p = next((c for c in ["price_amount", "precio", "unit_amount"] if c in df_input.columns), None)
                 if col_p:
-                    df_input["med_unit_amt_itx"] = df_input[col_p]
-            if "med_unit_amt_itx" in df_input.columns and "net_sold_p_qty" in df_input.columns and "net_sold_c_qty" in df_input.columns:
+                    df_input["med_base_unit_amt_itx"] = df_input[col_p]
+            if "med_base_unit_amt_itx" in df_input.columns and "net_sold_p_qty" in df_input.columns and "net_sold_c_qty" in df_input.columns:
                 try:
                     df_input = calcular_metricas_relativas(df_input)
                 except Exception:

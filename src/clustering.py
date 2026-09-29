@@ -1083,7 +1083,7 @@ def predecir_arquetipos_demanda(
     # Asegurar presencia de variables numericas continuas
     if any(c not in df_input.columns for c in DEFAULT_NUMERIC_FEATURES):
         if "t_performance_id" in df_input.columns and any(
-            c in df_input.columns for c in ["ave_unit_amt_itx", "med_unit_amt_itx", "net_sold_p_qty"]
+            c in df_input.columns for c in ["ave_unit_amt_itx", "med_base_unit_amt_itx", "net_sold_p_qty"]
         ):
             from src.feature_engineering import calcular_metricas_relativas
             df_input = calcular_metricas_relativas(df_input)

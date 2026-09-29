@@ -50,7 +50,7 @@ def ejecutar_comparativa():
         Ratio_Precio=("ratio_precio_max", "mean"),
         Peso_Aforo_Pct=("peso_aforo", lambda s: f"{s.mean()*100:.1f}%"),
         Ocupacion_Pct=("tasa_ocupacion", lambda s: f"{s.mean()*100:.1f}%"),
-        Precio_Mediano_COP=("med_unit_amt_itx", "median")
+        Precio_Mediano_COP=("med_base_unit_amt_itx", "median")
     ).reset_index()
     resumen_old["% Catálogo"] = (resumen_old["Registros"] / len(df_old) * 100).round(1).astype(str) + "%"
 
@@ -67,7 +67,7 @@ def ejecutar_comparativa():
         Ratio_Precio=("ratio_precio_max", "mean"),
         Peso_Aforo_Pct=("peso_aforo", lambda s: f"{s.mean()*100:.1f}%"),
         Ocupacion_Pct=("tasa_ocupacion", lambda s: f"{s.mean()*100:.1f}%"),
-        Precio_Mediano_COP=("med_unit_amt_itx", "median")
+        Precio_Mediano_COP=("med_base_unit_amt_itx", "median")
     ).reset_index()
     resumen_new["% Catálogo"] = (resumen_new["Registros"] / len(df_new) * 100).round(1).astype(str) + "%"
 
@@ -118,7 +118,7 @@ def ejecutar_comparativa():
     # 3. Transición de VIP / Palcos
     vip_old = df_old[df_old["arquetipo_demanda"] == "VIP / Palcos / Premium"]
     vip_new = df_new[df_new["arquetipo_demanda"] == "VIP / Palcos / Premium"]
-    p_med_vip = vip_new["med_unit_amt_itx"].median() if "med_unit_amt_itx" in vip_new.columns else 0.0
+    p_med_vip = vip_new["med_base_unit_amt_itx"].median() if "med_base_unit_amt_itx" in vip_new.columns else 0.0
     print(f"3. 'VIP / Palcos / Premium' pasó de {len(vip_old):,} filas (mezcladas con monozona) a {len(vip_new):,} filas puras,")
     print(f"   concentrando palcos y mesas de alta gama con precio mediano de ${p_med_vip:,.0f} COP (el más alto del catálogo).")
 

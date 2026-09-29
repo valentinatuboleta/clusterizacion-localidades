@@ -329,7 +329,7 @@ def build_full_presentation(
             ("1. Dimensiones y Cobertura",
              "El dataset raw contiene 33,878 filas y 16 columnas analiticas que representan la totalidad del historial de boleteria.\n\nCada registro equivale a una localidad unica asociada a una funcion (performance) y evento."),
             ("2. Atributos Clave Disponibles",
-             "- Identificadores: event_id, performance_id, site (venue).\n- Texto: logical_seat_category (nombre comercial).\n- Economicos: med_unit_amt_itx (precio en COP).\n- Fisicos: dn_quota (aforo de la localidad).\n- Ventas: tickets_pago, tickets_cero, tasa_ocupacion."),
+             "- Identificadores: event_id, performance_id, site (venue).\n- Texto: logical_seat_category (nombre comercial).\n- Economicos: med_base_unit_amt_itx (precio en COP).\n- Fisicos: dn_quota (aforo de la localidad).\n- Ventas: tickets_pago, tickets_cero, tasa_ocupacion."),
             ("3. Diagnostico de Calidad de Datos",
              "- No hay nulos en variables economicas y de aforo.\n- Se detectan 103 filas con dn_quota = 0 o inconsistencias que deben filtrarse en el modulo de consistencia.\n- Mas de 2,400 cadenas de texto comerciales unicas.")
         ],
@@ -438,7 +438,7 @@ def build_full_presentation(
         "Reglas de Depuracion y Consistencia Fisica de Localidades",
         [
             ("Reglas de Filtrado Aplicadas (filtrar_consistencia_localidades)",
-             "1. Exclusion de Cuotas en Cero: Se descartan registros con dn_quota <= 0 (localidades de prueba tecnica o bloqueadas administrativamente).\n2. Exclusion de Precios Invalidos: Se descartan boletas con med_unit_amt_itx < 0.\n3. Eliminacion de Eventos Inconsistentes: Funciones donde la suma de aforos de localidades sea cero.\n\nResultado: Se eliminan 103 registros corruptos (0.3% del dataset), consolidando un universo depurado de 33,775 localidades."),
+             "1. Exclusion de Cuotas en Cero: Se descartan registros con dn_quota <= 0 (localidades de prueba tecnica o bloqueadas administrativamente).\n2. Exclusion de Precios Invalidos: Se descartan boletas con med_base_unit_amt_itx < 0.\n3. Eliminacion de Eventos Inconsistentes: Funciones donde la suma de aforos de localidades sea cero.\n\nResultado: Se eliminan 103 registros corruptos (0.3% del dataset), consolidando un universo depurado de 33,775 localidades."),
             ("Impacto en la Estabilidad de Ratios",
              "- Garantiza que el denominador en peso_aforo (performance_quota) nunca genere divisiones por cero o infinitos.\n- Permite calcular percentiles de precio y ratios relativos exactos y reproducibles en produccion.")
         ],
@@ -612,10 +612,10 @@ def build_full_presentation(
         "ANALISIS DE CORRELACIONES",
         "Grafico 4: Matriz de Correlaciones Numericas y Ratios Estructurales",
         "reports/figures/fig4_correlaciones.png",
-        "La matriz de Pearson evalua relaciones lineales entre dinero nominal en COP (med_unit_amt_itx), ratios de precio (ratio_precio_max, ratio_precio_mean, percentil_precio_evento), capacidad fisica (dn_quota, peso_aforo) y rendimiento (tasa_ocupacion, tasa_venta_paga, ratio_cortesias).",
+        "La matriz de Pearson evalua relaciones lineales entre dinero nominal en COP (med_base_unit_amt_itx), ratios de precio (ratio_precio_max, ratio_precio_mean, percentil_precio_evento), capacidad fisica (dn_quota, peso_aforo) y rendimiento (tasa_ocupacion, tasa_venta_paga, ratio_cortesias).",
         [
-            "Correlacion Nula con el Dinero Nominal: r(med_unit_amt_itx, ratio_precio_max) = -0.034. El dinero en pesos COP es independiente de la exclusividad.",
-            "Relacion Negativa de Aforo y Precio: r(peso_aforo, med_unit_amt_itx) = -0.247 y r(peso_aforo, tasa_ocupacion) = -0.331.",
+            "Correlacion Nula con el Dinero Nominal: r(med_base_unit_amt_itx, ratio_precio_max) = -0.034. El dinero en pesos COP es independiente de la exclusividad.",
+            "Relacion Negativa de Aforo y Precio: r(peso_aforo, med_base_unit_amt_itx) = -0.247 y r(peso_aforo, tasa_ocupacion) = -0.331.",
             "Ausencia de Colinealidad Critica: Todas las variables presentan correlaciones |r| < 0.85, garantizando complementariedad en el espacio vectorial."
         ]
     )

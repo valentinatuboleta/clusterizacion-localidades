@@ -293,7 +293,7 @@ def build_presentation_from_template(
             "tema": "ANALISIS DE CORRELACIONES",
             "desc": "Grafico 4: Matriz de Correlaciones Numericas y Ratios Estructurales",
             "fig": "reports/figures/fig4_correlaciones.png",
-            "analysis": "La correlacion entre el precio nominal en COP (med_unit_amt_itx) y el ratio_precio_max es nula (r = -0.034), demostrando que el dinero nominal no refleja exclusividad. El peso_aforo correlaciona negativamente con ratio_precio_max (r = -0.247) y tasa_ocupacion (r = -0.331). La tasa de ocupacion correlaciona con ventas pagas (r = 0.727).",
+            "analysis": "La correlacion entre el precio nominal en COP (med_base_unit_amt_itx) y el ratio_precio_max es nula (r = -0.034), demostrando que el dinero nominal no refleja exclusividad. El peso_aforo correlaciona negativamente con ratio_precio_max (r = -0.247) y tasa_ocupacion (r = -0.331). La tasa de ocupacion correlaciona con ventas pagas (r = 0.727).",
             "conclusions": [
                 "Independencia del Precio Nominal: r = -0.034 prueba que $150k COP es General en estadio pero VIP en teatro. Las metricas relativas eliminan este sesgo macro.",
                 "Ley de Oferta y Demanda en el Aforo: A mayor peso de aforo de una localidad dentro del show, menor tiende a ser su ratio de precio relativo.",

@@ -102,7 +102,7 @@ for dim, tags in dimensiones_nlp.items():
             "Tag": t.replace("tag_", "").upper(),
             "Total": n_reg,
             "Aforo": sub["peso_aforo"].mean() * 100 if n_reg > 0 else 0,
-            "Precio": sub["med_unit_amt_itx"].median() if n_reg > 0 else 0
+            "Precio": sub["med_base_unit_amt_itx"].median() if n_reg > 0 else 0
         })
 df_17 = pd.DataFrame(stats_17)
 fig, axes = plt.subplots(1, 2, figsize=(11, 5.5))
@@ -147,7 +147,7 @@ plt.savefig("reports/figures/fig3b_boxplots_bivariados.png", dpi=200)
 plt.close()
 
 # 7. FIG 4: Correlaciones
-corr_cols = ["med_unit_amt_itx", "ratio_precio_max", "ratio_precio_mean", "percentil_precio_evento", "dn_quota", "peso_aforo", "tasa_ocupacion", "tasa_venta_paga", "ratio_cortesias"]
+corr_cols = ["med_base_unit_amt_itx", "ratio_precio_max", "ratio_precio_mean", "percentil_precio_evento", "dn_quota", "peso_aforo", "tasa_ocupacion", "tasa_venta_paga", "ratio_cortesias"]
 plt.figure(figsize=(9, 7))
 sns.heatmap(df_enriquecido[corr_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", cbar=True, vmin=-1, vmax=1, annot_kws={"size": 8.5})
 plt.title("Matriz de Correlación de Variables Estructurales y Rendimiento", fontsize=11, fontweight="bold")
