@@ -34,7 +34,8 @@ clusterizacion-localidades/
 ├── notebooks/                                  # Flujo interactivo paso a paso
 │   ├── 00_databricks_raw_data.ipynb            # Extracción y preparación inicial en Databricks
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
-│   └── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (36D), K-Means/GMM y arquetipos (v2.5)
+│   ├── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (36D), K-Means/GMM y arquetipos (v2.5)
+│   └── 03_marcha_blanca_evaluacion.ipynb       # Protocolo y evaluación de Marcha Blanca (v3.0 / v2.5)
 │
 ├── src/                                        # Módulos Python reutilizables de producción
 │   ├── __init__.py
@@ -49,6 +50,7 @@ clusterizacion-localidades/
 ├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
 │   ├── __init__.py
 │   ├── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
+│   ├── test_filtro_raw.py                      # Tests herméticos de reglas de filtrado y consistencia
 │   ├── test_clasificacion_sites.py             # Casos borde toponímicos, límites de palabra y trazabilidad v2
 │   ├── test_llm_classifier.py                  # Inferencia LLM hermética con mocks para CI
 │   ├── test_feature_type_site.py               # Tests del feature type_site (10 categorías) y percentil
@@ -351,6 +353,37 @@ Especificación técnica para el consumo operativo de micro-clusters y arquetipo
   df_features = predecir_microclusters(df_lote, "data/processed/modelo_jerarquia_v3.joblib")
   # Features listas: df_features[["micro_cluster_id", "arquetipo_demanda"]]
   ```
+
+---
+
+## Marcha Blanca (Shadow Testing)
+
+El proceso de **Marcha Blanca** permite auditar y evaluar el comportamiento de los modelos de clusterización (Nivel 1 Macro-Arquetipos v2.5 + Nivel 2 Micro-Clusters Canónicos v3.0) de forma aislada sobre nuevos eventos curados de Secutix, sin impacto sobre los sistemas en producción.
+
+### 1. Origen de Datos y Parámetros
+* **Ruta oficial en Azure Blob Storage (Capa Gold):**
+  `GOLD/SECUTIX/Training Data/Clustering de Localidades test/`
+* **Variables de entorno requeridas ([`.env`](.env)):**
+  * `AZURE_STORAGE_CONNECTION_STRING` o `AZURE_STORAGE_ACCOUNT_NAME` + `AZURE_STORAGE_ACCOUNT_KEY`
+  * `AZURE_CONTAINER_NAME=tuboleta`
+* **Carga programática vía SDK:**
+  ```python
+  from src.azure_utils import cargar_parquet_desde_azure
+  df_test_raw = cargar_parquet_desde_azure(blob_name="GOLD/SECUTIX/Training Data/Clustering de Localidades test/")
+  ```
+
+### 2. Ejecución de la Evaluación
+Se puede ejecutar interactivamente mediante el notebook oficial o vía CLI:
+
+* **Opción Notebook:** Abrir y ejecutar [`notebooks/03_marcha_blanca_evaluacion.ipynb`](notebooks/03_marcha_blanca_evaluacion.ipynb).
+* **Opción CLI:**
+  ```bash
+  python scripts/ejecutar_evaluacion_marcha_blanca.py
+  ```
+
+### 3. Artefactos Producidos
+* **Reporte Cuantitativo JSON:** [`reports/marcha_blanca_YYYYMMDD.json`](reports/) con metadatos de ejecución, los 4 checks de entrada, conteos por regla del filtro corregido y métricas de calidad (score de confianza, tasa de frontera, distribución observada vs. esperada).
+* **Predicciones Enriquecidas:** [`data/processed/marcha_blanca_predicciones.csv`](data/processed/) y formato complementario `.parquet` con las asignaciones de `arquetipo_demanda` (Macro) y `micro_cluster_id` (19 micro-clusters canónicos) junto al nombre del evento (`product`).
 
 ---
 

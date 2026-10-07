@@ -268,18 +268,36 @@ Este módulo resuelve la distorsión del dinero y el tamaño del venue calculand
 
 ---
 
-#### 2.1 `filtrar_consistencia_localidades(df: pd.DataFrame) -> pd.DataFrame`
-* **¿Para qué se crea?**: Limpia registros inconsistentes o transacciones anómalas (aforos negativos, eventos con aforo 0, montos negativos por devoluciones) y valida que la suma de localidades activas coincida con el aforo total del venue.
-* **¿Por qué se usa?**: Entrenar un modelo de clustering con datos inconsistentes desplazaría los centroides hacia valores espurios.
-* **Condición de filtrado**:
-  ```python
-  (dn_quota > 0) & (performance_quota > 0) & (med_base_unit_amt_itx >= 0) & 
-  (net_sold_p_qty >= 0) & (net_sold_c_qty >= 0) &
-  (suma_dn_quota_por_evento == performance_quota)
-  ```
-* **Transformación:**
-  * **Filas iniciales:** $34,030$
-  * **Filas limpias conservadas:** **$33,775$** en **$18,627$ eventos únicos** (99.25% del catálogo conservado con calidad física 100% certificada).
+#### 2.1 `filtrar_consistencia_localidades(df: pd.DataFrame, ...) -> pd.DataFrame`
+* **¿Para qué se crea?**: Limpia registros inconsistentes, nulos, transacciones anómalas (aforos en cero o negativos, precios negativos o no definidos, devoluciones con cantidades negativas) y valida la integridad física y deduplicación por clave de negocio.
+* **¿Por qué se usa?**: Entrenar o inferir con datos duplicados o inconsistentes desplaza los centroides hacia valores espurios y distorsiona las métricas relativas.
+* **Reglas reales de filtrado aplicadas secuencialmente:**
+  1. **Regla 1 (Categoría lógica no vacía):** Elimina filas con `logical_seat_category` nula, vacía (`""`), strings de espacios o `"nan"`.
+  2. **Regla 2 (Aforo de localidad positivo):** `dn_quota > 0` (la localidad debe tener capacidad física asignada).
+  3. **Regla 3 (Aforo de evento positivo):** `performance_quota > 0` (el evento debe tener aforo registrado).
+  4. **Regla 4 (Precio estrictamente positivo):** `col_precio > 0` y no nulo (elimina precios 0, negativos y NaN; el antiguo no-op `.abs() >= 0` fue corregido).
+  5. **Regla 5 (Cantidades no negativas):** `net_sold_p_qty >= 0` y `net_sold_c_qty >= 0`.
+  6. **Regla 6 (Deduplicación exacta por clave de negocio):** Deduplica por `(t_performance_id, site, logical_seat_category, dn_quota, precio)`. Si una misma localidad se vende en dos eventos distintos, se preserva legítimamente en ambos (Hallazgo 3).
+  7. **Regla 7 (Consistencia física de evento):** Valida que la suma de aforos de localidades activas coincida con el aforo total: $\sum \text{dn\_quota} = \text{performance\_quota}$ por función.
+
+* **Auditoría de Impacto sobre el Dataset de Entrenamiento (`localidades_eda.parquet`):**
+
+| Regla de Filtrado | Criterio | Filas Eliminadas | Filas Restantes | % del Total |
+| :--- | :--- | :---: | :---: | :---: |
+| **Población Inicial** | Dataset crudo de entrenamiento | — | **34,030** | 100.00% |
+| **Regla 1** | Categoría no vacía | 0 | 34,030 | 0.00% |
+| **Regla 2** | `dn_quota > 0` | 118 | 33,912 | 0.35% |
+| **Regla 3** | `performance_quota > 0` | 0 | 33,912 | 0.00% |
+| **Regla 4** | `Precio > 0` (estricto) | **2,860** | 31,052 | 8.40% |
+| **Regla 5** | Cantidades $\ge 0$ | 3 | 31,049 | 0.01% |
+| **Regla 6** | Deduplicación clave negocio | 0 | 31,049 | 0.00% |
+| **Regla 7** | Coherencia $\sum \text{dn\_quota} = \text{perf\_quota}$ | **4,952** | **26,097** | 14.55% |
+| **TOTAL ELIMINADAS** | Reducción neta por filtro corregido | **7,933** | **26,097** | **23.31%** |
+
+> [!WARNING]
+> **Veredicto Compuerta de Impacto (Bloque 2):**
+> Al aplicar el filtro estricto con `Precio > 0`, se eliminan 2,860 localidades históricas con precio cero (ej. eventos de entrada libre/monozona) lo que a su vez rompe la coherencia de cuota en sus funciones asociadas, acumulando una reducción del **23.31%** (superior al umbral límite de 0.50%).
+> En cumplimiento estricto del protocolo de gobernanza: **NO se re-entrena ningún modelo en esta fase**. El modelo v2.5 / v3.0 se mantiene como producción vigente mientras el comité técnico evalúa el bump formal a v2.6 (que implicaría re-entrenamiento y actualización de la distribución esperada). Para preservar compatibilidad exacta de evaluación, el pipeline soporta `modo_legacy_v3=True`.
 
 ---
 
@@ -837,6 +855,45 @@ A continuación se sintetiza el desempeño cuantitativo de cada familia de model
 | :--- | :--- | :--- | :--- |
 | **Modelo Macro-Clustering** | **Modelo v2.5 (`modelo_clustering_v2_5.joblib`)** | **Producción Vigente** | Supera a v2.3 en compacidad (Davies-Bouldin $1.4797$), silueta ($0.2105$), Calinski-Harabasz ($4,688.6$) e inercia ($26,058.5$), incorporando la taxonomía formal de 10 categorías de venue consolidada al 100% (136 revisiones humanas, 0 desconocido) sin alterar los 6 arquetipos de demanda ni generar regresiones en el Golden Set. |
 | **Generador de Features Fino** | **Jerarquía v3.0-hier.2 (`modelo_jerarquia_v3.joblib`)** | **Aprobado para Modelos Downstream** | Provee 19 variables categóricas de micro-clusters con $100\%$ de cobertura, 0 clusters degenerados (mínimo aforo $12.03\%$), estabilidad bootstrap-ARI $>0.88$ generalizada y rollup 1:1 validado para enriquecer modelos de propensión, elasticidad y pricing. |
+
+---
+
+### 10. Protocolo de Marcha Blanca (*Shadow Testing*)
+
+El protocolo de **Marcha Blanca** establece el procedimiento estándar para auditar el desempeño de los modelos de clusterización en paralelo a la operación productiva, evaluando lotes reales fuera de muestra (*out-of-sample*) provenientes de Secutix sin alterar los servicios en vivo.
+
+#### 10.1 Fases del Protocolo
+1. **Carga y Desacople:** Ingesta de particiones Parquet desde la capa Gold de Azure Blob Storage (`GOLD/SECUTIX/Training Data/Clustering de Localidades test/`) mediante `src.azure_utils.cargar_parquet_desde_azure`.
+2. **Los 4 Checks de Validación de Entrada (Pre-Inferencia):**
+   * **Check A (Duplicados en Crudo):** Conteo de filas 100% idénticas en todas las columnas. Alerta si supera el $50\%$.
+   * **Check B (Conteos por Regla del Filtro):** Ejecución de `filtrar_consistencia_localidades` con diccionario de métricas `{regla: n_eliminadas}` para auditar deduplicación por clave de negocio, precio > 0, categorías no vacías y balance de cuotas.
+   * **Check C (Coherencia de Aforos):** Identificación de registros donde $\sum \text{dn\_quota} \neq \text{performance\_quota}$ en el conjunto de entrada.
+   * **Check D (Volumetría vs. Referencia):** Alerta automática si el tamaño del lote limpio difiere en más de un $20\%$ respecto a la referencia de entrenamiento ($33,775$ filas).
+3. **Ruta Estándar de Transformación:** Procesamiento a través de `src.feature_engineering.preparar_dataset_enriquecido` (filtro + venue canonizado + métricas relativas + tags NLP).
+4. **Inferencia con Envoltorios Congelados:** Asignación mediante `predecir_arquetipos_demanda` (Macro Nivel 1 v2.5) y `predecir_microclusters` (Micro Nivel 2 v3.0). **Queda estrictamente prohibido re-entrenar modelos durante la marcha blanca.**
+5. **Auditoría Cuantitativa y Persistencia:**
+   * Comparativa de distribución observada vs. esperada (`DISTRIBUCION_ESPERADA_ARQUETIPOS`).
+   * Score de confianza geométrico medio y tasa de localidades en frontera ($< 20\%$).
+   * Tasa de texto vacío ($0\%$).
+
+#### 10.2 Artefactos Generados y Trazabilidad
+* **Reporte Cuantitativo:** `reports/marcha_blanca_YYYYMMDD.json` con la totalidad de métricas, checks de entrada, filas in/out y versiones de payload.
+* **Dataset Enriquecido para Modelos Downstream:** `data/processed/marcha_blanca_predicciones.csv` y formato Parquet con las asignaciones y el nombre del evento (`product`).
+* **Notebook Oficial:** [`notebooks/03_marcha_blanca_evaluacion.ipynb`](notebooks/03_marcha_blanca_evaluacion.ipynb).
+* **Script de Ejecución Automatizada:** [`scripts/ejecutar_evaluacion_marcha_blanca.py`](scripts/ejecutar_evaluacion_marcha_blanca.py).
+
+---
+
+### 11. Historial de Versiones y Gobernanza
+
+| Versión | Fecha | Tipo de Cambio | Descripción y Veredicto de Gobernanza |
+| :--- | :---: | :--- | :--- |
+| **v2.2** | 2026-09 | Release Base | Modelo Macro inicial con 6 arquetipos de demanda y espacio mixto 34D. |
+| **v2.3** | 2026-09 | Refinamiento | Taxonomía de venue v1 (9 categorías), features NLP ponderados y GMM calibration. |
+| **v2.5** | 2026-10 | Producción Vigente | Taxonomía de venue v2 (10 categorías canónicas, 0 desconocido), espacio mixto 36D, Davies-Bouldin $1.4797$, Golden Set 20/20. |
+| **v3.0-hier.2** | 2026-10 | Feature Store | Arquitectura jerárquica de 19 micro-clusters canónicos, estabilidad bootstrap-ARI $>0.88$ generalizada y rollup 1:1 estricto. |
+| **Hardening** | **2026-10-07** | **Corrección de Filtro** | **Filtro de consistencia corregido:** Implementación real de deduplicación exacta por clave de negocio, categoría no vacía, precio estrictamente $> 0$ y reporte estructurado de conteos por regla. **Compuerta Bloque 2 en Alerta:** La eliminación estricta de precios en cero reduce en un $23.31\%$ el dataset de entrenamiento histórico; por protocolo de gobernanza **NO se re-entrena ningún modelo** en esta fase y se mantiene **v2.5 como producción vigente** sin bump de versión de modelo. |
+
 
 
 
