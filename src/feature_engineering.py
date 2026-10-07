@@ -216,6 +216,8 @@ def calcular_percentil_precio_absoluto_dentro_tipo(
 def filtrar_consistencia_localidades(
     df: pd.DataFrame,
     col_precio: Optional[str] = None,
+    col_producto: Optional[str] = "product",
+    patrones_exclusion: Tuple[str, ...] = ("TEST", "CANCELAD", "PARQUEA", "NO USAR"),
     permitir_precio_cero: bool = False,
     modo_legacy_v3: bool = False,
     retornar_reporte: bool = False,
@@ -232,10 +234,13 @@ def filtrar_consistencia_localidades(
     5. Cantidades no negativas: net_sold_p_qty >= 0 y net_sold_c_qty >= 0.
     6. Deduplicación exacta por clave de negocio: (t_performance_id, site, logical_seat_category, dn_quota, precio).
     7. Consistencia física de evento: suma(dn_quota) == performance_quota por t_performance_id.
+    8. Exclusión por contenido de producto: descarta productos con patrones configurables (TEST, CANCELAD, PARQUEA, NO USAR).
+    9. Ventas no exceden aforo: net_sold_p_qty <= dn_quota (mirror exacto de la regla Spark).
 
     Modo legacy:
-        Si modo_legacy_v3=True, ejecuta la lógica histórica utilizada durante el entrenamiento original
-        de v2.5 / v3.0 preservando exactamente las 33,775 filas.
+        Si modo_legacy_v3=True, el modo legacy reproduce la definición histórica de v2.5
+        (filtro Spark aplicado aguas arriba en notebook 00) preservando exactamente las 33,775 filas;
+        las reglas 8-9 alinean datos nuevos que no pasaron por el notebook 00.
 
     Retorna:
         pd.DataFrame filtrado (por defecto) o (pd.DataFrame, dict con conteos por regla) si retornar_reporte=True.
@@ -251,6 +256,8 @@ def filtrar_consistencia_localidades(
             "regla_cantidades_no_negativas": 0,
             "regla_deduplicacion_clave_negocio": 0,
             "regla_consistencia_aforo_evento": 0,
+            "regla_exclusion_patrones_producto": 0,
+            "regla_ventas_no_exceden_aforo": 0,
             "total_eliminadas": 0,
             "total_final": 0
         }
@@ -361,6 +368,22 @@ def filtrar_consistencia_localidades(
         df_curr = df_curr[suma_quota_evento == df_curr["performance_quota"]].copy()
     reporte["regla_consistencia_aforo_evento"] = n_prev - len(df_curr)
 
+    # 8. Exclusión por contenido de producto (TEST, CANCELAD, PARQUEA, NO USAR)
+    n_prev = len(df_curr)
+    if col_producto and col_producto in df_curr.columns and patrones_exclusion:
+        s_prod = df_curr[col_producto].fillna("").astype(str).str.upper()
+        mask_excluir = pd.Series(False, index=df_curr.index)
+        for pat in patrones_exclusion:
+            mask_excluir |= s_prod.str.contains(pat.upper(), case=False, regex=False)
+        df_curr = df_curr[~mask_excluir].copy()
+    reporte["regla_exclusion_patrones_producto"] = n_prev - len(df_curr)
+
+    # 9. Ventas no exceden aforo: net_sold_p_qty <= dn_quota
+    n_prev = len(df_curr)
+    if "net_sold_p_qty" in df_curr.columns and "dn_quota" in df_curr.columns:
+        df_curr = df_curr[df_curr["net_sold_p_qty"] <= df_curr["dn_quota"]].copy()
+    reporte["regla_ventas_no_exceden_aforo"] = n_prev - len(df_curr)
+
     # Totales y metadatos
     n_final = len(df_curr)
     total_eliminadas = n_inicial - n_final
@@ -379,6 +402,8 @@ def filtrar_consistencia_localidades(
         print(f" • Regla 5 (Cantidades >= 0)         : -{reporte['regla_cantidades_no_negativas']:,}")
         print(f" • Regla 6 (Deduplicación clave)     : -{reporte['regla_deduplicacion_clave_negocio']:,}")
         print(f" • Regla 7 (Consistencia aforo)      : -{reporte['regla_consistencia_aforo_evento']:,}")
+        print(f" • Regla 8 (Exclusión contenido prod): -{reporte['regla_exclusion_patrones_producto']:,}")
+        print(f" • Regla 9 (Ventas <= aforo)         : -{reporte['regla_ventas_no_exceden_aforo']:,}")
         print(f" • Total registros eliminados        : -{total_eliminadas:,} ({total_eliminadas/n_inicial*100:.2f}%)")
         print(f" • Registros limpios finales         : {n_final:,}")
         print("==============================================================================")
@@ -452,12 +477,14 @@ def calcular_metricas_relativas(
 def preparar_dataset_enriquecido(
     df: pd.DataFrame,
     col_precio: Optional[str] = None,
+    col_producto: Optional[str] = "product",
+    patrones_exclusion: Tuple[str, ...] = ("TEST", "CANCELAD", "PARQUEA", "NO USAR"),
     permitir_precio_cero: bool = False,
     modo_legacy_v3: bool = False
 ) -> pd.DataFrame:
     """
     Ejecuta el pipeline de enriquecimiento completo:
-    1. Filtrado de consistencia.
+    1. Filtrado de consistencia (con reglas 8-9 de contenido de producto y ventas <= aforo en modo estándar).
     2. Adjuntar categoría estandarizada de venue (type_site).
     3. Cálculo de métricas relativas por evento (soporta med_base_unit_amt_itx).
     4. Cálculo de percentil de precio absoluto dentro de type_site.
@@ -467,6 +494,8 @@ def preparar_dataset_enriquecido(
     df_clean = filtrar_consistencia_localidades(
         df,
         col_precio=col_precio,
+        col_producto=col_producto,
+        patrones_exclusion=patrones_exclusion,
         permitir_precio_cero=permitir_precio_cero,
         modo_legacy_v3=modo_legacy_v3
     )

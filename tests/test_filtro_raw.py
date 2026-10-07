@@ -175,4 +175,119 @@ class TestFiltradoConsistenciaLocalidades:
         assert rep["total_inicial"] == n_ini
         assert rep["total_final"] == len(df_clean)
         assert rep["total_eliminadas"] == n_ini - len(df_clean)
+        assert "regla_exclusion_patrones_producto" in rep
+        assert "regla_ventas_no_exceden_aforo" in rep
         assert df_clean.attrs["reporte_filtro"] == rep
+
+    def test_regla_8_exclusion_patrones_producto(self):
+        """
+        Valida la Regla 8: Exclusión por patrones en el nombre del producto (Spark mirror).
+        - 'BOLETO TEST EVENTO': eliminado por contener 'TEST'.
+        - 'PARQUEADERO CONCIERTO': eliminado por contener 'PARQUEA' (causa raíz del bug en marcha blanca).
+        - 'EVENTO CANCELADO FINAL': eliminado por contener 'CANCELAD'.
+        - 'LOCALIDAD NO USAR': eliminado por contener 'NO USAR'.
+        - 'OBRA TEATRAL CANONICA': preservado (producto legítimo sin patrones).
+        
+        Nota metodológica:
+        El comportamiento nativo heredado de Spark (~F.upper(col('product')).contains('...')) opera
+        mediante coincidencia literal de subcadena (regex=False). Por tanto, palabra completa NO es el criterio:
+        cualquier subcadena que coincida con los patrones descartará la fila (e.g. 'PARQUEA' descarta 'PARQUEADERO'
+        y 'TEST' descarta subcadenas como 'TESTAMENTO').
+        """
+        df_prod = pd.DataFrame({
+            "t_performance_id": [201, 202, 203, 204, 205, 206],
+            "site": ["TEATRO"] * 6,
+            "product": [
+                "BOLETO TEST EVENTO",
+                "PARQUEADERO CONCIERTO",
+                "EVENTO CANCELADO FINAL",
+                "LOCALIDAD NO USAR",
+                "OBRA TEATRAL CANONICA",
+                "TESTAMENTO TEATRAL"
+            ],
+            "logical_seat_category": ["PLATEA"] * 6,
+            "dn_quota": [100] * 6,
+            "performance_quota": [100] * 6,
+            "med_base_unit_amt_itx": [50000.0] * 6,
+            "net_sold_p_qty": [50.0] * 6,
+            "net_sold_c_qty": [0.0] * 6
+        })
+
+        df_clean, rep = filtrar_consistencia_localidades(
+            df_prod,
+            col_producto="product",
+            patrones_exclusion=("TEST", "CANCELAD", "PARQUEA", "NO USAR"),
+            retornar_reporte=True,
+            verbose=False
+        )
+
+        # 5 eliminadas (TEST x2, PARQUEA, CANCELAD, NO USAR) y 1 preservada (OBRA TEATRAL CANONICA)
+        assert rep["regla_exclusion_patrones_producto"] == 5
+        assert len(df_clean) == 1
+        assert df_clean["product"].iloc[0] == "OBRA TEATRAL CANONICA"
+        assert "BOLETO TEST EVENTO" not in df_clean["product"].values
+        assert "PARQUEADERO CONCIERTO" not in df_clean["product"].values
+
+    def test_regla_9_ventas_no_exceden_aforo(self):
+        """
+        Valida la Regla 9: Ventas pagadas no exceden aforo físico (net_sold_p_qty <= dn_quota).
+        - net_sold_p_qty = dn_quota + 1 -> eliminado.
+        - net_sold_p_qty = dn_quota -> preservado.
+        - net_sold_p_qty < dn_quota -> preservado.
+        """
+        df_ventas = pd.DataFrame({
+            "t_performance_id": [301, 302, 303],
+            "site": ["ARENA"] * 3,
+            "product": ["CONCIERTO A", "CONCIERTO B", "CONCIERTO C"],
+            "logical_seat_category": ["PREFERENCIAL"] * 3,
+            "dn_quota": [100, 100, 100],
+            "performance_quota": [100, 100, 100],
+            "med_base_unit_amt_itx": [80000.0] * 3,
+            "net_sold_p_qty": [101.0, 100.0, 80.0],  # 101 > 100 (invalido), 100 == 100 (valido), 80 < 100 (valido)
+            "net_sold_c_qty": [0.0, 0.0, 0.0]
+        })
+
+        df_clean, rep = filtrar_consistencia_localidades(df_ventas, retornar_reporte=True, verbose=False)
+
+        assert rep["regla_ventas_no_exceden_aforo"] == 1
+        assert len(df_clean) == 2
+        assert 301 not in df_clean["t_performance_id"].values
+        assert 302 in df_clean["t_performance_id"].values
+        assert 303 in df_clean["t_performance_id"].values
+
+    def test_modo_legacy_inmune_a_reglas_8_y_9(self):
+        """
+        Valida que el modo legacy (modo_legacy_v3=True) sea estrictamente inmune a las reglas 8 y 9,
+        reproduciendo la definición histórica de v2.5 (33,775 filas en dataset crudo).
+        """
+        # Caso 1: Sintético con patrones de producto que en modo estricto se descartarían
+        df_sintetico = pd.DataFrame({
+            "t_performance_id": [401],
+            "site": ["TEATRO"],
+            "product": ["EVENTO TEST"],
+            "logical_seat_category": ["PLATEA 1"],
+            "dn_quota": [50],
+            "performance_quota": [50],
+            "med_base_unit_amt_itx": [40000.0],
+            "net_sold_p_qty": [10.0],
+            "net_sold_c_qty": [0.0]
+        })
+
+        df_leg, rep_leg = filtrar_consistencia_localidades(
+            df_sintetico,
+            modo_legacy_v3=True,
+            retornar_reporte=True,
+            verbose=False
+        )
+        assert len(df_leg) == 1
+        assert rep_leg["modo"] == "legacy_v3"
+        assert rep_leg["total_eliminadas"] == 0
+
+        # Caso 2: Dataset real si existe
+        import os
+        ruta_real = "data/raw/localidades_eda.parquet"
+        if os.path.exists(ruta_real):
+            df_real = pd.read_parquet(ruta_real)
+            df_real_clean = filtrar_consistencia_localidades(df_real, modo_legacy_v3=True, verbose=False)
+            assert len(df_real_clean) == 33775, f"Regresión legacy: esperado 33,775, obtenido {len(df_real_clean)}"
+
