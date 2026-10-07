@@ -490,6 +490,282 @@ def generar_matriz_recintos():
     print(f"  [OK] Guardada en: {out_path}")
 
 
+def generar_escaleras_eventos():
+    """
+    Bloque 2.1: Genera las figuras 'fig_evento_<estrato>.png' x 5.
+    La escalera del evento muestra cada localidad ordenada por precio descendente,
+    coloreada por arquetipo, con doble identidad técnica y barra de confianza.
+    """
+    print("\n[5/7] Generando las 5 Escaleras de Eventos por Quintil de Aforo...")
+    csv_eventos = "reports/eventos_seleccionados.csv"
+    if not os.path.exists(csv_eventos):
+        from scripts.seleccionar_eventos_presentacion import seleccionar_5_eventos
+        seleccionar_5_eventos()
+
+    df_eventos = pd.read_csv(csv_eventos)
+    df_mb = pd.read_parquet("data/processed/marcha_blanca_predicciones.parquet")
+
+    for _, ev in df_eventos.iterrows():
+        estrato = ev["estrato_objetivo"]
+        pid = ev["t_performance_id"]
+        prod = ev["product"]
+        site = ev["site"]
+        quota = ev["performance_quota"]
+
+        sub_locs = df_mb[df_mb["t_performance_id"] == pid].sort_values("base_unit_amt_itx", ascending=False).copy()
+        total_locs = len(sub_locs)
+        nota_corte = ""
+
+        # Límite de legibilidad: máximo 12 localidades
+        if total_locs > 12:
+            sub_locs = sub_locs.head(12)
+            nota_corte = f"*(Mostrando las 12 localidades principales de mayor precio; +{total_locs - 12} localidades adicionales en el anexo verificable)*"
+
+        n_rows = len(sub_locs)
+        fig_h = max(5.5, 1.8 + n_rows * 0.58)
+        fig, ax = plt.subplots(figsize=(13.0, fig_h), dpi=150)
+        fig.patch.set_facecolor("#FFFFFF")
+        ax.set_facecolor("#FFFFFF")
+
+        # Rango de coordenadas
+        ax.set_xlim(0, 100)
+        ax.set_ylim(-0.8, n_rows + 1.6)
+        ax.axis("off")
+
+        # 1. Encabezado Premium del Evento
+        head_box = patches.FancyBboxPatch(
+            (1.0, n_rows + 0.3), 98.0, 1.1,
+            boxstyle="round,pad=0.2,rounding_size=0.4",
+            facecolor="#0B2545", edgecolor="none", zorder=2
+        )
+        ax.add_patch(head_box)
+
+        titulo_evento = f"ESCALERA DE EVENTO: {prod.upper()}"
+        if len(titulo_evento) > 75:
+            titulo_evento = titulo_evento[:73] + "..."
+        ax.text(2.5, n_rows + 0.9, titulo_evento,
+                fontsize=11.5, fontweight="bold", color="#FFFFFF", va="center", zorder=3)
+
+        sub_info = f"Recinto: {site}  |  Aforo Total: {quota:,.0f} personas  |  Localidades: {total_locs}  |  Estrato: {estrato.upper()} ({ev['estrato_real'].upper()})"
+        ax.text(2.5, n_rows + 0.52, sub_info,
+                fontsize=9.2, color="#E0F2F1", va="center", zorder=3)
+
+        # 2. Dibujar cada peldaño de la escalera (localidad)
+        max_p = sub_locs["base_unit_amt_itx"].max() if len(sub_locs) > 0 else 1.0
+        if max_p <= 0:
+            max_p = 1.0
+
+        for idx, (_, r) in enumerate(sub_locs.reset_index().iterrows()):
+            y = n_rows - 1 - idx  # mayor precio arriba
+
+            arq = r["arquetipo_demanda"]
+            c_color = COLOR_MAP.get(arq, "#134074")
+            c_bg = BG_LIGHT_MAP.get(arq, "#F5F5F5")
+            precio = float(r["base_unit_amt_itx"])
+            conf = float(r["score_confianza"])
+            es_fr = bool(r["es_frontera"])
+            label_auto = str(r["label_auto"])
+            es_hib = label_auto.startswith("hibrido")
+
+            # Tarjeta de fondo de la fila
+            row_edge = "#E76F51" if es_fr else ("#F4A261" if es_hib else "#D7DCE4")
+            row_lw = 1.6 if (es_fr or es_hib) else 0.8
+            row_ls = "--" if es_fr else "-"
+
+            row_card = patches.FancyBboxPatch(
+                (1.0, y - 0.22), 98.0, 0.78,
+                boxstyle="round,pad=0.15,rounding_size=0.3",
+                facecolor=c_bg, edgecolor=row_edge, linewidth=row_lw,
+                linestyle=row_ls, zorder=2
+            )
+            ax.add_patch(row_card)
+
+            # Barra horizontal de precio relativo (ancho entre 2 y 36)
+            bar_w = 2.0 + (precio / max_p) * 34.0
+            price_bar = patches.FancyBboxPatch(
+                (2.0, y - 0.12), bar_w, 0.58,
+                boxstyle="round,pad=0.1,rounding_size=0.25",
+                facecolor=c_color, edgecolor="none", zorder=3
+            )
+            ax.add_patch(price_bar)
+
+            # Etiqueta de precio dentro de la barra o a la derecha
+            precio_str = format_precio_cop(precio)
+            ax.text(2.6, y + 0.17, precio_str,
+                    fontsize=9.2, fontweight="bold", color="#FFFFFF", va="center", zorder=4)
+
+            # Nombre de la Localidad Comercial
+            loc_name = str(r["logical_seat_category"])
+            if len(loc_name) > 30:
+                loc_name = loc_name[:28] + "..."
+            ax.text(38.0, y + 0.22, loc_name,
+                    fontsize=10.0, fontweight="bold", color="#0B2545", va="center", zorder=4)
+
+            # Doble Identidad (Arquetipo y Micro-cluster)
+            sub_id = f"{arq.split(' / ')[0]}  •  {r['micro_cluster_id']} ({label_auto})"
+            if len(sub_id) > 42:
+                sub_id = sub_id[:40] + "..."
+            ax.text(38.0, y - 0.05, sub_id,
+                    fontsize=8.5, color="#555555", va="center", zorder=4)
+
+            # Badges de Frontera / Híbrido
+            badge_x = 73.0
+            if es_fr:
+                b_fr = patches.FancyBboxPatch(
+                    (badge_x, y - 0.1), 7.8, 0.52,
+                    boxstyle="round,pad=0.1,rounding_size=0.2",
+                    facecolor="#E76F51", edgecolor="none", zorder=4
+                )
+                ax.add_patch(b_fr)
+                ax.text(badge_x + 3.9, y + 0.16, "FRONTERA",
+                        fontsize=7.8, fontweight="bold", color="#FFFFFF", ha="center", va="center", zorder=5)
+                badge_x += 8.4
+
+            if es_hib:
+                b_hib = patches.FancyBboxPatch(
+                    (badge_x, y - 0.1), 7.2, 0.52,
+                    boxstyle="round,pad=0.1,rounding_size=0.2",
+                    facecolor="#F4A261", edgecolor="none", zorder=4
+                )
+                ax.add_patch(b_hib)
+                ax.text(badge_x + 3.6, y + 0.16, "HÍBRIDO",
+                        fontsize=7.8, fontweight="bold", color="#FFFFFF", ha="center", va="center", zorder=5)
+
+            # Barra de Confianza en el extremo derecho
+            conf_color = "#2A9D8F" if conf >= 0.70 else ("#F4A261" if conf >= 0.50 else "#E76F51")
+            conf_bg = patches.FancyBboxPatch(
+                (88.0, y - 0.1), 10.0, 0.52,
+                boxstyle="round,pad=0.1,rounding_size=0.2",
+                facecolor="#E2E8F0", edgecolor="none", zorder=3
+            )
+            ax.add_patch(conf_bg)
+
+            conf_bar = patches.FancyBboxPatch(
+                (88.0, y - 0.1), max(0.5, conf * 10.0), 0.52,
+                boxstyle="round,pad=0.1,rounding_size=0.2",
+                facecolor=conf_color, edgecolor="none", zorder=4
+            )
+            ax.add_patch(conf_bar)
+
+            ax.text(93.0, y + 0.16, f"Conf: {conf * 100:.1f}%",
+                    fontsize=8.0, fontweight="bold", color="#0B2545" if conf < 0.45 else "#FFFFFF",
+                    ha="center", va="center", zorder=5)
+
+        # Nota de corte inferior si aplica
+        if nota_corte:
+            ax.text(2.0, -0.6, nota_corte, fontsize=8.2, color="#666666", style="italic", zorder=3)
+
+        out_file = f"reports/figures/fig_evento_{estrato}.png"
+        plt.tight_layout()
+        plt.savefig(out_file, dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"  [OK] Guardada: {out_file} ({n_rows} localidades graficadas)")
+
+
+def generar_frecuencia_microclusters():
+    """
+    Bloque 2.2: Genera 'reports/figures/fig_frecuencia_microclusters.png'.
+    Muestra la distribución vertical de las 1,324 asignaciones sobre los 18
+    micro-clusters activos, coloreados por arquetipo, con honestidad de ceros.
+    """
+    print("\n[6/7] Generando Figura: fig_frecuencia_microclusters.png...")
+    df_mb = pd.read_parquet("data/processed/marcha_blanca_predicciones.parquet")
+    df_cat = pd.read_csv("data/processed/cluster_catalog_v3.csv")
+
+    # Excluir formalmente los degenerados
+    activos = df_cat[~df_cat["micro_cluster_id"].isin(["VIP-3", "PPF-3"])].copy()
+
+    conteo_mb = df_mb["micro_cluster_id"].value_counts()
+    total_asignaciones = len(df_mb)
+
+    filas = []
+    for _, r in activos.iterrows():
+        mc = r["micro_cluster_id"]
+        arq = r["arquetipo_macro"]
+        lbl = str(r["label_auto"])
+        cnt = int(conteo_mb.get(mc, 0))
+        pct = (cnt / total_asignaciones) * 100.0
+        filas.append({
+            "micro_cluster_id": mc,
+            "arquetipo": arq,
+            "label_auto": lbl,
+            "conteo": cnt,
+            "pct": pct
+        })
+
+    df_freq = pd.DataFrame(filas).sort_values("conteo", ascending=False).reset_index(drop=True)
+
+    fig, ax = plt.subplots(figsize=(14.0, 7.2), dpi=150)
+    fig.patch.set_facecolor("#FFFFFF")
+    ax.set_facecolor("#FFFFFF")
+
+    x_indices = np.arange(len(df_freq))
+    bar_colors = [COLOR_MAP.get(arq, "#134074") for arq in df_freq["arquetipo"]]
+
+    bars = ax.bar(
+        x_indices, df_freq["conteo"],
+        color=bar_colors, edgecolor="#0B2545", linewidth=0.8,
+        width=0.68, zorder=3
+    )
+
+    # Anotar valores encima de cada barra
+    max_val = df_freq["conteo"].max()
+    for bar, (_, r) in zip(bars, df_freq.iterrows()):
+        h = bar.get_height()
+        if h > 0:
+            txt = f"{r['conteo']:,}\n({r['pct']:.1f}%)"
+            y_pos = h + max_val * 0.015
+            color_txt = "#0B2545"
+            weight = "bold"
+        else:
+            txt = "0\n(0.0%)"
+            y_pos = max_val * 0.02
+            color_txt = "#E76F51"
+            weight = "bold"
+
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.0, y_pos,
+            txt, ha="center", va="bottom",
+            fontsize=8.2, fontweight=weight, color=color_txt, zorder=4
+        )
+
+    # Configuración de ejes
+    x_labels = [f"{r['micro_cluster_id']}\n({r['label_auto'][:14]})" for _, r in df_freq.iterrows()]
+    ax.set_xticks(x_indices)
+    ax.set_xticklabels(x_labels, fontsize=8.5, fontweight="bold", color="#134074")
+    ax.set_ylabel("Número de Asignaciones (N)", fontsize=11.0, fontweight="bold", color="#0B2545")
+    ax.set_ylim(0, max_val * 1.15)
+    ax.grid(axis="y", linestyle="--", alpha=0.5, color="#D7DCE4", zorder=1)
+
+    # Título oficial
+    ax.set_title(
+        "Distribución de las 1,324 asignaciones de la marcha blanca (muestra, no censo)",
+        fontsize=13.5, fontweight="bold", color="#0B2545", pad=28
+    )
+    fig.text(
+        0.5, 0.93,
+        "Frecuencia absoluta y relativa por micro-cluster activo (18 sub-espacios)  |  Sesgo muestral: concentración en AU-0 (48.9%) y Platea General",
+        fontsize=9.5, color="#555555", ha="center"
+    )
+
+    # Leyenda de Arquetipos
+    legend_elements = [
+        patches.Patch(facecolor=COLOR_MAP[arq], edgecolor="#0B2545", label=arq.split(" / ")[0])
+        for arq in COLOR_MAP.keys()
+    ]
+    ax.legend(
+        handles=legend_elements, title="Arquetipo de Demanda",
+        loc="upper right", frameon=True, facecolor="#F8FAFC", edgecolor="#D7DCE4",
+        fontsize=8.5, title_fontsize=9.0
+    )
+
+    out_path = "reports/figures/fig_frecuencia_microclusters.png"
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  [OK] Guardada en: {out_path}")
+
+
 def generar_todas_las_figuras():
     os.makedirs("reports/figures", exist_ok=True)
     generar_figura_arbol()
@@ -521,8 +797,14 @@ def generar_todas_las_figuras():
     )
 
     generar_matriz_recintos()
-    print("\n[ÉXITO] Todas las 6 figuras generadas y validadas en reports/figures/.")
+
+    # Nuevas figuras del Sprint: Escaleras por evento y Frecuencia de micro-clusters
+    generar_escaleras_eventos()
+    generar_frecuencia_microclusters()
+
+    print("\n[ÉXITO] Todas las 12 figuras generadas y validadas en reports/figures/.")
 
 
 if __name__ == "__main__":
     generar_todas_las_figuras()
+

@@ -323,10 +323,48 @@ def build_presentation(
         s5.shapes.add_picture(fig_matriz_path, Inches(7.0), Inches(1.4), Inches(5.6), Inches(5.5))
 
     # -------------------------------------------------------------
-    # SLIDE 6: GALERÍA SEGMENTO PREMIUM (VIP + PREFERENCIAL)
+    # SECCIÓN: UN EVENTO POR TAMAÑO (5 SLIDES)
     # -------------------------------------------------------------
-    print("• Configurando Slide 6: Galería Segmento Premium...")
-    s6 = create_slide(
+    eventos_slides = [
+        ("micro", "ESTRATO MICRO (≤ 500 AFORO): MANIZALES (AUDITORIO CULTURAL)",
+         "Tributo a Raphael @ Batuta Caldas (Aforo: 240) — Descenso Limpio sin Forzar Palcos Inexistentes",
+         "Mismo modelo, cinco escaleras: de un teatro de 400 butacas a un estadio — la jerarquía interna se respeta en todos los tamaños. "
+         "En este auditorio de 240 butacas en Manizales no se fuerzan palcos inexistentes: desciende limpiamente de Platea General a Balcón Popular, "
+         "capturando con honestidad una frontera en el balcón central difuso."),
+        ("pequeno", "ESTRATO PEQUEÑO (500–2.000 AFORO): TEATRO HISTÓRICO",
+         "Hans Zimmer vs John Williams @ Teatro Jorge Eliécer Gaitán (Aforo: 1,650) — Platea Frontal y Balcón Frontera",
+         "Mismo modelo, cinco escaleras: de un teatro de 400 butacas a un estadio — la jerarquía interna se respeta en todos los tamaños. "
+         "En el Teatro Gaitán, la platea frontal se estratifica en Centro ($200k), Lateral ($176k) y Posterior ($152k), "
+         "mientras que el balcón delantero ($100k) se enciende como frontera honesta frente a la zona preferencial."),
+        ("mediano", "ESTRATO MEDIANO (2.000–8.000 AFORO): ARENA FORMATO MEDIANO",
+         "Lucho Mellera @ Movistar Arena (Aforo: 6,435) — Tribuna Fan VIP, Plateas Frontales y Segundo Piso Popular",
+         "Mismo modelo, cinco escaleras: de un teatro de 400 butacas a un estadio — la jerarquía interna se respeta en todos los tamaños. "
+         "En un formato mediano de arena, Tribuna Fan lidera como VIP híbrido, las plateas ocupan el segmento preferencial, "
+         "y el segundo piso se clasifica limpiamente en popular, aislando como frontera la fila de transición."),
+        ("grande", "ESTRATO GRANDE (8.000–20.000 AFORO): ARENA MASIVA METROPOLITANA",
+         "Carlos Vives @ Daviarena Medellín (Aforo: 12,979) — Escala Completa de 12 Localidades en Concierto Masivo",
+         "Mismo modelo, cinco escaleras: de un teatro de 400 butacas a un estadio — la jerarquía interna se respeta en todos los tamaños. "
+         "Con 13 mil personas y 12 localidades, la escalera completa convive sin colapsar: Palcos y Lounges en VIP, Platea Diamante en Preferencial, "
+         "y la gradación de pisos 3 y 4 en Balcón Popular, con frontera en Platea General."),
+        ("estadio", "ESTRATO ESTADIO (> 20.000 AFORO): ESTADIO DEPORTIVO MASIVO",
+         "The Last Dance @ Estadio Metropolitano (Aforo: 44,586) — Topología Deportiva Pura: Occidental, Oriental y Tribunas",
+         "Mismo modelo, cinco escaleras: de un teatro de 400 butacas a un estadio — la jerarquía interna se respeta en todos los tamaños. "
+         "En el Metropolitano de Barranquilla con casi 45 mil butacas, la topología deportiva pura se respeta: Occidental y Oriental son tratadas "
+         "como VIP/Palcos con fronteras en las bandejas altas, y las tribunas Norte y Sur descienden a Popular.")
+    ]
+
+    for est_key, slide_tema, slide_desc, slide_notas in eventos_slides:
+        print(f"• Configurando Slide de Evento: Estrato {est_key.upper()}...")
+        s_ev = create_slide(slide_tema, slide_desc, slide_notas)
+        fig_ev_path = f"reports/figures/fig_evento_{est_key}.png"
+        if os.path.exists(fig_ev_path):
+            s_ev.shapes.add_picture(fig_ev_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+
+    # -------------------------------------------------------------
+    # SLIDE 11: GALERÍA SEGMENTO PREMIUM (VIP + PREFERENCIAL)
+    # -------------------------------------------------------------
+    print("• Configurando Slide 11: Galería Segmento Premium...")
+    s11 = create_slide(
         "EVIDENCIA POR SEGMENTO: SEGMENTO PREMIUM",
         "Granularidad Interna en VIP y Preferencial Frontal (Micro-clusters VIP-0..2 y PPF-0..2)",
         "Mismo arquetipo, distintos micro-clusters: la granularidad interna es la feature de backend; "
@@ -335,13 +373,13 @@ def build_presentation(
     )
     fig_prem_path = "reports/figures/fig_galeria_premium.png"
     if os.path.exists(fig_prem_path):
-        s6.shapes.add_picture(fig_prem_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+        s11.shapes.add_picture(fig_prem_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
 
     # -------------------------------------------------------------
-    # SLIDE 7: GALERÍA SEGMENTO MASIVOS (PLATEA GENERAL + POPULAR + GRADA)
+    # SLIDE 12: GALERÍA SEGMENTO MASIVOS (PLATEA GENERAL + POPULAR + GRADA)
     # -------------------------------------------------------------
-    print("• Configurando Slide 7: Galería Segmento Masivos...")
-    s7 = create_slide(
+    print("• Configurando Slide 12: Galería Segmento Masivos...")
+    s12 = create_slide(
         "EVIDENCIA POR SEGMENTO: SEGMENTO MASIVOS",
         "Granularidad Interna en Platea General, Popular y Grada Masiva (PGI, POP, GGM)",
         "Mismo arquetipo, distintos micro-clusters: la granularidad interna es la feature de backend; "
@@ -350,13 +388,13 @@ def build_presentation(
     )
     fig_mas_path = "reports/figures/fig_galeria_masivos.png"
     if os.path.exists(fig_mas_path):
-        s7.shapes.add_picture(fig_mas_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+        s12.shapes.add_picture(fig_mas_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
 
     # -------------------------------------------------------------
-    # SLIDE 8: CASOS ESPECIALES (AU-0, FRONTERAS E HÍBRIDOS)
+    # SLIDE 13: CASOS ESPECIALES (AU-0, FRONTERAS E HÍBRIDOS)
     # -------------------------------------------------------------
-    print("• Configurando Slide 8: Casos Especiales...")
-    s8 = create_slide(
+    print("• Configurando Slide 13: Casos Especiales...")
+    s13 = create_slide(
         "CASOS ESPECIALES: CALIDAD MATEMÁTICA Y FRONTERAS",
         "Admisión Única Determinística, Banderas de Frontera y Clusters Léxicos Híbridos",
         "El sistema sabe lo que no sabe: las fronteras no inventan certeza ficticia sino que encienden banderas "
@@ -365,25 +403,24 @@ def build_presentation(
     )
     fig_esp_path = "reports/figures/fig_galeria_especiales.png"
     if os.path.exists(fig_esp_path):
-        s8.shapes.add_picture(fig_esp_path, Inches(0.8), Inches(1.4), Inches(7.5), Inches(5.5))
+        s13.shapes.add_picture(fig_esp_path, Inches(0.8), Inches(1.4), Inches(7.5), Inches(5.5))
     
-    # Tarjeta lateral de explicación técnica en Slide 8
-    card_s8 = s8.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.5), Inches(1.4), Inches(4.0), Inches(5.5))
-    card_s8.fill.solid()
-    card_s8.fill.fore_color.rgb = COLOR_CARD_BG
-    card_s8.line.color.rgb = COLOR_CARD_BORDER
-    tb_s8 = s8.shapes.add_textbox(Inches(8.65), Inches(1.55), Inches(3.7), Inches(5.2))
-    tf_s8 = tb_s8.text_frame
-    tf_s8.word_wrap = True
+    card_s13 = s13.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.5), Inches(1.4), Inches(4.0), Inches(5.5))
+    card_s13.fill.solid()
+    card_s13.fill.fore_color.rgb = COLOR_CARD_BG
+    card_s13.line.color.rgb = COLOR_CARD_BORDER
+    tb_s13 = s13.shapes.add_textbox(Inches(8.65), Inches(1.55), Inches(3.7), Inches(5.2))
+    tf_s13 = tb_s13.text_frame
+    tf_s13.word_wrap = True
 
-    bullets_s8 = [
+    bullets_s13 = [
         ("AU-0: Admisión Única (100% Confianza)", "Eventos mono-zona o boletos de acceso irrestricto (Meet & Greet, Galerías). Pasa por nodo determinístico."),
         ("Fronteras Estadísticas (Borde Punteado)", "Confianzas < 0.50 entre zonas difusas (ej. Platea en Teatro El Ensueño con 0.16%). Activa segmento_incierto=True."),
         ("Clusters Híbridos (Badge HÍBRIDO)", "Nomenclaturas combinadas (Luneta + Balcón) agrupadas por K-Means sin violar el arquetipo macro."),
         ("Regla 8: Exclusiones Interceptadas", "13,020 parqueaderos y 205 localidades activas no comerciales excluidas ex-ante por el contrato Python.")
     ]
-    for b_title, b_desc in bullets_s8:
-        p1 = tf_s8.add_paragraph() if tf_s8.paragraphs[0].text else tf_s8.paragraphs[0]
+    for b_title, b_desc in bullets_s13:
+        p1 = tf_s13.add_paragraph() if tf_s13.paragraphs[0].text else tf_s13.paragraphs[0]
         p1.text = b_title
         p1.font.name = FONT_NAME
         p1.font.size = Pt(11)
@@ -391,7 +428,7 @@ def build_presentation(
         p1.font.color.rgb = COLOR_CORAL if "Frontera" in b_title else COLOR_STEEL
         p1.space_after = Pt(2)
         
-        p2 = tf_s8.add_paragraph()
+        p2 = tf_s13.add_paragraph()
         p2.text = b_desc
         p2.font.name = FONT_NAME
         p2.font.size = Pt(9.5)
@@ -399,16 +436,29 @@ def build_presentation(
         p2.space_after = Pt(8)
 
     # -------------------------------------------------------------
-    # SLIDE 9: ANEXO VERIFICABLE
+    # SLIDE 14: ¿DÓNDE CAYERON LAS 1,324? (FRECUENCIA MICRO-CLUSTERS)
     # -------------------------------------------------------------
-    print("• Configurando Slide 9: Anexo Verificable...")
-    s9 = create_slide(
+    print("• Configurando Slide 14: Frecuencia de Micro-Clusters...")
+    s14 = create_slide(
+        "DISTRIBUCIÓN DE LAS 1,324 ASIGNACIONES EN MARCHA BLANCA",
+        "¿Dónde Cayeron las 1,324?: Frecuencia por Micro-Cluster y Diagnóstico Honesto de Sesgo Muestral",
+        "La muestra se concentra en Admisión Única (AU-0 con 48.9%) y Platea General (PGI-2 con 6.2%); "
+        "los huecos en POP-3 o GGM-2 reflejan el sesgo del subset limpio del blob, no del modelo — con el blob regenerado esta curva se estabiliza."
+    )
+    fig_freq_path = "reports/figures/fig_frecuencia_microclusters.png"
+    if os.path.exists(fig_freq_path):
+        s14.shapes.add_picture(fig_freq_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+
+    # -------------------------------------------------------------
+    # SLIDE 15: ANEXO VERIFICABLE
+    # -------------------------------------------------------------
+    print("• Configurando Slide 15: Anexo Verificable...")
+    s15 = create_slide(
         "ANEXO VERIFICABLE DE MARCHA BLANCA",
         "Acceso Completo a las 1,324 Asignaciones: Excel Ejecutivo y Repositorio Versionado",
         "La evidencia no termina en las diapositivas: las 1,324 asignaciones completas, filtrables y con formato "
         "de porcentaje están disponibles en el anexo de Excel generado con openpyxl, además del CSV canónico en el repositorio."
     )
-    # 2 Tarjetas grandes (Excel vs Repo)
     anexo_cards = [
         ("LIBRO DE EXCEL EJECUTIVO (AUDITORÍA INMEDIATA)",
          "reports/anexo_asignaciones_marcha_blanca.xlsx",
@@ -426,26 +476,26 @@ def build_presentation(
          [
              ("CSV Completo:", "data/processed/asignacion_microclusters.csv (1,324 filas)"),
              ("CSV Galería:", "reports/ejemplos_galeria_extendida.csv (25 filas estratificadas)"),
+             ("Eventos Seleccionados:", "reports/eventos_seleccionados.csv (5 quintiles certificados)"),
              ("Catálogo v3.0:", "data/processed/cluster_catalog_v3.csv (18 micro-clusters)"),
              ("Auditoría Data Eng:", "reports/hallazgos_blob_test_gold_20261007.md"),
-             ("Test Hermético:", "tests/test_ejemplos_presentacion.py"),
              ("Reproducibilidad:", "Pipeline determinístico; scripts de generación automatizados")
          ],
          COLOR_STEEL)
     ]
     for c_i, (c_title, c_sub, c_rows, c_color) in enumerate(anexo_cards):
         x_pos = Inches(0.8 + c_i * 6.0)
-        c_box = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
+        c_box = s15.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
         c_box.fill.solid()
         c_box.fill.fore_color.rgb = COLOR_CARD_BG
         c_box.line.color.rgb = COLOR_CARD_BORDER
         
-        h_bar = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(0.7))
+        h_bar = s15.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(0.7))
         h_bar.fill.solid()
         h_bar.fill.fore_color.rgb = c_color
         h_bar.line.color.rgb = c_color
         
-        tb_h = s9.shapes.add_textbox(x_pos + Inches(0.1), Inches(1.55), Inches(5.5), Inches(0.5))
+        tb_h = s15.shapes.add_textbox(x_pos + Inches(0.1), Inches(1.55), Inches(5.5), Inches(0.5))
         p_th = tb_h.text_frame.paragraphs[0]
         p_th.text = c_title
         p_th.font.name = FONT_NAME
@@ -453,7 +503,7 @@ def build_presentation(
         p_th.font.bold = True
         p_th.font.color.rgb = COLOR_WHITE
         
-        tb_b = s9.shapes.add_textbox(x_pos + Inches(0.2), Inches(2.3), Inches(5.3), Inches(4.5))
+        tb_b = s15.shapes.add_textbox(x_pos + Inches(0.2), Inches(2.3), Inches(5.3), Inches(4.5))
         tf_b = tb_b.text_frame
         tf_b.word_wrap = True
         
@@ -480,10 +530,10 @@ def build_presentation(
             p_k.space_after = Pt(4)
 
     # -------------------------------------------------------------
-    # SLIDE 10: MÉTRICAS DE CALIDAD
+    # SLIDE 16: MÉTRICAS DE CALIDAD
     # -------------------------------------------------------------
-    print("• Configurando Slide 10: Métricas de Calidad...")
-    s10 = create_slide(
+    print("• Configurando Slide 16: Métricas de Calidad...")
+    s16 = create_slide(
         "MÉTRICAS DE CALIDAD Y CONFIABILIDAD",
         "Evaluación Cuantitativa de la Marcha Blanca y Estabilidad Estadística Documentada",
         "A nivel de calidad matemática, el modelo superó todas sus compuertas: confianza geométrica de 63%, "
@@ -491,7 +541,6 @@ def build_presentation(
         "Más aún: los 5 sub-espacios multi-zona tienen documentada una estabilidad bootstrap-ARI superior a 0.88 "
         "en réplicas al 80%, lo que garantiza reproducibilidad ante re-entrenamientos."
     )
-    # 4 Cuadros de métricas clave (2x2)
     m_boxes = [
         ("0.6314 (63.14%)", "SCORE DE CONFIANZA GEOMÉTRICO MEDIO", 
          "Supera ampliamente el umbral operacional mínimo de 0.50. Alta certidumbre en asignación de centroides.", COLOR_TEAL),
@@ -510,18 +559,17 @@ def build_presentation(
     ]
     for idx, (m_val, m_title, m_desc, m_color) in enumerate(m_boxes):
         x_m, y_m = m_coords[idx]
-        b_sh = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(5.7), Inches(2.5))
+        b_sh = s16.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(5.7), Inches(2.5))
         b_sh.fill.solid()
         b_sh.fill.fore_color.rgb = COLOR_CARD_BG
         b_sh.line.color.rgb = COLOR_CARD_BORDER
         
-        # Franja lateral de color
-        st_sh = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(0.2), Inches(2.5))
+        st_sh = s16.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(0.2), Inches(2.5))
         st_sh.fill.solid()
         st_sh.fill.fore_color.rgb = m_color
         st_sh.line.color.rgb = m_color
         
-        tb_m = s10.shapes.add_textbox(x_m + Inches(0.4), y_m + Inches(0.2), Inches(5.1), Inches(2.1))
+        tb_m = s16.shapes.add_textbox(x_m + Inches(0.4), y_m + Inches(0.2), Inches(5.1), Inches(2.1))
         tf_m = tb_m.text_frame
         tf_m.word_wrap = True
         
@@ -548,17 +596,17 @@ def build_presentation(
         p_dsc.font.color.rgb = COLOR_DARK
 
     # -------------------------------------------------------------
-    # SLIDE 11: LÍMITES HONESTOS Y GOBERNANZA
+    # SLIDE 17: LÍMITES HONESTOS Y GOBERNANZA
     # -------------------------------------------------------------
-    print("• Configurando Slide 11: Límites Honestos...")
-    s11 = create_slide(
+    print("• Configurando Slide 17: Límites Honestos...")
+    s17 = create_slide(
         "LÍMITES HONESTOS DEL LOTE Y GOBERNANZA",
         "Validación Funcional Exitosa (N=1,324), Diagnóstico de Capa GOLD y Criterios de Aceptación",
         "Debemos ser transparentes con el comité: 1,324 filas certifican que el código no se rompe y que las reglas filtran la basura, "
         "pero no constituyen una prueba estadística válida. El blob de prueba que recibimos tenía 90% de duplicados y funciones cortadas a la mitad. "
         "Ya entregamos el reporte formal de auditoría a Data Engineering con 5 criterios de aceptación para el nuevo lote."
     )
-    s11_sections = [
+    s17_sections = [
         ("VALIDACIÓN FUNCIONAL EXITOSA (NO ESTADÍSTICA)", [
             ("706,443 Filas Crudas Ingeridas:", "El lote probó de punta a punta la robustez del código, descarga de Azure e inferencia defensiva."),
             ("1,324 Localidades Limpias Finales (99.81% Descarte):", "El volumen residual certificado es seguro para inferencia pero insuficiente para certificar drift poblacional (PSI) representativo."),
@@ -572,14 +620,14 @@ def build_presentation(
             ("Check E (Patrones no Comerciales):", "0 filas con TEST, CANCELAD, PARQUEA o sobreventas.")
         ])
     ]
-    for c_i, (c_title, c_items) in enumerate(s11_sections):
+    for c_i, (c_title, c_items) in enumerate(s17_sections):
         x_pos = Inches(0.8 + c_i * 6.0)
-        c_box = s11.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
+        c_box = s17.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
         c_box.fill.solid()
         c_box.fill.fore_color.rgb = COLOR_CARD_BG
         c_box.line.color.rgb = COLOR_CARD_BORDER
         
-        tb_c = s11.shapes.add_textbox(x_pos + Inches(0.2), Inches(1.7), Inches(5.3), Inches(5.0))
+        tb_c = s17.shapes.add_textbox(x_pos + Inches(0.2), Inches(1.7), Inches(5.3), Inches(5.0))
         tf_c = tb_c.text_frame
         tf_c.word_wrap = True
         
@@ -608,17 +656,17 @@ def build_presentation(
             p2.space_after = Pt(6)
 
     # -------------------------------------------------------------
-    # SLIDE 12: PRÓXIMOS PASOS
+    # SLIDE 18: PRÓXIMOS PASOS
     # -------------------------------------------------------------
-    print("• Configurando Slide 12: Próximos Pasos...")
-    s12 = create_slide(
+    print("• Configurando Slide 18: Próximos Pasos...")
+    s18 = create_slide(
         "HOJA DE RUTA Y PRÓXIMOS PASOS",
         "Ruta Crítica hacia Producción Plena: Del Nuevo Blob GOLD al Feature Store Comercial",
         "La hoja de ruta es clara: una vez Data Engineering publique el blob curado con las 5 condiciones pactadas, "
         "ejecutaremos el protocolo final de drift. Con eso, y tras definir la política comercial para precios en cero en la versión 2.6, "
         "los micro-clusters quedarán listos para integrarse al pricing dinámico de la compañía."
     )
-    s12_steps = [
+    s18_steps = [
         ("1. Publicación del Nuevo Blob GOLD Regenerado",
          "Entrega coordinada con Data Engineering bajo los 5 criterios de calidad acordados (deduplicación en origen y funciones completas)."),
         ("2. Certificación Estadística Automatizada",
@@ -628,14 +676,14 @@ def build_presentation(
         ("4. Exposición en Feature Store para Modelos Downstream",
          "Consumo de micro_cluster_id y arquetipo_demanda en motores de propensión, pricing dinámico y elasticidad de taquilla.")
     ]
-    y_s12 = [Inches(1.5), Inches(2.85), Inches(4.2), Inches(5.55)]
-    for idx, (st_tit, st_txt) in enumerate(s12_steps):
-        box_st = s12.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), y_s12[idx], Inches(11.7), Inches(1.15))
+    y_s18 = [Inches(1.5), Inches(2.85), Inches(4.2), Inches(5.55)]
+    for idx, (st_tit, st_txt) in enumerate(s18_steps):
+        box_st = s18.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), y_s18[idx], Inches(11.7), Inches(1.15))
         box_st.fill.solid()
         box_st.fill.fore_color.rgb = COLOR_CARD_BG
         box_st.line.color.rgb = COLOR_CARD_BORDER
         
-        tb_st = s12.shapes.add_textbox(Inches(1.1), y_s12[idx] + Inches(0.1), Inches(11.2), Inches(0.95))
+        tb_st = s18.shapes.add_textbox(Inches(1.1), y_s18[idx] + Inches(0.1), Inches(11.2), Inches(0.95))
         tf_st = tb_st.text_frame
         tf_st.word_wrap = True
         
