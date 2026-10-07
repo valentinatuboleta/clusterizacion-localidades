@@ -1,0 +1,65 @@
+{
+  "fecha_ejecucion": "2026-10-07T11:07:56.739595",
+  "path_origen": "GOLD/SECUTIX/Training Data/Clustering de Localidades test/",
+  "filas_in": 706443,
+  "filas_out": 1550,
+  "checks_entrada": {
+    "check_a_duplicados_crudo": 636577,
+    "check_b_conteos_por_regla": {
+      "total_inicial": 706443,
+      "regla_categoria_no_vacia": 0,
+      "regla_dn_quota_positiva": 2573,
+      "regla_performance_quota_positiva": 2618,
+      "regla_precio_positivo": 58093,
+      "regla_cantidades_no_negativas": 0,
+      "regla_deduplicacion_clave_negocio": 630475,
+      "regla_consistencia_aforo_evento": 11134,
+      "total_eliminadas": 704893,
+      "total_final": 1550
+    },
+    "check_c_eventos_incoherentes_quota": 706235,
+    "check_d_alerta_tamano_vs_entrenamiento": true,
+    "check_d_diferencia_pct": 95.41
+  },
+  "metricas_evaluacion": {
+    "score_confianza_medio": 0.6026,
+    "pct_frontera": 15.23,
+    "pct_texto_vacio": 0.0,
+    "comparativa_distribucion_nivel1": {
+      "Admisión Única / Tarifa Plana": {
+        "observado": 0.4252,
+        "esperado": 0.4552,
+        "diferencia": -0.0301
+      },
+      "Popular / Balcón / Visibilidad Parcial": {
+        "observado": 0.0768,
+        "esperado": 0.1814,
+        "diferencia": -0.1047
+      },
+      "VIP / Palcos / Premium": {
+        "observado": 0.1058,
+        "esperado": 0.1446,
+        "diferencia": -0.0388
+      },
+      "Platea General / Intermedia": {
+        "observado": 0.1987,
+        "esperado": 0.1025,
+        "diferencia": 0.0962
+      },
+      "Preferencial / Platea Frontal": {
+        "observado": 0.1039,
+        "esperado": 0.0869,
+        "diferencia": 0.017
+      },
+      "Grada General / Masiva": {
+        "observado": 0.0897,
+        "esperado": 0.0293,
+        "diferencia": 0.0604
+      }
+    }
+  },
+  "versiones_payload": {
+    "nivel1_macro": "v2.5 (modelo_clustering_v2_2.joblib)",
+    "nivel2_micro": "v3.0 (modelo_jerarquia_v3.joblib)"
+  }
+}
