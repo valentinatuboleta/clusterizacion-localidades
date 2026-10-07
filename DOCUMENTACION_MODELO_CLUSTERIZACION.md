@@ -9,15 +9,15 @@
 
 ## Historial de Versiones
 
-| Versión | Fecha | Estado | Descripción y Criterios Clave |
-| :--- | :---: | :---: | :--- |
-| **v1.0** | 2026-03 | Deprecado | Baseline exploratorio K-Means sobre variables numéricas crudas. |
-| **v2.0** | 2026-05 | Deprecado | Pipeline bietápico inicial con tags NLP básicos y separación monozona/multizona. |
-| **v2.2** | 2026-07 | Deprecado | Incorporación de percentil de precio por evento y expansión a 11 tags estructurales. |
-| **v2.3** | 2026-09 | Superado | Espacio vectorial mixto 35D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU, 9 categorías de venue v1), 6 arquetipos macro de demanda certificados. |
-| **v2.4** | 2026-09 | Superado | Espacio vectorial mixto 36D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU), migración a 10 categorías canónicas de venue (`type_site`). |
-| **v2.5** | 2026-09 | **Producción Vigente** | Consolidación 100% de clasificación de venues — 136 revisiones humanas, 0 desconocido. Espacio vectorial mixto 36D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$). Métricas reales: silueta 0.2105, Davies-Bouldin 1.4797, Calinski-Harabasz 4688.6, Inercia 26,058.5, ARI vs v2.3 = 0.9394. |
-| **v3.0-hier.2** | 2026-09 | **Aprobado (Features)** | Aprobado como generador de features bajo criterios de estabilidad/cobertura con Nivel 1 v2.5 (36D) y Nivel 2 en 5 sub-espacios (32D, 13 tags, $\omega_{\text{venue}}=0.0$). 19 micro-clusters (`AU-0` + 18 multi-zona), 0 degenerados, rollup 1:1 estricto, ARI generalizado > 0.88. |
+| Versión         | Fecha   | Estado                  | Descripción y Criterios Clave                                                                                                                                                                                                                                                                          |
+| :----------------| :-------:| :-----------------------:| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **v1.0**        | 2026-03 | Deprecado               | Baseline exploratorio K-Means sobre variables numéricas crudas.                                                                                                                                                                                                                                        |
+| **v2.0**        | 2026-05 | Deprecado               | Pipeline bietápico inicial con tags NLP básicos y separación monozona/multizona.                                                                                                                                                                                                                       |
+| **v2.2**        | 2026-07 | Deprecado               | Incorporación de percentil de precio por evento y expansión a 11 tags estructurales.                                                                                                                                                                                                                   |
+| **v2.3**        | 2026-09 | Superado                | Espacio vectorial mixto 35D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU, 9 categorías de venue v1), 6 arquetipos macro de demanda certificados.                                                                                                                     |
+| **v2.4**        | 2026-09 | Superado                | Espacio vectorial mixto 36D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$, $k=5$ multi-zona + AU), migración a 10 categorías canónicas de venue (`type_site`).                                                                                                                               |
+| **v2.5**        | 2026-09 | **Producción Vigente**  | Consolidación 100% de clasificación de venues — 136 revisiones humanas, 0 desconocido. Espacio vectorial mixto 36D ($\omega_{\text{nlp}}=0.2$, $\omega_{\text{venue}}=0.5$). Métricas reales: silueta 0.2105, Davies-Bouldin 1.4797, Calinski-Harabasz 4688.6, Inercia 26,058.5, ARI vs v2.3 = 0.9394. |
+| **v3.0-hier.2** | 2026-09 | **Aprobado (Features)** | Aprobado como generador de features bajo criterios de estabilidad/cobertura con Nivel 1 v2.5 (36D) y Nivel 2 en 5 sub-espacios (32D, 13 tags, $\omega_{\text{venue}}=0.0$). 19 micro-clusters (`AU-0` + 18 multi-zona), 0 degenerados, rollup 1:1 estricto, ARI generalizado > 0.88.                   |
 
 ---
 
@@ -881,6 +881,37 @@ El protocolo de **Marcha Blanca** establece el procedimiento estándar para audi
 * **Dataset Enriquecido para Modelos Downstream:** `data/processed/marcha_blanca_predicciones.csv` y formato Parquet con las asignaciones y el nombre del evento (`product`).
 * **Notebook Oficial:** [`notebooks/03_marcha_blanca_evaluacion.ipynb`](notebooks/03_marcha_blanca_evaluacion.ipynb).
 * **Script de Ejecución Automatizada:** [`scripts/ejecutar_evaluacion_marcha_blanca.py`](scripts/ejecutar_evaluacion_marcha_blanca.py).
+
+#### 10.3 Deuda Conocida: Alineación Filtro-Entrenamiento
+
+##### A. Explicación del Hallazgo 2 con Números Reales
+Al ejecutar el filtro de consistencia estricto y corregido (`filtrar_consistencia_localidades` con deduplicación por clave de negocio y precio estrictamente $> 0$) sobre el dataset crudo histórico de entrenamiento (`data/raw/localidades_eda.parquet`, $34,030$ registros), se observó que un **$23.31\%$ de las filas ($7,933$ localidades)** violaría alguna regla de consistencia:
+
+| Regla de Filtro Estricto | Filas Eliminadas | Mecanismo y Diagnóstico |
+| :--- | :---: | :--- |
+| **Regla 1 (Categoría lógica no vacía)** | $0$ | $100\%$ de nombres no nulos en dataset histórico. |
+| **Regla 2 (`dn_quota > 0`)** | $118$ | Localidades con aforo físico cero o inconsistente. |
+| **Regla 3 (`performance_quota > 0`)** | $0$ | Aforo total del evento siempre positivo. |
+| **Regla 4 (Precio estrictamente $> 0$)** | **$2,860$** | **Núcleo del hallazgo:** Localidades con precio registrado en $\$0$ COP o nulo. |
+| **Regla 5 (Cantidades $\ge 0$)** | $3$ | Devoluciones anómalas menores. |
+| **Regla 6 (Deduplicación clave de negocio)** | $0$ | Cero duplicados exactos en el dataset histórico curado. |
+| **Regla 7 (Consistencia aforo evento: $\sum \text{dn\_quota} == \text{performance\_quota}$)** | **$4,952$** | **Efecto Cascada:** Las $2,860$ localidades de precio $\$0$ sostenían la aritmética de aforo de sus eventos. Al eliminarlas individualmente, la suma de las localidades restantes deja de cuadrar con `performance_quota`, provocando que el evento completo sea descartado. |
+| **Total Eliminadas / Reducción Total** | **$7,933$ ($-23.31\%$)** | Dataset residual: **$26,097$ filas**. |
+
+##### B. Consecuencia Explícita en Producción
+* El modelo de producción **Macro v2.5** y la arquitectura jerárquica de **Micro-clusters v3.0** fueron ajustados y congelados utilizando la definición de filtro *legacy* ($33,775$ filas consistentes), la cual permitía localidades con precio $\$0$ cuando formaban parte de eventos válidos (`modo_legacy_v3 = True`).
+* Hasta que se publique y apruebe una versión mayor **v2.6**, el pipeline de re-entrenamiento histórico y el scoring de nuevos lotes crudos de marcha blanca operan con niveles de rigurosidad diferenciados.
+* Este desfase es una **deuda metodológica identificada, tipificada y formalmente aceptada por el comité de gobernanza**, no una omisión técnica ni un comportamiento inadvertido.
+
+##### C. Política Pendiente para v2.6 (Decisión de Negocio y Datos)
+Se mantiene como pregunta estratégica abierta para Data Engineering y Producto Comercial:
+> **Pregunta Abierta:** ¿Qué representan operativamente las localidades con precio $\$0$ en Secutix?  
+> *(¿Inventario reservado para cortesías y prensa? ¿Fallback transaccional por falta de parametrización en taquilla? ¿Admisiones especiales no monetizables?)*
+
+**Plan de Acción para v2.6:**
+1. **Definir Tratamiento de Negocio:** Acordar si las filas con precio $\$0$ deben imputarse (e.g. precio mínimo del evento), conservarse mediante un indicador explícito (`flag_cortesia_precio_cero=True`) sin ser descartadas, o excluirse desde el origen de datos.
+2. **Re-entrenamiento Formal v2.6:** Entrenar el pipeline completo bajo el filtro estricto alineado con la política acordada.
+3. **Re-baseline General:** Actualizar la distribución esperada (`DISTRIBUCION_ESPERADA_ARQUETIPOS`), los percentiles condicionales (`distribucion_percentil_tipo`) y los histogramas de referencia de drift estadístico (PSI).
 
 ---
 

@@ -384,11 +384,22 @@ Se puede ejecutar interactivamente mediante el notebook oficial o vía CLI:
 ### 3. Artefactos Producidos
 * **Reporte Cuantitativo JSON:** [`reports/marcha_blanca_YYYYMMDD.json`](reports/) con metadatos de ejecución, los 4 checks de entrada, conteos por regla del filtro corregido y métricas de calidad (score de confianza, tasa de frontera, distribución observada vs. esperada).
 * **Predicciones Enriquecidas:** [`data/processed/marcha_blanca_predicciones.csv`](data/processed/) y formato complementario `.parquet` con las asignaciones de `arquetipo_demanda` (Macro) y `micro_cluster_id` (19 micro-clusters canónicos) junto al nombre del evento (`product`).
+* **Deuda Técnica Conocida:** Ver Sección 10.3 en [DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md#103-deuda-conocida-alineación-filtro-entrenamiento) sobre la alineación filtro-entrenamiento y tratamiento de precios en $0.
+
+---
+
+## Convenciones de Contribución y Commits
+
+Para preservar la trazabilidad, reproducibilidad e higiene del repositorio:
+* **Mensajes de Commit:** Los mensajes de commit deben redactarse en formato convencional (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).
+* **Higiene de Commits:** Commits de prueba (e.g. `marcha_blanca_test`) deben squasharse antes del push a `main`.
+* **Notebooks:** Se debe aplicar obligatoriamente `nbstripout` sobre cualquier notebook antes de commitear para no versionar salidas o binarios pesados.
 
 ---
 
 ## Documentación Técnica Detallada
 Para consultar la justificación matemática, fórmulas de normalización, descomposiciones de varianza PCA y pseudocódigo, consulta:
  **[DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md)**
+
 
 
