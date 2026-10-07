@@ -1,8 +1,8 @@
 {
-  "fecha_ejecucion": "2026-10-07T11:07:56.739595",
+  "fecha_ejecucion": "2026-10-07T12:00:37.683100",
   "path_origen": "GOLD/SECUTIX/Training Data/Clustering de Localidades test/",
   "filas_in": 706443,
-  "filas_out": 1550,
+  "filas_out": 1324,
   "checks_entrada": {
     "check_a_duplicados_crudo": 636577,
     "check_b_conteos_por_regla": {
@@ -14,47 +14,57 @@
       "regla_cantidades_no_negativas": 0,
       "regla_deduplicacion_clave_negocio": 630475,
       "regla_consistencia_aforo_evento": 11134,
-      "total_eliminadas": 704893,
-      "total_final": 1550
+      "regla_exclusion_patrones_producto": 226,
+      "regla_ventas_no_exceden_aforo": 0,
+      "total_eliminadas": 705119,
+      "total_final": 1324
     },
     "check_c_eventos_incoherentes_quota": 706235,
     "check_d_alerta_tamano_vs_entrenamiento": true,
-    "check_d_diferencia_pct": 95.41
+    "check_d_diferencia_pct": 96.08,
+    "check_e_patrones_exclusion_crudo": 18420,
+    "check_e_detalle_patrones": {
+      "TEST": 144,
+      "CANCELAD": 5209,
+      "PARQUEA": 13020,
+      "NO USAR": 47
+    },
+    "check_e_ventas_exceden_aforo_crudo": 111
   },
   "metricas_evaluacion": {
-    "score_confianza_medio": 0.6026,
-    "pct_frontera": 15.23,
+    "score_confianza_medio": 0.6314,
+    "pct_frontera": 14.27,
     "pct_texto_vacio": 0.0,
     "comparativa_distribucion_nivel1": {
       "Admisión Única / Tarifa Plana": {
-        "observado": 0.4252,
+        "observado": 0.4887,
         "esperado": 0.4552,
-        "diferencia": -0.0301
+        "diferencia": 0.0335
       },
       "Popular / Balcón / Visibilidad Parcial": {
-        "observado": 0.0768,
+        "observado": 0.0876,
         "esperado": 0.1814,
-        "diferencia": -0.1047
+        "diferencia": -0.0938
       },
       "VIP / Palcos / Premium": {
-        "observado": 0.1058,
+        "observado": 0.0891,
         "esperado": 0.1446,
-        "diferencia": -0.0388
+        "diferencia": -0.0555
       },
       "Platea General / Intermedia": {
-        "observado": 0.1987,
+        "observado": 0.1843,
         "esperado": 0.1025,
-        "diferencia": 0.0962
+        "diferencia": 0.0818
       },
       "Preferencial / Platea Frontal": {
-        "observado": 0.1039,
+        "observado": 0.1201,
         "esperado": 0.0869,
-        "diferencia": 0.017
+        "diferencia": 0.0332
       },
       "Grada General / Masiva": {
-        "observado": 0.0897,
+        "observado": 0.0302,
         "esperado": 0.0293,
-        "diferencia": 0.0604
+        "diferencia": 0.0009
       }
     }
   },

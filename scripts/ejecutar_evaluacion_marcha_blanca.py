@@ -66,6 +66,28 @@ print(f"  • Check (d) Tamaño vs. entrenamiento ({n_ref_entrenamiento:,}): {n_
 if alerta_tamano:
     print(f"      [ALERTA CHECK D] El tamaño difiere > 20% del entrenamiento de referencia.")
 
+# Check (e): Filas con patrones de exclusión de producto en crudo y ventas > aforo
+pats_exclusion = ("TEST", "CANCELAD", "PARQUEA", "NO USAR")
+if "product" in df_test_raw.columns:
+    prod_s = df_test_raw["product"].fillna("").astype(str).str.upper()
+    mask_pats_crudo = pd.Series(False, index=df_test_raw.index)
+    detalle_patrones = {}
+    for p in pats_exclusion:
+        c_p = int(prod_s.str.contains(p, regex=False).sum())
+        detalle_patrones[p] = c_p
+        mask_pats_crudo |= prod_s.str.contains(p, regex=False)
+    n_patrones_crudo = int(mask_pats_crudo.sum())
+else:
+    n_patrones_crudo = 0
+    detalle_patrones = {}
+
+if "net_sold_p_qty" in df_test_raw.columns and "dn_quota" in df_test_raw.columns:
+    n_ventas_exceden_crudo = int((df_test_raw["net_sold_p_qty"] > df_test_raw["dn_quota"]).sum())
+else:
+    n_ventas_exceden_crudo = 0
+print(f"  • Check (e) Patrones de exclusión en crudo: {n_patrones_crudo:,} filas {detalle_patrones}")
+print(f"      - Ventas pagadas > aforo en crudo: {n_ventas_exceden_crudo:,} filas")
+
 # 3. Preparación Enriquecida del Dataset (Ruta estándar)
 print("\n[3/5] Aplicando pipeline estándar de enriquecimiento (preparar_dataset_enriquecido)...")
 df_enriquecido = preparar_dataset_enriquecido(df_test_raw)
@@ -118,7 +140,10 @@ reporte_final = {
         "check_b_conteos_por_regla": reporte_reglas,
         "check_c_eventos_incoherentes_quota": n_incoherentes_crudo,
         "check_d_alerta_tamano_vs_entrenamiento": alerta_tamano,
-        "check_d_diferencia_pct": round(dif_pct, 2)
+        "check_d_diferencia_pct": round(dif_pct, 2),
+        "check_e_patrones_exclusion_crudo": n_patrones_crudo,
+        "check_e_detalle_patrones": detalle_patrones,
+        "check_e_ventas_exceden_aforo_crudo": n_ventas_exceden_crudo
     },
     "metricas_evaluacion": {
         "score_confianza_medio": round(score_confianza_medio, 4),
@@ -143,10 +168,19 @@ for col in ["micro_cluster_id", "label_auto", "arquetipo_demanda", "score_confia
 
 out_csv = "data/processed/marcha_blanca_predicciones.csv"
 out_pq = "data/processed/marcha_blanca_predicciones.parquet"
-df_export.to_csv(out_csv, index=False)
-df_export.to_parquet(out_pq, index=False)
-print(f"  • Predicciones guardadas en CSV: {out_csv} ({os.path.getsize(out_csv)/(1024*1024):.2f} MB)")
-print(f"  • Predicciones guardadas en Parquet: {out_pq} ({os.path.getsize(out_pq)/(1024*1024):.2f} MB)")
+try:
+    df_export.to_csv(out_csv, index=False)
+    print(f"  • Predicciones guardadas en CSV: {out_csv} ({os.path.getsize(out_csv)/(1024*1024):.2f} MB)")
+except PermissionError:
+    alt_csv = "data/processed/marcha_blanca_predicciones_actualizado.csv"
+    df_export.to_csv(alt_csv, index=False)
+    print(f"  [AVISO] {out_csv} está bloqueado por otra aplicación (ej. Excel). Guardado en: {alt_csv}")
+
+try:
+    df_export.to_parquet(out_pq, index=False)
+    print(f"  • Predicciones guardadas en Parquet: {out_pq} ({os.path.getsize(out_pq)/(1024*1024):.2f} MB)")
+except Exception as e:
+    print(f"  [ALERTA] No se pudo guardar parquet: {e}")
 
 print("\n" + "=" * 80)
 print("MARCHA BLANCA EJECUTADA Y CERTIFICADA EXITOSAMENTE")
