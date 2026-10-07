@@ -233,6 +233,7 @@ data/*
 !reports/frecuencias_type_site_v2.csv
 !reports/ejemplos_presentacion.csv
 !reports/ejemplos_galeria_extendida.csv
+!reports/eventos_seleccionados.csv
 !reports/anexo_asignaciones_marcha_blanca.xlsx
 !data/processed/cluster_catalog_v3.csv
 !data/processed/asignacion_microclusters.csv
