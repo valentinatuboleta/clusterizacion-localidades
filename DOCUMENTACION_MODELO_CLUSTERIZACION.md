@@ -279,6 +279,8 @@ Este módulo resuelve la distorsión del dinero y el tamaño del venue calculand
   5. **Regla 5 (Cantidades no negativas):** `net_sold_p_qty >= 0` y `net_sold_c_qty >= 0`.
   6. **Regla 6 (Deduplicación exacta por clave de negocio):** Deduplica por `(t_performance_id, site, logical_seat_category, dn_quota, precio)`. Si una misma localidad se vende en dos eventos distintos, se preserva legítimamente en ambos (Hallazgo 3).
   7. **Regla 7 (Consistencia física de evento):** Valida que la suma de aforos de localidades activas coincida con el aforo total: $\sum \text{dn\_quota} = \text{performance\_quota}$ por función.
+  8. **Regla 8 (Exclusión por contenido de producto):** Excluye nombres de producto con patrones técnicos o no comerciales (`patrones_exclusion=("TEST", "CANCELAD", "PARQUEA", "NO USAR")`) evaluados insensiblemente a mayúsculas/minúsculas vía `str.contains(pat, case=False, regex=False)`.
+  9. **Regla 9 (Ventas no exceden aforo):** Valida que las ventas pagadas no superen la capacidad física declarada: `net_sold_p_qty <= dn_quota` (mirror de la regla histórica de Spark).
 
 * **Auditoría de Impacto sobre el Dataset de Entrenamiento (`localidades_eda.parquet`):**
 
@@ -292,7 +294,13 @@ Este módulo resuelve la distorsión del dinero y el tamaño del venue calculand
 | **Regla 5** | Cantidades $\ge 0$ | 3 | 31,049 | 0.01% |
 | **Regla 6** | Deduplicación clave negocio | 0 | 31,049 | 0.00% |
 | **Regla 7** | Coherencia $\sum \text{dn\_quota} = \text{perf\_quota}$ | **4,952** | **26,097** | 14.55% |
-| **TOTAL ELIMINADAS** | Reducción neta por filtro corregido | **7,933** | **26,097** | **23.31%** |
+| **Regla 8** | Exclusión producto (TEST/CANCELAD/PARQUEA/NO USAR) | 0 | 26,097 | 0.00% |
+| **Regla 9** | Ventas $\le$ cuota (`net_sold_p_qty <= dn_quota`) | 0 | 26,097 | 0.00% |
+| **TOTAL ELIMINADAS** | Reducción neta por filtro estricto | **7,933** | **26,097** | **23.31%** |
+
+> [!NOTE]
+> **Alineación con Filtro Spark y Distinción Legacy / Estricto:**  
+> Las reglas 8 y 9 alinean el serving Python con el filtro Spark histórico del notebook `00_databricks_raw_data.ipynb`; sobre el dataset de entrenamiento crudo eliminan exactamente 0 filas porque Spark ya las había aplicado aguas arriba. El modo legacy reproduce la definición histórica de v2.5 (33,775 filas exactas con filtro Spark aplicado aguas arriba), mientras que las reglas 8-9 alinean datos nuevos que no pasaron por el notebook 00 en modo estricto.
 
 > [!WARNING]
 > **Veredicto Compuerta de Impacto (Bloque 2):**
@@ -901,7 +909,7 @@ Al ejecutar el filtro de consistencia estricto y corregido (`filtrar_consistenci
 ##### B. Consecuencia Explícita en Producción
 * El modelo de producción **Macro v2.5** y la arquitectura jerárquica de **Micro-clusters v3.0** fueron ajustados y congelados utilizando la definición de filtro *legacy* ($33,775$ filas consistentes), la cual permitía localidades con precio $\$0$ cuando formaban parte de eventos válidos (`modo_legacy_v3 = True`).
 * Hasta que se publique y apruebe una versión mayor **v2.6**, el pipeline de re-entrenamiento histórico y el scoring de nuevos lotes crudos de marcha blanca operan con niveles de rigurosidad diferenciados.
-* Este desfase es una **deuda metodológica identificada, tipificada y formalmente aceptada por el comité de gobernanza**, no una omisión técnica ni un comportamiento inadvertido.
+* Este desfase es una **deuda metodológica identificada, tipificada y formalmente aceptada por el comité de gobernanza**, parcialmente resuelta: las reglas 8-9 alinean el serving con las exclusiones de Spark; la alineación del precio-0 con el entrenamiento sigue abierta para v2.6.
 
 ##### C. Política Pendiente para v2.6 (Decisión de Negocio y Datos)
 Se mantiene como pregunta estratégica abierta para Data Engineering y Producto Comercial:

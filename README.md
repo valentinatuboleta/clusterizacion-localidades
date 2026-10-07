@@ -358,7 +358,7 @@ Especificación técnica para el consumo operativo de micro-clusters y arquetipo
 
 ## Marcha Blanca (Shadow Testing)
 
-El proceso de **Marcha Blanca** permite auditar y evaluar el comportamiento de los modelos de clusterización (Nivel 1 Macro-Arquetipos v2.5 + Nivel 2 Micro-Clusters Canónicos v3.0) de forma aislada sobre nuevos eventos curados de Secutix, sin impacto sobre los sistemas en producción.
+El proceso de **Marcha Blanca** permite auditar y evaluar el comportamiento de los modelos de clusterización (Nivel 1 Macro-Arquetipos v2.5 + Nivel 2 Micro-Clusters Canónicos v3.0) de forma aislada sobre nuevos eventos curados de Secutix, sin impacto sobre los sistemas en producción. El flujo aplica las 9 reglas de consistencia física, monetaria y de catálogo a cualquier blob que ingrese al pipeline de evaluación.
 
 ### 1. Origen de Datos y Parámetros
 * **Ruta oficial en Azure Blob Storage (Capa Gold):**
@@ -382,9 +382,9 @@ Se puede ejecutar interactivamente mediante el notebook oficial o vía CLI:
   ```
 
 ### 3. Artefactos Producidos
-* **Reporte Cuantitativo JSON:** [`reports/marcha_blanca_YYYYMMDD.json`](reports/) con metadatos de ejecución, los 4 checks de entrada, conteos por regla del filtro corregido y métricas de calidad (score de confianza, tasa de frontera, distribución observada vs. esperada).
+* **Reporte Cuantitativo JSON:** [`reports/marcha_blanca_YYYYMMDD.json`](reports/) con metadatos de ejecución, los 5 checks de entrada (incluyendo detección de patrones no comerciales y ventas vs. cuota), conteos por regla del filtro estricto (9 reglas) y métricas de calidad (score de confianza, tasa de frontera, distribución observada vs. esperada).
 * **Predicciones Enriquecidas:** [`data/processed/marcha_blanca_predicciones.csv`](data/processed/) y formato complementario `.parquet` con las asignaciones de `arquetipo_demanda` (Macro) y `micro_cluster_id` (19 micro-clusters canónicos) junto al nombre del evento (`product`).
-* **Deuda Técnica Conocida:** Ver Sección 10.3 en [DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md#103-deuda-conocida-alineación-filtro-entrenamiento) sobre la alineación filtro-entrenamiento y tratamiento de precios en $0.
+* **Deuda Técnica Conocida:** Ver Sección 10.3 en [DOCUMENTACION_MODELO_CLUSTERIZACION.md](DOCUMENTACION_MODELO_CLUSTERIZACION.md#103-deuda-conocida-alineación-filtro-entrenamiento) sobre la alineación filtro-entrenamiento (parcialmente resuelta con reglas 8-9 en serving; alineación de precio-0 pendiente para v2.6).
 
 ---
 
