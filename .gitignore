@@ -231,6 +231,7 @@ data/*
 !reports/microclusters_resultados.csv
 !reports/diagnostico_subespacios.csv
 !reports/frecuencias_type_site_v2.csv
+!reports/ejemplos_presentacion.csv
 !data/processed/cluster_catalog_v3.csv
 !data/processed/asignacion_microclusters.csv
 !data/processed/modelo_jerarquia_v3.joblib
