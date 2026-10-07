@@ -71,36 +71,67 @@
 
 ---
 
-### Slide 6: Galería de Ejemplos II: Los Casos Puente de Calidad
-* **Caso Puente 1: "Cara para su tipo de recinto" (El efecto del percentil contextual):**
-  * *Localidad:* `"PLATINO"` en `ROYAL CENTER` (`type_site` = `TEATRO`, Precio: \$360,000 COP).
-  * *Resultado:* Clasificada en `Preferencial / Platea Frontal` (`PPF-2`, `label_auto`: Platea).
-  * *Mecanismo:* La feature `percentil_precio_absoluto_dentro_tipo` alcanzó **1.0 (techo de precios en teatros)**, demostrando cómo la normalización por venue evita que un teatro mediano sea subestimado frente a un estadio masivo.
-* **Caso Puente 2: "Frontera honesta: el sistema sabe lo que no sabe":**
-  * *Localidad:* `"PLATEA"` en `TEATRO EL ENSUEÑO`.
-  * *Resultado:* Asignada a `Platea General / Intermedia` (`PGI-0`) pero con **Score de Confianza de 0.16%** y **`es_frontera = True`**.
-  * *Mecanismo:* El vector se ubicó a equidistancia entre Platea General y Preferencial. El modelo asigna la mejor estimación pero enciende la bandera de frontera honesta para el consumidor downstream.
-* **Referencia / Artefacto:** [`reports/ejemplos_presentacion.csv`](ejemplos_presentacion.csv) (filas 19 y 20).
+### Slide 5: Portada de la Galería y Densidad de Asignaciones
+* **Las 6 Héroes Representativas:** Un ejemplo nítido y libre de frontera por cada uno de los 6 macro-arquetipos, demostrando la consistencia del etiquetado sobre datos reales de Azure GOLD.
+* **Prueba de Densidad por Recinto:** Matriz de distribución de los **Top 10 recintos** por volumen sobre las **1,324 localidades limpias**, evidenciando cómo el modelo distribuye de forma coherente localidades en recintos monozona (Maloka, Planetario) y multizona (Movistar Arena, Teatro Jorge Eliécer Gaitán, Teatro Mayor).
+* **Volumen Certificado:** 100% de las 1,324 localidades reciben doble etiquetado sin fallos ni valores nulos.
+* **Referencias / Ilustraciones:** [`reports/figures/fig_tarjetas_ejemplos_marcha.png`](figures/fig_tarjetas_ejemplos_marcha.png) y [`reports/figures/fig_matriz_recintos_arquetipos.png`](figures/fig_matriz_recintos_arquetipos.png).
 * **Notas de Orador:**  
-  > *"Estos dos casos prueban la madurez matemática del modelo: primero, el percentil por tipo de recinto funciona, elevando una boleta de 360 mil pesos en teatro al arquetipo preferencial; y segundo, cuando una localidad queda en el limbo entre dos zonas, el sistema no adivina: marca bandera de frontera para que el equipo comercial la revise."*
+  > *"Aquí abrimos la galería con las 6 tarjetas héroes: una por cada arquetipo macro. Y a la derecha, la matriz de recintos demuestra la densidad de la marcha blanca sobre las 1,324 filas: recintos culturales absorben tarifas planas, mientras arenas y teatros despliegan la estratificación completa de VIP, preferenciales y balcones."*
 
 ---
 
-### Slide 7: Galería de Ejemplos III: Contrato de Negocio y Exclusiones de Catálogo
-* **Caso Puente 3: "El Parqueadero Excluido" (Regla 8 y Validación de Negocio):**
-  * *Problema Histórico:* En pruebas preliminares, productos auxiliares como `"PARQUEADERO"` recibían clusters (e.g. Admisión Única) distorsionando el análisis de capacidad.
-  * *Contrato Unificado (Regla 8):* Exclusión determinística por subcadena de producto (`TEST`, `CANCELAD`, `PARQUEA`, `NO USAR`).
-* **Cifras Reales de Marcha Blanca:**
-  * **13,020 filas** con patrón `PARQUEA` identificadas en el blob crudo (de 18,420 filas con anomalías técnicas).
-  * **205 localidades activas de parqueadero** sobrevivieron a las reglas físicas y fueron interceptadas y eliminadas por la Regla 8.
-  * **Resultado:** **0 parqueaderos** ingresaron al pipeline de inferencia; preservación estricta del catálogo exclusivo de espectadores.
-* **Referencia / Artefacto:** [`reports/ejemplos_presentacion.csv`](ejemplos_presentacion.csv) (fila 21) y [`reports/hallazgos_blob_test_gold_20261007.md`](hallazgos_blob_test_gold_20261007.md).
+### Slide 6: Galería Segmento Premium (VIP y Preferencial Frontal)
+* **Evidencia de Granularidad Interna (≤ 8 Tarjetas):** Desglose de localidades de alta gama asignadas a `VIP / Palcos / Premium` y `Preferencial / Platea Frontal`.
+* **Mismo Arquetipo, Distintos Micro-Clusters:**
+  * Dentro de VIP: discriminación entre palcos puros (`VIP-2`), palcos teatro/suites (`VIP-1`) y áreas corporativas mixtas (`VIP-0`).
+  * Dentro de Preferencial: separación entre plateas frontales puras (`PPF-2`), plateas centrales (`PPF-1`) y plateas posteriores (`PPF-0`).
+* **Barras de Confianza Calibradas:** Semáforo visual en cada tarjeta (Verde $\ge 70\%$, Ámbar $50-70\%$, Rojo $< 50\%$), reflejando alta certidumbre geométrica.
+* **Referencia / Ilustración:** [`reports/figures/fig_galeria_premium.png`](figures/fig_galeria_premium.png).
 * **Notas de Orador:**  
-  > *"Durante las primeras pruebas nos encontramos con que los parqueaderos recibían clusters. La regla 8, espejada del filtro Spark histórico, interceptó más de 13 mil registros y 205 localidades activas de parqueaderos antes de que tocaran el modelo. Cero parqueaderos en el catálogo final."*
+  > *"Mismo arquetipo, distintos micro-clusters: la granularidad interna es la feature de backend; el arquetipo es el lenguaje de negocio. Vean cómo dos localidades llamadas 'Platea' reciben micro-clusters diferentes según su cercanía al escenario y su nivel de tarificación."*
 
 ---
 
-### Slide 8: Métricas de Calidad y Confiabilidad en Marcha Blanca
+### Slide 7: Galería Segmento Masivos (Platea General, Popular / Balcón y Grada)
+* **Evidencia en Sectores de Mayor Volumen (≤ 12 Tarjetas):** Agrupamiento de localidades masivas cubriendo `Platea General / Intermedia`, `Popular / Balcón / Visibilidad Parcial` y `Grada General / Masiva`.
+* **Descomposición Fina de Micro-Clusters:**
+  * En Popular/Balcón: discriminación entre balcones clásicos (`POP-0`), pisos altos (`POP-1`), pisos combinados (`POP-2`) y sectores periféricos (`POP-3`).
+  * En Platea General: lunetas intermedias (`PGI-1`, `PGI-2`) frente a sectores generales de platea (`PGI-3`).
+  * En Grada Masiva: tiquetes masivos (`GGM-0`) y gradas de pie (`GGM-1`, `GGM-2`).
+* **Cobertura Robusta:** Demostración de que las localidades de volumen transaccional masivo conservan alta interpretabilidad sin colapsar en un único bucket ciego.
+* **Referencia / Ilustración:** [`reports/figures/fig_galeria_masivos.png`](figures/fig_galeria_masivos.png).
+* **Notas de Orador:**  
+  > *"Mismo arquetipo, distintos micro-clusters: la granularidad interna es la feature de backend; el arquetipo es el lenguaje de negocio. En los sectores masivos, donde se concentra la mayor venta de boletos, el sub-KMeans separa claramente un balcón de teatro de un piso 4 de arena."*
+
+---
+
+### Slide 8: Galería de Casos Especiales (Admisión Única, Fronteras Estadísticas e Híbridos)
+* **Admisión Única (`AU-0`):** Cobertura determinística al 100% de confianza sobre eventos monozona y tarifas planas (`MEET & GREET`, `GALERÍA INESPERADA`).
+* **Fronteras Estadísticas Honestas (`caso="frontera"`):**
+  * Localidades en el límite difuso entre arquetipos (`PLATEA` en El Ensueño con 0.16% de confianza; `PLATEA POSTERIOR` con 0.30%).
+  * El sistema las marca con borde punteado, asigna la mejor estimación y levanta la bandera `es_frontera=True` y `segmento_incierto=True`.
+* **Híbridos Léxicos (`caso="hibrido"`):**
+  * Localidades donde los atributos textuales combinan múltiples conceptos (`label_auto`: `hibrido_k1`, luneta con balcón).
+* **Referencia / Ilustración:** [`reports/figures/fig_galeria_especiales.png`](figures/fig_galeria_especiales.png) y [`reports/ejemplos_galeria_extendida.csv`](ejemplos_galeria_extendida.csv).
+* **Notas de Orador:**  
+  > *"Aquí vemos cómo el sistema sabe lo que no sabe: las tarjetas con borde punteado son fronteras estadísticas honestas donde la confianza cae por debajo del 1% y el sistema activa la bandera de incertidumbre. Y en verde, la admisión única determinística resuelve el 48% del lote con certeza absoluta."*
+
+---
+
+### Slide 9: Evidencia Completa y Anexo Verificable
+* **Transparencia Total de los Datos:** Las **1,324 asignaciones completas de la marcha blanca** están consolidadas y disponibles para auditoría directa en formato Excel y Parquet.
+* **Anexo Verificable Interactivo:**
+  * Archivo: [`reports/anexo_asignaciones_marcha_blanca.xlsx`](anexo_asignaciones_marcha_blanca.xlsx) (75.3 KB).
+  * 9 columnas normalizadas: `localidad`, `recinto`, `precio`, `type_site`, `micro_cluster_id`, `label_auto`, `arquetipo_demanda`, `score_confianza`, `es_frontera`.
+  * Hoja única con **autofiltro activado**, **encabezados congelados** y confianza formateada en porcentaje para exploración rápida del equipo comercial.
+* **Dataset Machine-Readable Downstream:** [`data/processed/marcha_blanca_predicciones.parquet`](../data/processed/marcha_blanca_predicciones.parquet) con las 53 columnas enriquecidas listo para modelado predictivo.
+* **Notas de Orador:**  
+  > *"No nos quedamos en diapositivas resumen: las 1,324 asignaciones completas, filtrables y con sus 9 variables clave, quedan compiladas en el archivo Excel anexo para que cualquier miembro del equipo de negocio pueda filtrar por evento, recinto o cluster con un solo clic."*
+
+---
+
+### Slide 10: Métricas de Calidad y Confiabilidad en Marcha Blanca
 * **Score de Confianza Geométrico Medio:** **0.6314 (63.14%)**, superando ampliamente el umbral operacional mínimo de 0.50.
 * **Tasa de Localidades en Frontera:** **14.27%**, dentro del rango de diseño previsto ($< 20.0\%$), garantizando estabilidad en el 85.7% del inventario restante.
 * **Tasa de Texto Vacío Post-Filtro:** **0.00%** (100% de localidades con categorización semántica completa).
@@ -111,7 +142,7 @@
 
 ---
 
-### Slide 9: Límites Honestos del Lote y Gobernanza de Datos
+### Slide 11: Límites Honestos del Lote y Gobernanza de Datos
 * **Validación Funcional Exitosa, No Estadística ($N=1,324$):**
   * El pipeline procesó 706,443 registros brutos; tras aplicar las 9 reglas de consistencia física, sobrevivieron únicamente **1,324 localidades limpias (99.81% de reducción)**.
   * El lote demostró que el software, las APIs y los envoltorios funcionan de punta a punta, pero **su tamaño no permite certificar drift poblacional ni representatividad estadística** frente al baseline de 33,775 localidades.
@@ -126,7 +157,7 @@
 
 ---
 
-### Slide 10: Próximos Pasos y Hoja de Ruta
+### Slide 12: Próximos Pasos y Hoja de Ruta
 * **Paso Inmediato: Entrega de Nuevo Lote GOLD Completo:** Coordinación con Data Engineering para ingerir un blob extraído sin muestreo, con deduplicación por clave primaria en origen y compuerta $\sum \text{cuotas} == \text{aforo}$.
 * **Evaluación Automatizada de Shadow Testing Final:** Ejecución del script `ejecutar_evaluacion_marcha_blanca.py` sobre el nuevo lote para auditar PSI de drift ($< 0.10$).
 * **Resolución de Deuda Metodológica en v2.6:**

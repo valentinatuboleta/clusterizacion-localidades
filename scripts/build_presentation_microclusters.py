@@ -305,80 +305,155 @@ def build_presentation(
         p2.font.color.rgb = COLOR_DARK
 
     # -------------------------------------------------------------
-    # SLIDE 5: GALERÍA DE EJEMPLOS I (FIGURA 2)
+    # SLIDE 5: PORTADA DE LA GALERÍA + MATRIZ DE RECINTOS (DENSIDAD)
     # -------------------------------------------------------------
-    print("• Configurando Slide 5: Galería de Ejemplos I...")
+    print("• Configurando Slide 5: Portada de Galería + Matriz de Recintos...")
     s5 = create_slide(
         "GALERÍA DE VALIDACIÓN EN MARCHA BLANCA",
-        "Doble Etiquetado en Vivo: Los 6 Arquetipos Evaluados sobre Datos Reales de Azure GOLD",
-        "Aquí vemos las 6 tarjetas generadas directamente con la data de marcha blanca. Observen la coherencia: "
-        "una vista parcial del Teatro Mayor Santo Domingo a 26 mil pesos va limpiamente a Popular/Balcón, "
-        "mientras que una Platea Lateral del Gaitán a 176 mil pesos sube a Preferencial con 70% de confianza."
+        "Doble Etiquetado en Vivo: Los 6 Arquetipos Héroes y Densidad en los Top 10 Recintos",
+        "La marcha blanca demuestra el doble etiquetado sobre 1,324 filas reales de Azure GOLD. "
+        "A la izquierda, los 6 arquetipos héroes de portada; a la derecha, la matriz de distribución "
+        "sobre los 10 recintos con mayor volumen, mostrando cómo conviven los arquetipos según la tipología del venue."
     )
-    fig2_path = "reports/figures/fig_tarjetas_ejemplos_marcha.png"
-    if os.path.exists(fig2_path):
-        s5.shapes.add_picture(fig2_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.6))
+    fig_heroes_path = "reports/figures/fig_tarjetas_ejemplos_marcha.png"
+    fig_matriz_path = "reports/figures/fig_matriz_recintos_arquetipos.png"
+    if os.path.exists(fig_heroes_path):
+        s5.shapes.add_picture(fig_heroes_path, Inches(0.8), Inches(1.4), Inches(6.0), Inches(5.5))
+    if os.path.exists(fig_matriz_path):
+        s5.shapes.add_picture(fig_matriz_path, Inches(7.0), Inches(1.4), Inches(5.6), Inches(5.5))
 
     # -------------------------------------------------------------
-    # SLIDE 6: GALERÍA DE EJEMPLOS II (CASOS PUENTE 1 Y 2)
+    # SLIDE 6: GALERÍA SEGMENTO PREMIUM (VIP + PREFERENCIAL)
     # -------------------------------------------------------------
-    print("• Configurando Slide 6: Casos Puente 1 y 2...")
+    print("• Configurando Slide 6: Galería Segmento Premium...")
     s6 = create_slide(
-        "CASOS PUENTE DE CALIDAD MATEMÁTICA",
-        "Demostración de Features Clave: Percentil Contextual y Frontera Estadística Honesta",
-        "Estos dos casos prueban la madurez matemática del modelo: primero, el percentil por tipo de recinto funciona, "
-        "elevando una boleta de 360 mil pesos en teatro al arquetipo preferencial; y segundo, cuando una localidad queda en el limbo entre dos zonas, "
-        "el sistema no adivina: marca bandera de frontera para que el equipo comercial la revise."
+        "EVIDENCIA POR SEGMENTO: SEGMENTO PREMIUM",
+        "Granularidad Interna en VIP y Preferencial Frontal (Micro-clusters VIP-0..2 y PPF-0..2)",
+        "Mismo arquetipo, distintos micro-clusters: la granularidad interna es la feature de backend; "
+        "el arquetipo es el lenguaje de negocio. Observen cómo dentro de Preferencial distinguimos "
+        "plateas centrales de laterales y posteriores; y en VIP aislamos palcos puros frente a balcones mixtos."
     )
-    # 2 Tarjetas grandes (Izquierda y Derecha)
-    p_cards = [
-        ("CASO PUENTE 1: 'CARA PARA SU TIPO DE RECINTO'",
-         "Efecto del Percentil Contextual por Tipología de Venue",
+    fig_prem_path = "reports/figures/fig_galeria_premium.png"
+    if os.path.exists(fig_prem_path):
+        s6.shapes.add_picture(fig_prem_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+
+    # -------------------------------------------------------------
+    # SLIDE 7: GALERÍA SEGMENTO MASIVOS (PLATEA GENERAL + POPULAR + GRADA)
+    # -------------------------------------------------------------
+    print("• Configurando Slide 7: Galería Segmento Masivos...")
+    s7 = create_slide(
+        "EVIDENCIA POR SEGMENTO: SEGMENTO MASIVOS",
+        "Granularidad Interna en Platea General, Popular y Grada Masiva (PGI, POP, GGM)",
+        "Mismo arquetipo, distintos micro-clusters: la granularidad interna es la feature de backend; "
+        "el arquetipo es el lenguaje de negocio. En eventos masivos, Popular separa pisos altos de balcones, "
+        "mientras Grada General aísla tiquetes de festival de localidades de admisión por gradería."
+    )
+    fig_mas_path = "reports/figures/fig_galeria_masivos.png"
+    if os.path.exists(fig_mas_path):
+        s7.shapes.add_picture(fig_mas_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+
+    # -------------------------------------------------------------
+    # SLIDE 8: CASOS ESPECIALES (AU-0, FRONTERAS E HÍBRIDOS)
+    # -------------------------------------------------------------
+    print("• Configurando Slide 8: Casos Especiales...")
+    s8 = create_slide(
+        "CASOS ESPECIALES: CALIDAD MATEMÁTICA Y FRONTERAS",
+        "Admisión Única Determinística, Banderas de Frontera y Clusters Léxicos Híbridos",
+        "El sistema sabe lo que no sabe: las fronteras no inventan certeza ficticia sino que encienden banderas "
+        "de auditoría; los micro-clusters híbridos capturan recintos con nomenclatura mixta sin colapsar la asignación; "
+        "y Admisión Única resuelve determinísticamente eventos mono-zona al 100% de confianza."
+    )
+    fig_esp_path = "reports/figures/fig_galeria_especiales.png"
+    if os.path.exists(fig_esp_path):
+        s8.shapes.add_picture(fig_esp_path, Inches(0.8), Inches(1.4), Inches(7.5), Inches(5.5))
+    
+    # Tarjeta lateral de explicación técnica en Slide 8
+    card_s8 = s8.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.5), Inches(1.4), Inches(4.0), Inches(5.5))
+    card_s8.fill.solid()
+    card_s8.fill.fore_color.rgb = COLOR_CARD_BG
+    card_s8.line.color.rgb = COLOR_CARD_BORDER
+    tb_s8 = s8.shapes.add_textbox(Inches(8.65), Inches(1.55), Inches(3.7), Inches(5.2))
+    tf_s8 = tb_s8.text_frame
+    tf_s8.word_wrap = True
+
+    bullets_s8 = [
+        ("AU-0: Admisión Única (100% Confianza)", "Eventos mono-zona o boletos de acceso irrestricto (Meet & Greet, Galerías). Pasa por nodo determinístico."),
+        ("Fronteras Estadísticas (Borde Punteado)", "Confianzas < 0.50 entre zonas difusas (ej. Platea en Teatro El Ensueño con 0.16%). Activa segmento_incierto=True."),
+        ("Clusters Híbridos (Badge HÍBRIDO)", "Nomenclaturas combinadas (Luneta + Balcón) agrupadas por K-Means sin violar el arquetipo macro."),
+        ("Regla 8: Exclusiones Interceptadas", "13,020 parqueaderos y 205 localidades activas no comerciales excluidas ex-ante por el contrato Python.")
+    ]
+    for b_title, b_desc in bullets_s8:
+        p1 = tf_s8.add_paragraph() if tf_s8.paragraphs[0].text else tf_s8.paragraphs[0]
+        p1.text = b_title
+        p1.font.name = FONT_NAME
+        p1.font.size = Pt(11)
+        p1.font.bold = True
+        p1.font.color.rgb = COLOR_CORAL if "Frontera" in b_title else COLOR_STEEL
+        p1.space_after = Pt(2)
+        
+        p2 = tf_s8.add_paragraph()
+        p2.text = b_desc
+        p2.font.name = FONT_NAME
+        p2.font.size = Pt(9.5)
+        p2.font.color.rgb = COLOR_DARK
+        p2.space_after = Pt(8)
+
+    # -------------------------------------------------------------
+    # SLIDE 9: ANEXO VERIFICABLE
+    # -------------------------------------------------------------
+    print("• Configurando Slide 9: Anexo Verificable...")
+    s9 = create_slide(
+        "ANEXO VERIFICABLE DE MARCHA BLANCA",
+        "Acceso Completo a las 1,324 Asignaciones: Excel Ejecutivo y Repositorio Versionado",
+        "La evidencia no termina en las diapositivas: las 1,324 asignaciones completas, filtrables y con formato "
+        "de porcentaje están disponibles en el anexo de Excel generado con openpyxl, además del CSV canónico en el repositorio."
+    )
+    # 2 Tarjetas grandes (Excel vs Repo)
+    anexo_cards = [
+        ("LIBRO DE EXCEL EJECUTIVO (AUDITORÍA INMEDIATA)",
+         "reports/anexo_asignaciones_marcha_blanca.xlsx",
          [
-             ("Localidad Comercial:", "PLATINO (Teatro Royal Center)"),
-             ("Precio Nominal:", "$360,000 COP"),
-             ("Tipología Canónica:", "TEATRO (type_site = TEATRO)"),
-             ("Percentil por Tipo:", "1.00 (Percentil 100% de Teatros)"),
-             ("Arquetipo Asignado:", "Preferencial / Platea Frontal"),
-             ("Micro-Cluster:", "PPF-2 (label_auto: Platea)"),
-             ("Por Qué es Clave:", "Demuestra que la normalización por venue evita el sesgo macro: $360k en teatro es el techo absoluto de precios y califica legítimamente como zona preferencial sin requerir el aforo de un estadio masivo.")
+             ("Volumen Total:", "1,324 filas de localidades limpias certificadas"),
+             ("Hoja Única:", "'Asignaciones_Marcha_Blanca' con autofiltro nativo"),
+             ("Usabilidad:", "Fila de encabezado congelada para navegación fluida"),
+             ("Formato Porcentual:", "score_confianza formateado como porcentaje (0.0%)"),
+             ("Formato Moneda:", "precio con separador de miles en pesos colombianos"),
+             ("Columnas Clave:", "localidad, recinto, precio, type_site, micro_cluster_id, label_auto, arquetipo_demanda, score_confianza, es_frontera")
          ],
          COLOR_TEAL),
-        ("CASO PUENTE 2: 'FRONTERA HONESTA'",
-         "El Sistema Sabe lo que No Sabe (Propagación de Incertidumbre)",
+        ("ARTEFACTOS DE CÓDIGO Y DATOS EN REPOSITORIO",
+         "c:/dev/clusterizacion-localidades/ (Git Versionado)",
          [
-             ("Localidad Comercial:", "PLATEA (Teatro El Ensueño)"),
-             ("Precio Nominal:", "$45,000 COP"),
-             ("Score de Confianza:", "0.16% (Extremadamente bajo)"),
-             ("Bandera de Frontera:", "es_frontera = True"),
-             ("Arquetipo Asignado:", "Platea General / Intermedia (PGI-0)"),
-             ("Propagación Downstream:", "segmento_incierto = True"),
-             ("Por Qué es Clave:", "El vector se ubicó en el límite difuso entre Platea General y Preferencial. El modelo no fuerza una certeza ficticia: asigna la mejor estimación pero enciende la bandera para auditoría humana.")
+             ("CSV Completo:", "data/processed/asignacion_microclusters.csv (1,324 filas)"),
+             ("CSV Galería:", "reports/ejemplos_galeria_extendida.csv (25 filas estratificadas)"),
+             ("Catálogo v3.0:", "data/processed/cluster_catalog_v3.csv (18 micro-clusters)"),
+             ("Auditoría Data Eng:", "reports/hallazgos_blob_test_gold_20261007.md"),
+             ("Test Hermético:", "tests/test_ejemplos_presentacion.py"),
+             ("Reproducibilidad:", "Pipeline determinístico; scripts de generación automatizados")
          ],
-         COLOR_CORAL)
+         COLOR_STEEL)
     ]
-    for c_i, (c_title, c_sub, c_rows, c_color) in enumerate(p_cards):
+    for c_i, (c_title, c_sub, c_rows, c_color) in enumerate(anexo_cards):
         x_pos = Inches(0.8 + c_i * 6.0)
-        c_box = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
+        c_box = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
         c_box.fill.solid()
         c_box.fill.fore_color.rgb = COLOR_CARD_BG
         c_box.line.color.rgb = COLOR_CARD_BORDER
         
-        # Barra superior
-        h_bar = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(0.7))
+        h_bar = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(0.7))
         h_bar.fill.solid()
         h_bar.fill.fore_color.rgb = c_color
         h_bar.line.color.rgb = c_color
         
-        tb_h = s6.shapes.add_textbox(x_pos + Inches(0.1), Inches(1.55), Inches(5.5), Inches(0.5))
+        tb_h = s9.shapes.add_textbox(x_pos + Inches(0.1), Inches(1.55), Inches(5.5), Inches(0.5))
         p_th = tb_h.text_frame.paragraphs[0]
         p_th.text = c_title
         p_th.font.name = FONT_NAME
-        p_th.font.size = Pt(11)
+        p_th.font.size = Pt(10.5)
         p_th.font.bold = True
         p_th.font.color.rgb = COLOR_WHITE
         
-        tb_b = s6.shapes.add_textbox(x_pos + Inches(0.2), Inches(2.3), Inches(5.3), Inches(4.5))
+        tb_b = s9.shapes.add_textbox(x_pos + Inches(0.2), Inches(2.3), Inches(5.3), Inches(4.5))
         tf_b = tb_b.text_frame
         tf_b.word_wrap = True
         
@@ -394,7 +469,7 @@ def build_presentation(
             p_k = tf_b.add_paragraph()
             p_k.text = f"• {k_label} "
             p_k.font.name = FONT_NAME
-            p_k.font.size = Pt(10)
+            p_k.font.size = Pt(9.5)
             p_k.font.bold = True
             p_k.font.color.rgb = COLOR_STEEL
             
@@ -402,73 +477,13 @@ def build_presentation(
             run_v.text = v_val
             run_v.font.bold = False
             run_v.font.color.rgb = COLOR_DARK
-            p_k.space_after = Pt(3)
+            p_k.space_after = Pt(4)
 
     # -------------------------------------------------------------
-    # SLIDE 7: GALERÍA DE EJEMPLOS III (CASO PUENTE 3)
+    # SLIDE 10: MÉTRICAS DE CALIDAD
     # -------------------------------------------------------------
-    print("• Configurando Slide 7: Caso Puente 3...")
-    s7 = create_slide(
-        "CONTRATO DE NEGOCIO Y EXCLUSIONES",
-        "Caso Puente 3: 'El Parqueadero Excluido' (Regla 8 y Coherencia de Catálogo)",
-        "Durante las primeras pruebas nos encontramos con que los parqueaderos recibían clusters. "
-        "La regla 8, espejada del filtro Spark histórico, interceptó más de 13 mil registros y 205 localidades activas de parqueaderos "
-        "antes de que tocaran el modelo. Cero parqueaderos en el catálogo final."
-    )
-    # 2 Columnas de tarjetas
-    s7_cols = [
-        ("EL HALLAZGO HISTÓRICO EN PRUEBAS INICIALES", [
-            ("El Problema Detectado:", "En la primera marcha blanca, los boletos auxiliares de parqueadero recibían arquetipos (ej. Admisión Única) distorsionando la capacidad del show."),
-            ("La Causa Raíz:", "El blob de prueba provino de una etapa cruda que no ejecutó el notebook 00 de Spark donde vivían las exclusiones históricas."),
-            ("Riesgo para el Negocio:", "Los modelos downstream de demanda y aforo asumirían que las plazas de estacionamiento eran sillas de espectadores.")
-        ]),
-        ("LA SOLUCIÓN: REGLA 8 EN EL PIPELINE PYTHON", [
-            ("Unificación del Contrato:", "Regla 8 incorporada en filtrar_consistencia_localidades con matching case-insensitive para TEST, CANCELAD, PARQUEA y NO USAR."),
-            ("13,020 Filas Crudas Interceptadas:", "Check E detectó 18,420 filas técnicas en crudo (13,020 parqueaderos, 5,209 cancelados, 144 test)."),
-            ("205 Localidades Activas Excluidas:", "La Regla 8 eliminó las 205 localidades activas remanentes post-filtro."),
-            ("Resultado Certificado:", "0 parqueaderos ingresaron al pipeline; catálogo 100% libre de contaminación auxiliar.")
-        ])
-    ]
-    for c_i, (c_title, c_items) in enumerate(s7_cols):
-        x_pos = Inches(0.8 + c_i * 6.0)
-        c_box = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
-        c_box.fill.solid()
-        c_box.fill.fore_color.rgb = COLOR_CARD_BG
-        c_box.line.color.rgb = COLOR_CARD_BORDER
-        
-        tb_c = s7.shapes.add_textbox(x_pos + Inches(0.2), Inches(1.7), Inches(5.3), Inches(5.0))
-        tf_c = tb_c.text_frame
-        tf_c.word_wrap = True
-        
-        p_t = tf_c.paragraphs[0]
-        p_t.text = c_title
-        p_t.font.name = FONT_NAME
-        p_t.font.size = Pt(12)
-        p_t.font.bold = True
-        p_t.font.color.rgb = COLOR_NAVY
-        p_t.space_after = Pt(12)
-        
-        for it_title, it_desc in c_items:
-            p1 = tf_c.add_paragraph()
-            p1.text = f"• {it_title}"
-            p1.font.name = FONT_NAME
-            p1.font.size = Pt(11)
-            p1.font.bold = True
-            p1.font.color.rgb = COLOR_STEEL
-            p1.space_after = Pt(2)
-            
-            p2 = tf_c.add_paragraph()
-            p2.text = f"  {it_desc}"
-            p2.font.name = FONT_NAME
-            p2.font.size = Pt(10)
-            p2.font.color.rgb = COLOR_DARK
-            p2.space_after = Pt(8)
-
-    # -------------------------------------------------------------
-    # SLIDE 8: MÉTRICAS DE CALIDAD
-    # -------------------------------------------------------------
-    print("• Configurando Slide 8: Métricas de Calidad...")
-    s8 = create_slide(
+    print("• Configurando Slide 10: Métricas de Calidad...")
+    s10 = create_slide(
         "MÉTRICAS DE CALIDAD Y CONFIABILIDAD",
         "Evaluación Cuantitativa de la Marcha Blanca y Estabilidad Estadística Documentada",
         "A nivel de calidad matemática, el modelo superó todas sus compuertas: confianza geométrica de 63%, "
@@ -495,18 +510,18 @@ def build_presentation(
     ]
     for idx, (m_val, m_title, m_desc, m_color) in enumerate(m_boxes):
         x_m, y_m = m_coords[idx]
-        b_sh = s8.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(5.7), Inches(2.5))
+        b_sh = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(5.7), Inches(2.5))
         b_sh.fill.solid()
         b_sh.fill.fore_color.rgb = COLOR_CARD_BG
         b_sh.line.color.rgb = COLOR_CARD_BORDER
         
         # Franja lateral de color
-        st_sh = s8.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(0.2), Inches(2.5))
+        st_sh = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_m, y_m, Inches(0.2), Inches(2.5))
         st_sh.fill.solid()
         st_sh.fill.fore_color.rgb = m_color
         st_sh.line.color.rgb = m_color
         
-        tb_m = s8.shapes.add_textbox(x_m + Inches(0.4), y_m + Inches(0.2), Inches(5.1), Inches(2.1))
+        tb_m = s10.shapes.add_textbox(x_m + Inches(0.4), y_m + Inches(0.2), Inches(5.1), Inches(2.1))
         tf_m = tb_m.text_frame
         tf_m.word_wrap = True
         
@@ -533,17 +548,17 @@ def build_presentation(
         p_dsc.font.color.rgb = COLOR_DARK
 
     # -------------------------------------------------------------
-    # SLIDE 9: LÍMITES HONESTOS Y GOBERNANZA
+    # SLIDE 11: LÍMITES HONESTOS Y GOBERNANZA
     # -------------------------------------------------------------
-    print("• Configurando Slide 9: Límites Honestos...")
-    s9 = create_slide(
+    print("• Configurando Slide 11: Límites Honestos...")
+    s11 = create_slide(
         "LÍMITES HONESTOS DEL LOTE Y GOBERNANZA",
         "Validación Funcional Exitosa (N=1,324), Diagnóstico de Capa GOLD y Criterios de Aceptación",
         "Debemos ser transparentes con el comité: 1,324 filas certifican que el código no se rompe y que las reglas filtran la basura, "
         "pero no constituyen una prueba estadística válida. El blob de prueba que recibimos tenía 90% de duplicados y funciones cortadas a la mitad. "
         "Ya entregamos el reporte formal de auditoría a Data Engineering con 5 criterios de aceptación para el nuevo lote."
     )
-    s9_sections = [
+    s11_sections = [
         ("VALIDACIÓN FUNCIONAL EXITOSA (NO ESTADÍSTICA)", [
             ("706,443 Filas Crudas Ingeridas:", "El lote probó de punta a punta la robustez del código, descarga de Azure e inferencia defensiva."),
             ("1,324 Localidades Limpias Finales (99.81% Descarte):", "El volumen residual certificado es seguro para inferencia pero insuficiente para certificar drift poblacional (PSI) representativo."),
@@ -557,14 +572,14 @@ def build_presentation(
             ("Check E (Patrones no Comerciales):", "0 filas con TEST, CANCELAD, PARQUEA o sobreventas.")
         ])
     ]
-    for c_i, (c_title, c_items) in enumerate(s9_sections):
+    for c_i, (c_title, c_items) in enumerate(s11_sections):
         x_pos = Inches(0.8 + c_i * 6.0)
-        c_box = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
+        c_box = s11.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x_pos, Inches(1.5), Inches(5.7), Inches(5.4))
         c_box.fill.solid()
         c_box.fill.fore_color.rgb = COLOR_CARD_BG
         c_box.line.color.rgb = COLOR_CARD_BORDER
         
-        tb_c = s9.shapes.add_textbox(x_pos + Inches(0.2), Inches(1.7), Inches(5.3), Inches(5.0))
+        tb_c = s11.shapes.add_textbox(x_pos + Inches(0.2), Inches(1.7), Inches(5.3), Inches(5.0))
         tf_c = tb_c.text_frame
         tf_c.word_wrap = True
         
@@ -593,17 +608,17 @@ def build_presentation(
             p2.space_after = Pt(6)
 
     # -------------------------------------------------------------
-    # SLIDE 10: PRÓXIMOS PASOS
+    # SLIDE 12: PRÓXIMOS PASOS
     # -------------------------------------------------------------
-    print("• Configurando Slide 10: Próximos Pasos...")
-    s10 = create_slide(
+    print("• Configurando Slide 12: Próximos Pasos...")
+    s12 = create_slide(
         "HOJA DE RUTA Y PRÓXIMOS PASOS",
         "Ruta Crítica hacia Producción Plena: Del Nuevo Blob GOLD al Feature Store Comercial",
         "La hoja de ruta es clara: una vez Data Engineering publique el blob curado con las 5 condiciones pactadas, "
         "ejecutaremos el protocolo final de drift. Con eso, y tras definir la política comercial para precios en cero en la versión 2.6, "
         "los micro-clusters quedarán listos para integrarse al pricing dinámico de la compañía."
     )
-    s10_steps = [
+    s12_steps = [
         ("1. Publicación del Nuevo Blob GOLD Regenerado",
          "Entrega coordinada con Data Engineering bajo los 5 criterios de calidad acordados (deduplicación en origen y funciones completas)."),
         ("2. Certificación Estadística Automatizada",
@@ -613,14 +628,14 @@ def build_presentation(
         ("4. Exposición en Feature Store para Modelos Downstream",
          "Consumo de micro_cluster_id y arquetipo_demanda en motores de propensión, pricing dinámico y elasticidad de taquilla.")
     ]
-    y_s10 = [Inches(1.5), Inches(2.85), Inches(4.2), Inches(5.55)]
-    for idx, (st_tit, st_txt) in enumerate(s10_steps):
-        box_st = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), y_s10[idx], Inches(11.7), Inches(1.15))
+    y_s12 = [Inches(1.5), Inches(2.85), Inches(4.2), Inches(5.55)]
+    for idx, (st_tit, st_txt) in enumerate(s12_steps):
+        box_st = s12.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), y_s12[idx], Inches(11.7), Inches(1.15))
         box_st.fill.solid()
         box_st.fill.fore_color.rgb = COLOR_CARD_BG
         box_st.line.color.rgb = COLOR_CARD_BORDER
         
-        tb_st = s10.shapes.add_textbox(Inches(1.1), y_s10[idx] + Inches(0.1), Inches(11.2), Inches(0.95))
+        tb_st = s12.shapes.add_textbox(Inches(1.1), y_s12[idx] + Inches(0.1), Inches(11.2), Inches(0.95))
         tf_st = tb_st.text_frame
         tf_st.word_wrap = True
         
