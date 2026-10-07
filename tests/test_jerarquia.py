@@ -333,7 +333,7 @@ class TestJerarquiaMicroclusters(unittest.TestCase):
         if os.path.exists(mod_path) and os.path.exists(asig_path) and os.path.exists(raw_path):
             from src.feature_engineering import preparar_dataset_enriquecido
             df_raw = pd.read_parquet(raw_path)
-            df_enr = preparar_dataset_enriquecido(df_raw)
+            df_enr = preparar_dataset_enriquecido(df_raw, modo_legacy_v3=True)
             pred = predecir_microclusters(df_enr, mod_path)
             asig = pd.read_csv(asig_path)
 

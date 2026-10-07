@@ -39,13 +39,32 @@ def cargar_parquet_desde_azure(
         raise ValueError("AZURE_BLOB_NAME debe estar definido con una ruta válida de archivo .parquet en tu archivo .env o argumentos.")
 
     blob_service_client = get_blob_service_client()
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    container_client = blob_service_client.get_container_client(container=container_name)
 
-    print(f"Descargando blob '{blob_name}' desde el contenedor '{container_name}'...")
-    stream = blob_client.download_blob()
-    data = stream.readall()
+    # Si es un archivo parquet específico directo
+    if blob_name.endswith(".parquet") and container_client.get_blob_client(blob_name).exists():
+        print(f"Descargando archivo parquet individual '{blob_name}' desde contenedor '{container_name}'...")
+        blob_client = container_client.get_blob_client(blob_name)
+        stream = blob_client.download_blob()
+        data = stream.readall()
+        df = pd.read_parquet(io.BytesIO(data))
+    else:
+        # Si es un prefijo o carpeta con particiones parquet
+        prefix = blob_name if blob_name.endswith("/") else f"{blob_name}/"
+        blobs_encontrados = [
+            b.name for b in container_client.list_blobs(name_starts_with=blob_name)
+            if b.name.endswith(".parquet")
+        ]
+        if not blobs_encontrados:
+            raise FileNotFoundError(f"No se encontraron blobs .parquet en '{container_name}/{blob_name}'.")
 
-    df = pd.read_parquet(io.BytesIO(data))
+        print(f"Descargando {len(blobs_encontrados)} particiones parquet con prefijo '{blob_name}'...")
+        dfs = []
+        for b_name in blobs_encontrados:
+            data = container_client.get_blob_client(b_name).download_blob().readall()
+            dfs.append(pd.read_parquet(io.BytesIO(data)))
+        df = pd.concat(dfs, ignore_index=True)
+
     print(f"Descarga exitosa. Registros cargados: {len(df):,} filas, {len(df.columns)} columnas.")
     return df
 
