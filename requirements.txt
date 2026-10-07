@@ -16,6 +16,7 @@ kmodes>=0.12.2
 
 # --- Reportes y Presentaciones Ejecutivas ---
 python-pptx>=0.6.21
+openpyxl>=3.1.0  # Anexos auditables y reportes tabulares Excel (.xlsx)
 
 # --- Pruebas y Calidad de Código ---
 pytest>=7.4.0

@@ -232,6 +232,8 @@ data/*
 !reports/diagnostico_subespacios.csv
 !reports/frecuencias_type_site_v2.csv
 !reports/ejemplos_presentacion.csv
+!reports/ejemplos_galeria_extendida.csv
+!reports/anexo_asignaciones_marcha_blanca.xlsx
 !data/processed/cluster_catalog_v3.csv
 !data/processed/asignacion_microclusters.csv
 !data/processed/modelo_jerarquia_v3.joblib
