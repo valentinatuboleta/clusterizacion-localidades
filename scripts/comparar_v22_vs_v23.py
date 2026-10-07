@@ -77,7 +77,7 @@ def ejecutar_comparativa_v22_vs_v23():
     # Guardar modelo de produccion v2.3 con metadatos completos y consistentes
     mapa_arq = met_v23["mapa_arquetipos"]
     guardar_modelo_clustering(
-        "data/processed/modelo_clustering_v2_3.joblib",
+        "data/processed/modelo_clustering_v2_5.joblib",
         kmeans=km_v23,
         scaler=sc_v23,
         tfidf_vectorizer=tf_v23,

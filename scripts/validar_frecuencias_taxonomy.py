@@ -1,5 +1,8 @@
 """
-Script de Validación de Compuerta de Frecuencias de Taxonomía de Venues v2 (Bloque 1.5).
+Script Wrapper CLI de Validación de Compuerta de Frecuencias de Taxonomía de Venues v2 (Bloque 1.5).
+
+Fuente de verdad analítica: `src.validar_frecuencias` (módulo reutilizable con pruebas herméticas).
+Este script actúa exclusivamente como wrapper de ejecución CLI para generación y reporte en consola/disco.
 
 Genera:
 1. reports/frecuencias_type_site_v2.csv

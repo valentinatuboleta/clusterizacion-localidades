@@ -59,7 +59,7 @@
     }
   },
   "versiones_payload": {
-    "nivel1_macro": "v2.5 (modelo_clustering_v2_2.joblib)",
+    "nivel1_macro": "v2.5 (modelo_clustering_v2_5.joblib)",
     "nivel2_micro": "v3.0 (modelo_jerarquia_v3.joblib)"
   }
 }

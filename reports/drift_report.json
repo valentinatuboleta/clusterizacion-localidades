@@ -1,53 +1,8 @@
 {
-  "estado_general": "REVISAR",
+  "estado_general": "ESTABLE",
   "total_registros": 33775,
-  "psi_maximo": 0.1524,
-  "psi_por_variable": {
-    "ratio_precio_max": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "percentil_precio_evento": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "peso_aforo": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "percentil_precio_absoluto_dentro_tipo": {
-      "psi": 0.1524,
-      "estado": "REVISAR"
-    },
-    "tag_palco": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "tag_vip": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "tag_platea": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "tag_preferencial": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "tag_general": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "tag_balcon": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    },
-    "tag_piso_alto": {
-      "psi": 0.0,
-      "estado": "ESTABLE"
-    }
-  },
+  "psi_maximo": 0.0,
+  "psi_por_variable": {},
   "distribucion_arquetipos": {
     "Admisión Única / Tarifa Plana": {
       "esperado": 0.4552,
@@ -55,33 +10,163 @@
       "diferencia": 0.0
     },
     "Popular / Balcón / Visibilidad Parcial": {
-      "esperado": 0.1735,
-      "observado": 0.1828,
-      "diferencia": 0.0092
+      "esperado": 0.1814,
+      "observado": 0.1733,
+      "diferencia": -0.0081
     },
     "VIP / Palcos / Premium": {
-      "esperado": 0.1501,
-      "observado": 0.1454,
-      "diferencia": -0.0047
+      "esperado": 0.1446,
+      "observado": 0.1532,
+      "diferencia": 0.0086
     },
     "Platea General / Intermedia": {
-      "esperado": 0.0968,
-      "observado": 0.1019,
-      "diferencia": 0.005
+      "esperado": 0.1025,
+      "observado": 0.0989,
+      "diferencia": -0.0036
     },
     "Preferencial / Platea Frontal": {
-      "esperado": 0.0956,
-      "observado": 0.0861,
-      "diferencia": -0.0095
+      "esperado": 0.0869,
+      "observado": 0.0911,
+      "diferencia": 0.0042
     },
     "Grada General / Masiva": {
-      "esperado": 0.0287,
-      "observado": 0.0287,
-      "diferencia": -0.0001
+      "esperado": 0.0293,
+      "observado": 0.0282,
+      "diferencia": -0.0011
     }
   },
-  "pct_frontera": 0.1211,
+  "pct_frontera": 0.1087,
   "pct_texto_casi_vacio": 0.1697,
-  "score_confianza_promedio": 0.6184,
-  "alertas": []
+  "score_confianza_promedio": 0.6252,
+  "alertas": [],
+  "drift_microclusters": {
+    "psi_global": 0.0,
+    "estado": "ESTABLE",
+    "umbral_evaluado": 0.1,
+    "alerta_activa": false,
+    "distribucion_microclusters": {
+      "AU-0": {
+        "referencia": 0.4552,
+        "observado": 0.4552,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "VIP-0": {
+        "referencia": 0.0237,
+        "observado": 0.0237,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "VIP-1": {
+        "referencia": 0.0695,
+        "observado": 0.0695,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "VIP-2": {
+        "referencia": 0.0601,
+        "observado": 0.0601,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "VIP-3": {
+        "referencia": 0.0001,
+        "observado": 0.0,
+        "diferencia": -0.0001,
+        "psi_parcial": 0.0
+      },
+      "POP-0": {
+        "referencia": 0.0459,
+        "observado": 0.0459,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "POP-1": {
+        "referencia": 0.0446,
+        "observado": 0.0446,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "POP-2": {
+        "referencia": 0.0467,
+        "observado": 0.0467,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "POP-3": {
+        "referencia": 0.0362,
+        "observado": 0.0362,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PGI-0": {
+        "referencia": 0.0227,
+        "observado": 0.0227,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PGI-1": {
+        "referencia": 0.0249,
+        "observado": 0.0249,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PGI-2": {
+        "referencia": 0.0232,
+        "observado": 0.0232,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PGI-3": {
+        "referencia": 0.0281,
+        "observado": 0.0281,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PPF-0": {
+        "referencia": 0.0203,
+        "observado": 0.0203,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PPF-1": {
+        "referencia": 0.0248,
+        "observado": 0.0248,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PPF-2": {
+        "referencia": 0.046,
+        "observado": 0.046,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "PPF-3": {
+        "referencia": 0.0001,
+        "observado": 0.0,
+        "diferencia": -0.0001,
+        "psi_parcial": 0.0
+      },
+      "GGM-0": {
+        "referencia": 0.0107,
+        "observado": 0.0107,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "GGM-1": {
+        "referencia": 0.0086,
+        "observado": 0.0086,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      },
+      "GGM-2": {
+        "referencia": 0.0089,
+        "observado": 0.0089,
+        "diferencia": 0.0,
+        "psi_parcial": 0.0
+      }
+    },
+    "total_registros": 33775,
+    "alertas": []
+  }
 }

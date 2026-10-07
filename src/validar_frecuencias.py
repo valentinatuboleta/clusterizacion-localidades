@@ -1,8 +1,9 @@
 """
-Módulo de Validación de Frecuencias de Taxonomía de Venues (Bloque 1.5).
+Módulo de Validación de Frecuencias de Taxonomía de Venues (Bloque 1.5) — FUENTE DE VERDAD ANALÍTICA.
 
-Provee funciones para auditar la distribución de frecuencias de type_site tanto
+Provee las funciones oficiales para auditar la distribución de frecuencias de type_site tanto
 a nivel venue único como a nivel localidad (frecuencia efectiva de entrenamiento).
+Consumido programáticamente por la suite de pruebas y por el wrapper CLI `scripts/validar_frecuencias_taxonomy.py`.
 Genera métricas de concentración, flags automáticos de sanidad y comparativa de migración.
 """
 

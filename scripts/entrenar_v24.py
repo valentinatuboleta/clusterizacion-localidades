@@ -6,7 +6,7 @@ Re-entrena el pipeline_clustering_dos_etapas bajo la nueva taxonomía de 10 cate
 - One-hot venue de 10 categorías (espacio estructural 21D + 15 NLP = 36D)
 - Referencia de percentil por tipo regenerada con 10 categorías
 - MODEL_VERSION = "2.4"
-- Payload persistido en data/processed/modelo_clustering_v2_4.joblib
+- Payload persistido en data/processed/modelo_clustering_v2_5.joblib
 
 Compara cuantitativamente contra v2.3:
 - Silueta y Davies-Bouldin
@@ -62,7 +62,7 @@ def main():
     print(f"Davies-Bouldin v2.4 (multi-zona): {met_v24['davies_bouldin']:.4f}")
 
     # 3. Guardar modelo v2.4
-    ruta_modelo_v24 = "data/processed/modelo_clustering_v2_4.joblib"
+    ruta_modelo_v24 = "data/processed/modelo_clustering_v2_5.joblib"
     print(f"\n3. Persistiendo payload v2.4 en {ruta_modelo_v24}...")
     mapa_arq = met_v24["mapa_arquetipos"]
     guardar_modelo_clustering(
@@ -91,10 +91,10 @@ def main():
     print(f"[OK] Payload v2.4 guardado exitosamente.")
 
     # 4. Comparación con v2.3 si existe
-    ruta_modelo_v23 = "data/processed/modelo_clustering_v2_3.joblib"
-    if os.path.exists(ruta_modelo_v23):
+    ruta_modelo_historico = "artifacts/archive/modelo_legacy_v23.joblib"
+    if os.path.exists(ruta_modelo_historico):
         print("\n4. Comparando cuantitativamente v2.3 vs v2.4...")
-        payload_v23 = cargar_modelo_clustering(ruta_modelo_v23)
+        payload_v23 = cargar_modelo_clustering(ruta_modelo_historico)
         met_v23 = payload_v23.get("metricas", {})
 
         pred_v23 = predecir_arquetipos_demanda(df_enr, payload_v23)

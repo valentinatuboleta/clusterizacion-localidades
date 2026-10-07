@@ -319,13 +319,13 @@ def ejecutar_exploracion_microclusters(
     idx_eval = rng_eval.choice(n_multi, size=sample_size, replace=False)
     X_eval = X_multi[idx_eval]
 
-    # Cargar modelo v2.3 para rollup de arquetipos
-    modelo_v23 = None
-    if os.path.exists("data/processed/modelo_clustering_v2_3.joblib"):
+    # Cargar modelo v2.5 para rollup de arquetipos
+    modelo_v25 = None
+    if os.path.exists("data/processed/modelo_clustering_v2_5.joblib"):
         try:
-            modelo_v23 = cargar_modelo_clustering("data/processed/modelo_clustering_v2_3.joblib")
+            modelo_v25 = cargar_modelo_clustering("data/processed/modelo_clustering_v2_5.joblib")
         except Exception as e:
-            print(f" Nota: No se pudo cargar modelo v2.3 para rollup ({e}).")
+            print(f" Nota: No se pudo cargar modelo v2.5 para rollup ({e}).")
 
     resultados = []
     modelos_entrenados = {}

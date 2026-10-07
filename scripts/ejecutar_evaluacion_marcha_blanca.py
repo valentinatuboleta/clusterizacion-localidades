@@ -24,7 +24,7 @@ print("=" * 80)
 # Metadatos del protocolo
 fecha_hoy = datetime.now().strftime("%Y%m%d")
 blob_path = "GOLD/SECUTIX/Training Data/Clustering de Localidades test/"
-payload_v25_path = "data/processed/modelo_clustering_v2_2.joblib"
+payload_v25_path = "data/processed/modelo_clustering_v2_5.joblib"
 payload_v3_path = "data/processed/modelo_jerarquia_v3.joblib"
 
 # 1. Carga del blob de test vía Azure SDK
@@ -127,7 +127,7 @@ reporte_final = {
         "comparativa_distribucion_nivel1": comparativa_distrib
     },
     "versiones_payload": {
-        "nivel1_macro": "v2.5 (modelo_clustering_v2_2.joblib)",
+        "nivel1_macro": "v2.5 (modelo_clustering_v2_5.joblib)",
         "nivel2_micro": "v3.0 (modelo_jerarquia_v3.joblib)"
     }
 }

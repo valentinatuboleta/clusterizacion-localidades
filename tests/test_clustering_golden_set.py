@@ -66,7 +66,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
             cls.kmeans, cls.feature_names, cls.scaler, peso_nlp=0.2
         )
         guardar_modelo_clustering(
-            "data/processed/modelo_clustering_v2_2.joblib",
+            "data/processed/modelo_clustering_v2_5.joblib",
             kmeans=cls.kmeans,
             scaler=cls.scaler,
             tfidf_vectorizer=cls.tfidf_vec,
@@ -235,7 +235,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
         if not hasattr(self, "df_enriquecido"):
             self.skipTest("Requiere dataset crudo real")
 
-        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
+        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_5.joblib")
         muestra = self.df_enriquecido.sample(5000, random_state=42)
         pred = predecir_arquetipos_demanda(muestra, payload)
 
@@ -249,7 +249,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
         if not hasattr(self, "df_enriquecido"):
             self.skipTest("Requiere dataset crudo real")
 
-        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
+        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_5.joblib")
         pred = predecir_arquetipos_demanda(self.df_enriquecido, payload)
 
         # 1. Rango [0, 1]
@@ -275,7 +275,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
 
     def test_08_cobertura_vocabulario_oov(self):
         """Valida deteccion de cobertura de vocabulario TF-IDF y alerta de texto casi vacio."""
-        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
+        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_5.joblib")
         
         # Caso 1: Vocabulario conocido
         df_conocido = pd.DataFrame([{
@@ -347,7 +347,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
 
     def test_09_inferencia_sintetica_ci(self):
         """Valida inferencia completa sobre dataset sintetico para ejecucion incondicional en CI."""
-        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_2.joblib")
+        payload = cargar_modelo_clustering("data/processed/modelo_clustering_v2_5.joblib")
         df_sintetico = pd.DataFrame([
             # Monozona
             {"t_performance_id": 101, "dn_quota": 1000, "peso_aforo": 1.0, "ratio_precio_max": 1.0, "percentil_precio_evento": 1.0, "texto_limpio": "ENTRADA GENERAL", "tag_general": 1.0, "tag_vip": 0.0, "tag_palco": 0.0, "tag_platea": 0.0, "tag_preferencial": 0.0, "tag_balcon": 0.0, "tag_piso_alto": 0.0},
@@ -377,7 +377,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
         if hasattr(self, "df_enriquecido"):
             # 2. Lote estable (submuestra)
             lote_estable = self.df_enriquecido.sample(3000, random_state=99)
-            reporte_estable = evaluar_drift_lote(lote_estable, "data/processed/modelo_clustering_v2_2.joblib")
+            reporte_estable = evaluar_drift_lote(lote_estable, "data/processed/modelo_clustering_v2_5.joblib")
             self.assertIn(reporte_estable["estado_general"], ["ESTABLE", "REVISAR"])
             self.assertLess(reporte_estable["psi_maximo"], 0.25)
 
@@ -385,7 +385,7 @@ class TestClusteringGoldenSet(unittest.TestCase):
             lote_drift = lote_estable.copy()
             lote_drift["ratio_precio_max"] = np.clip(lote_drift["ratio_precio_max"] * 0.05, 0.0, 1.0)
             lote_drift["peso_aforo"] = 1.0 - lote_drift["peso_aforo"]
-            reporte_drift = evaluar_drift_lote(lote_drift, "data/processed/modelo_clustering_v2_2.joblib")
+            reporte_drift = evaluar_drift_lote(lote_drift, "data/processed/modelo_clustering_v2_5.joblib")
             self.assertGreater(reporte_drift["psi_maximo"], 0.25)
             self.assertEqual(reporte_drift["estado_general"], "DRIFT_CRITICO")
 

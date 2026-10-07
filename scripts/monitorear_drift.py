@@ -44,7 +44,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--modelo",
         type=str,
-        default="data/processed/modelo_clustering_v2_3.joblib",
+        default="data/processed/modelo_clustering_v2_5.joblib",
         help="Ruta al artefacto del modelo serializado (.joblib)."
     )
     parser.add_argument(
@@ -155,17 +155,9 @@ def main():
         df = pd.read_csv(args.datos)
 
     # Preparar features si vienen en crudo
-    if "peso_aforo" not in df.columns or "ratio_precio_max" not in df.columns:
-        df = filtrar_consistencia_localidades(df)
-        df = calcular_metricas_relativas(df)
-
-    if "texto_limpio" not in df.columns or "tag_palco" not in df.columns:
-        col_nlp = next(
-            (c for c in ["logical_seat_category", "product", "translation_name", "cd_name", "nombre_localidad"] if c in df.columns),
-            None
-        )
-        if col_nlp:
-            df = pipeline_procesamiento_nlp(df, col_nombre=col_nlp)
+    if "peso_aforo" not in df.columns or "ratio_precio_max" not in df.columns or "texto_limpio" not in df.columns:
+        from src.feature_engineering import preparar_dataset_enriquecido
+        df = preparar_dataset_enriquecido(df, modo_legacy_v3=True)
 
     # Evaluar drift
     reporte = evaluar_drift_lote(df, args.modelo, umbral_psi_alerta=args.umbral_psi)
