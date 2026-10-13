@@ -239,6 +239,7 @@ data/lookup/stopwords_observacion.csv
 !data/processed/asignacion_microclusters.csv
 !data/processed/modelo_jerarquia_v3.joblib
 !data/processed/modelo_clustering_v2_5.joblib
+reports/run_logs/ultima_ejecucion*.json
 
 # macOS y temporales de Office
 .DS_Store

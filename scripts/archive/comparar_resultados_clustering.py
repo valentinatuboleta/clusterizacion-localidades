@@ -1,5 +1,7 @@
 """
+ARCHIVO HISTORICO ARCHIVADO.
 Script de Comparación Cuantitativa: Modelo Anterior (v2.0) vs Modelo en Dos Etapas (v2.1).
+Superseded por scripts/comparar_v22_vs_v23.py.
 
 Permite visualizar con exactitud qué tanto cambiaron los resultados, las métricas
 de los clusters y la matriz de migración/transición de localidades entre ambos enfoques.

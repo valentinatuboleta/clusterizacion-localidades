@@ -1,3 +1,8 @@
+"""
+ARCHIVO HISTORICO ARCHIVADO.
+Este script generaba la presentacion EDA original de 10 diapositivas sin plantilla.
+Superseded por scripts/build_presentation_microclusters.py.
+"""
 import os
 from pptx import Presentation
 from pptx.util import Inches, Pt

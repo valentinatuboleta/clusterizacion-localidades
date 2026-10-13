@@ -18,20 +18,25 @@ clusterizacion-localidades/
 ├── requirements.txt                            # Dependencias locales (sin PySpark)
 ├── requirements-databricks.txt                 # Dependencias exclusivas para Databricks
 ├── DOCUMENTACION_MODELO_CLUSTERIZACION.md      # Especificación técnica y matemática exhaustiva (v2.5)
+├── Presentacion_Microclusters_Marcha_Blanca.pptx # Deck ejecutivo oficial vigente (Marcha Blanca / Micro-clusters)
+├── template.pptx                               # Plantilla corporativa PPTX base usada por builders
 │
 ├── .github/                                    # Integración Continua (CI)
 │   └── workflows/
-│       └── ci.yml                              # Pipeline automatizado de GitHub Actions
+│       └── ci.yml                              # Pipeline automatizado de GitHub Actions (Python 3.10 / 3.11)
 │
 ├── data/                                       # Datos locales y tablas maestras
 │   ├── lookup/                                 # Tablas maestras de venues y trazabilidad
 │   │   ├── recintos_unicos.csv                 # 494 venues únicos extraídos del catálogo
 │   │   ├── site_type_lookup.csv                # Tabla de verdad consolidada v2 (type_site)
+│   │   ├── stopwords_marketing.csv             # Catálogo desacoplado de stopwords de marketing
 │   │   └── site_type_revision_humana.csv       # Discrepancias enviadas a curaduría humana
 │   ├── raw/                                    # Parquets descargados de Azure
-│   └── processed/                              # Datasets con features y clusters asignados
+│   └── processed/                              # Datasets con features, modelos y clusters asignados
+│       ├── modelo_clustering_v2_5.joblib       # Modelo Macro Nivel 1 (GMM + Pipeline v2.5)
+│       └── modelo_jerarquia_v3.joblib          # Modelo Jerárquico Nivel 2 (Micro-clusters v3.0-hier.2)
 │
-├── notebooks/                                  # Flujo interactivo paso a paso
+├── notebooks/                                  # Flujo interactivo paso a paso (outputs stripped vía nbstripout)
 │   ├── 00_databricks_raw_data.ipynb            # Extracción y preparación inicial en Databricks
 │   ├── 01_eda_clusterizacion.ipynb             # Análisis exploratorio, consistencia y 17 tags
 │   ├── 02_clustering_espacio_mixto.ipynb       # Espacio mixto (36D), K-Means/GMM y arquetipos (v2.5)
@@ -40,14 +45,18 @@ clusterizacion-localidades/
 ├── src/                                        # Módulos Python reutilizables de producción
 │   ├── __init__.py
 │   ├── azure_utils.py                          # Conexión y descarga segura desde Azure Blob Storage
-│   ├── nlp_utils.py                            # Limpieza de marketing y extracción de 17 tags NLP
+│   ├── nlp_utils.py                            # Limpieza de marketing, stopwords dinámicas y 17 tags NLP
 │   ├── feature_engineering.py                  # Normalización relativa por evento, consistencia y venue
 │   ├── llm_classifier.py                       # Clasificador de venues con Gemini 3.8 Flash Medium y auditoría
 │   ├── clustering.py                           # Espacio mixto 36D, clustering bietápico, persistencia e inferencia (v2.5)
 │   ├── jerarquia.py                            # Arquitectura jerárquica, scoring y drift de micro-clusters (v3.0-hier.2)
-│   └── validar_frecuencias.py                  # Compuerta de validación de frecuencias de taxonomía
+│   ├── validar_frecuencias.py                  # Fuente de verdad analítica para compuerta de frecuencias
+│   └── api/                                    # Servicio REST de inferencia (FastAPI)
+│       ├── main.py                             # Aplicación FastAPI, lifespan y endpoints (/health, /v1/predict)
+│       ├── servicio.py                         # Capa de servicio, inferencia desacoplada y paridad celda a celda
+│       └── schemas.py                          # Contratos Pydantic de entrada y salida
 │
-├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad
+├── tests/                                      # Suite de pruebas automatizadas y aseguramiento de calidad (97 tests)
 │   ├── __init__.py
 │   ├── test_clustering_golden_set.py           # Golden Set (20 casos), consistencia, persistencia y selector auto
 │   ├── test_filtro_raw.py                      # Tests herméticos de reglas de filtrado y consistencia
@@ -57,31 +66,33 @@ clusterizacion-localidades/
 │   ├── test_validar_frecuencias.py             # Tests unitarios sintéticos de la compuerta de frecuencias
 │   ├── test_microclusters.py                   # Tests de la exploración de micro-clusters
 │   ├── test_jerarquia.py                       # Tests de arquitectura jerárquica v3.0 (rollup 1:1, Codo-DB)
-│   └── test_diagnostico_subespacios.py         # Tests de diagnóstico de pureza, cobertura y oráculo
+│   ├── test_diagnostico_subespacios.py         # Tests de diagnóstico de pureza, cobertura y oráculo
+│   ├── test_stopwords.py                       # Tests de resolución de stopwords, deduplicación e inercia
+│   ├── test_api_servicio.py                    # Tests de paridad analítica servicio vs scoring batch
+│   └── test_api_endpoints.py                   # Tests de contratos HTTP, validaciones y códigos de estado
 │
-├── scripts/                                    # Automatización, diagnóstico y análisis
+├── scripts/                                    # Automatización, entrenamiento y diagnóstico
 │   ├── clasificar_sites.py                     # Pipeline de clasificación de venues (Reglas + LLM + Humano)
 │   ├── migrar_lookup_v2.py                     # Script de migración y trazabilidad de lookup v1 -> v2
-│   ├── validar_frecuencias_taxonomy.py         # Validación formal de frecuencias y compuertas
+│   ├── proponer_stopwords.py                   # Proposer y consolidador de stopwords de marketing
 │   ├── entrenar_v24.py                         # Re-entrenamiento, evaluación y persistencia modelo v2.4 / v2.5
 │   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0-hier.2 (Nivel 1 v2.5 -> Nivel 2 micro-clusters)
 │   ├── diagnosticar_subespacios.py             # Diagnóstico de separabilidad, oráculo y sweep condicional VIP
-│   ├── comparar_v22_vs_v23.py                  # Comparación y ablación de versiones
-│   ├── diagnostico_y_benchmark_avanzado.py     # Diagnóstico previo, sweep de pesos y benchmark de algoritmos
+│   ├── comparar_v22_vs_v23.py                  # Comparación y ablación de versiones activas
 │   ├── optimizar_k_multizona.py                # Búsqueda formal de k óptimo (Codo Ortogonal + Davies-Bouldin)
-│   ├── verificar_k5_perfiles.py                # Inspección de centroides y activación de tags
 │   ├── monitorear_drift.py                     # Monitoreo PSI de drift
-│   ├── explorar_microclusters.py               # Exploración de micro-clusters para normalización de nombres
-│   ├── entrenar_jerarquia_microclusters.py     # Pipeline jerárquico v3.0 (Nivel 1 macro -> Nivel 2 micro-clusters)
-│   ├── diagnosticar_subespacios.py             # Diagnóstico de separabilidad, oráculo y sweep condicional VIP
-│   ├── build_presentation.py                   # Generación de presentación ejecutiva de EDA (10 diapositivas)
-│   ├── build_presentation_from_template.py     # Inyección de insights en plantilla corporativa PPTX
-│   ├── build_full_notebook_presentation.py     # Generación de presentación ejecutiva completa
-│   ├── generate_all_presentation_figures.py    # Generación automatizada de figuras para reportes
-│   └── generate_all_23_figures.py              # Suite exhaustiva de figuras analíticas (23 gráficos)
+│   ├── build_presentation_microclusters.py     # Compilador oficial de presentación ejecutiva
+│   ├── validar_frecuencias_taxonomy.py         # Wrapper CLI deprecado (redirige a src.validar_frecuencias)
+│   └── archive/                                # Scripts históricos deprecados
+│       ├── build_presentation.py               # Generador inicial de presentación sin plantilla (archivado)
+│       └── comparar_resultados_clustering.py   # Comparación v2.0 vs v2.1 (superseded por comparar_v22_vs_v23.py)
 │
-└── reports/                                    # Entregables ejecutivos
-    └── figures/                                # Figuras generadas en alta resolución (PNG)
+└── reports/                                    # Entregables ejecutivos y reportes analíticos
+    ├── figures/                                # Figuras generadas en alta resolución (PNG)
+    ├── run_logs/                               # Logs de ejecución regenerables (.gitignored)
+    └── archive/                                # Artefactos históricos preservados
+        ├── decks/                              # Presentaciones históricas (Presentacion_EDA_Clusterizacion_Localidades.pptx)
+        └── drift_report_v22_era.json           # Reporte de drift versión previa
 ```
 
 ---
@@ -481,9 +492,16 @@ Se puede ejecutar interactivamente mediante el notebook oficial o vía CLI:
 ## Convenciones de Contribución y Commits
 
 Para preservar la trazabilidad, reproducibilidad e higiene del repositorio:
-* **Mensajes de Commit:** Los mensajes de commit deben redactarse en formato convencional (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).
-* **Higiene de Commits:** Commits de prueba (e.g. `marcha_blanca_test`) deben squasharse antes del push a `main`.
-* **Notebooks:** Se debe aplicar obligatoriamente `nbstripout` sobre cualquier notebook antes de commitear para no versionar salidas o binarios pesados.
+* **Formato Convencional de Commits:** Los mensajes de commit deben seguir la especificación de *Conventional Commits*: `<tipo>(<alcance>): <descripción concisa>`:
+  * `feat`: Nuevas funcionalidades, modelos o endpoints (ej. `feat(api): endpoint /v1/predict`).
+  * `fix`: Corrección de errores en pipelines, CI o inferencia (ej. `fix(ci): instalar requirements-api.txt`).
+  * `test`: Nuevos casos de prueba, paridad o tests sintéticos (ej. `test(api): paridad de scoring celda a celda`).
+  * `docs`: Actualizaciones a documentación, arquitectura o diagramas (ej. `docs(readme): sincronizar árbol post-limpieza`).
+  * `refactor`: Mejoras estructurales sin alterar el comportamiento observable (ej. `refactor(limpieza): archivar scripts zombis`).
+  * `chore`: Mantenimiento de configuración, dependencias o higiene (.gitignore, pre-commit).
+* **Granularidad y Verificación:** Se requiere commits atómicos con push tras cada hito funcional, acompañados de verificación incondicional con `pytest tests/ -v` (0 regresiones) antes de cada push.
+* **Higiene de Commits:** Commits de prueba o exploración deben squasharse antes de integrarse a `main`.
+* **Notebooks:** Se debe aplicar obligatoriamente `nbstripout` (`pre-commit install`) sobre cualquier notebook antes de commitear para evitar versionar artefactos binarios o salidas pesadas en git.
 
 ---
 
