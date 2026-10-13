@@ -1,0 +1,24 @@
+patron,tipo,fecha_agregado,fuente,version_vocab
+\bSENDE\b,tour,2026-10-13,manual,v1
+\bBOMBASTIK\b,tour,2026-10-13,manual,v1
+\bAY MI PAPA\b,tour,2026-10-13,manual,v1
+\bSANKA\b,tour,2026-10-13,manual,v1
+\bMODO LEYENDA\b,tour,2026-10-13,manual,v1
+\bLLEGO EL PODER\b,tour,2026-10-13,manual,v1
+\bCANTINERO\b,tour,2026-10-13,manual,v1
+\bEL REENCUENTRO\b,tour,2026-10-13,manual,v1
+\bTA MALO\b,tour,2026-10-13,manual,v1
+\bSIGO INVICTO\b,tour,2026-10-13,manual,v1
+\bENTRE GRANDES\b,tour,2026-10-13,manual,v1
+\bNEGRA PULOY\b,tour,2026-10-13,manual,v1
+\bPASEO DE LA AURORA\b,tour,2026-10-13,manual,v1
+\bEXPERIENCIA\b,generico,2026-10-13,manual,v1
+\bTOUR\b,generico,2026-10-13,manual,v1
+\bFESTIVAL\b,generico,2026-10-13,manual,v1
+\bCONCIERTO\b,generico,2026-10-13,manual,v1
+\bPATROCINADO\b,generico,2026-10-13,manual,v1
+\bPRESENTADO POR\b,generico,2026-10-13,manual,v1
+\bETAPA\s*\d+\b,generico,2026-10-13,manual,v1
+\bPREVENTA\b,generico,2026-10-13,manual,v1
+\bEARLY BIRD\b,generico,2026-10-13,manual,v1
+\bPROMO\b,generico,2026-10-13,manual,v1

@@ -9,21 +9,26 @@ Este módulo se encarga de:
 5. Vectorizar semánticamente el texto limpio para enriquecer el espacio de clustering.
 """
 
+import os
+import io
 import re
+import logging
 import unicodedata
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Lista de términos publicitarios, nombres de gira, patrocinios y ruido comercial común en TuBoleta
-STOPWORDS_MARKETING = [
-    r"\bSEND[EÉ]\b",
+logger = logging.getLogger(__name__)
+
+# Lista de términos publicitarios, nombres de gira, patrocinios y ruido comercial común en TuBoleta (red de seguridad embebida)
+DEFAULT_STOPWORDS_MARKETING = [
+    r"\bSENDE\b",
     r"\bBOMBASTIK\b",
-    r"\bAY MI PAP[AÁ]\b",
+    r"\bAY MI PAPA\b",
     r"\bSANKA\b",
     r"\bMODO LEYENDA\b",
-    r"\bLLEG[OÓ] EL PODER\b",
+    r"\bLLEGO EL PODER\b",
     r"\bCANTINERO\b",
     r"\bEL REENCUENTRO\b",
     r"\bTA MALO\b",
@@ -42,6 +47,81 @@ STOPWORDS_MARKETING = [
     r"\bEARLY BIRD\b",
     r"\bPROMO\b"
 ]
+
+
+def _resolver_ruta_local(ruta: str) -> str:
+    """Resuelve la ruta del archivo verificando existencia en CWD o relativa a la raíz del repositorio."""
+    if not ruta:
+        return ""
+    if os.path.isabs(ruta) or os.path.exists(ruta):
+        return ruta
+    ruta_repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ruta))
+    if os.path.exists(ruta_repo):
+        return ruta_repo
+    return ruta
+
+
+def cargar_stopwords(ruta_local: str = "data/lookup/stopwords_marketing.csv") -> List[str]:
+    """
+    Carga la lista de patrones de stopwords de marketing mediante una cadena de resolución:
+    - Nivel 1: Descarga desde Azure Blob Storage si existe la variable de entorno AZURE_STOPWORDS_URL.
+    - Nivel 2: CSV local en ruta_local.
+    - Nivel 3: Fallback a DEFAULT_STOPWORDS_MARKETING (red de seguridad embebida).
+
+    Cada caída loguea un warning y nunca lanza excepción.
+    """
+    # Nivel 1: Azure Blob Storage
+    blob_url = os.getenv("AZURE_STOPWORDS_URL")
+    if blob_url:
+        try:
+            from azure.storage.blob import BlobClient
+            blob_client = BlobClient.from_blob_url(blob_url)
+            data = blob_client.download_blob().readall()
+            df_blob = pd.read_csv(io.BytesIO(data))
+            if "patron" in df_blob.columns:
+                patrones = df_blob["patron"].dropna().astype(str).tolist()
+                if patrones:
+                    return patrones
+            logger.warning(
+                "El CSV en AZURE_STOPWORDS_URL no contiene columna 'patron' válida. Cayendo a Nivel 2."
+            )
+        except Exception as exc:
+            logger.warning(
+                "Fallo al descargar stopwords desde Azure Blob (Nivel 1: %s): %s. Cayendo a Nivel 2.",
+                blob_url, exc
+            )
+
+    # Nivel 2: CSV local
+    ruta_resuelta = _resolver_ruta_local(ruta_local)
+    if ruta_resuelta and os.path.exists(ruta_resuelta):
+        try:
+            df_local = pd.read_csv(ruta_resuelta)
+            if "patron" in df_local.columns:
+                patrones = df_local["patron"].dropna().astype(str).tolist()
+                if patrones:
+                    return patrones
+            logger.warning(
+                "El CSV local '%s' no contiene columna 'patron' válida. Cayendo a Nivel 3.",
+                ruta_resuelta
+            )
+        except Exception as exc:
+            logger.warning(
+                "Fallo al leer stopwords locales en '%s' (Nivel 2): %s. Cayendo a Nivel 3.",
+                ruta_resuelta, exc
+            )
+    else:
+        logger.warning(
+            "Archivo local de stopwords no encontrado en '%s' (Nivel 2). Cayendo a Nivel 3.",
+            ruta_local
+        )
+
+    # Nivel 3: Default embebido
+    logger.warning("Usando stopwords por defecto embebidas (Nivel 3: red de seguridad).")
+    return DEFAULT_STOPWORDS_MARKETING.copy()
+
+
+# Carga única al importar/inicializar el módulo
+STOPWORDS_MARKETING = cargar_stopwords()
 
 
 def normalizar_texto(texto: str) -> str:
@@ -78,7 +158,7 @@ def normalizar_venue(texto: str) -> str:
 
 
 
-def limpiar_ruido_marketing(texto: str) -> str:
+def limpiar_ruido_marketing(texto: str, stopwords: Optional[List[str]] = None) -> str:
     """
     Elimina sufijos publicitarios, marcas comerciales, nombres de gira y números de silletería/rango.
     Conserva únicamente los descriptores estructurales y espaciales de la localidad.
@@ -87,8 +167,10 @@ def limpiar_ruido_marketing(texto: str) -> str:
     if not t:
         return ""
     
+    patrones = stopwords if stopwords is not None else STOPWORDS_MARKETING
+    
     # 1. Remover stopwords y patrones de marketing conocidos
-    for pattern in STOPWORDS_MARKETING:
+    for pattern in patrones:
         # Remover patrón insensible a tildes
         norm_pattern = "".join(
             c for c in unicodedata.normalize("NFD", pattern) 
