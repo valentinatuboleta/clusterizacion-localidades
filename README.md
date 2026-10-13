@@ -271,24 +271,27 @@ python scripts/monitorear_drift.py --datos data/raw/localidades_eda.parquet --ou
 
 Para incorporar nuevos nombres de giras musicales y patrocinios comerciales sin reconstruir la imagen Docker, sin modificar código fuente y sin redeploy:
 
-1. **Paso 1 — Minería y Curaduría Humana:**
-   Extrae candidatos contra las 4 rejillas de seguridad (tags, TF-IDF, estructurales, $\ge 3$ eventos):
+1. **Paso 1 — Minería y Curaduría Humana (Cola Top-100 Navegable):**
+   Extrae candidatos contra las 4 rejillas de seguridad con piso de $\ge 20$ eventos distintos, clases sistemáticas y deduplicación por subsumción:
    ```bash
    python scripts/proponer_stopwords.py --input data/raw/localidades_eda.parquet
    ```
-   Abre [`data/lookup/stopwords_revision_humana.csv`](data/lookup/stopwords_revision_humana.csv) y asigna `decision = aceptar` a las filas que correspondan a giras o ruido publicitario.
+   Abre [`data/lookup/stopwords_revision_humana.csv`](data/lookup/stopwords_revision_humana.csv) (tope estricto de 100 filas prioritarias) y asigna:
+   * `decision`: `aceptar` o `rechazar`.
+   * `motivo`: justificación libre (ej. *"nombre de gira"*, *"es un venue"*, *"falsa alarma"*).  
+   *Nota:* Las decisiones y motivos quedan como historial permanente en el CSV; las rondas siguientes nunca re-proponen patrones rechazados ni re-litigan decisiones previas. El universo completo de candidatos residuales (3 a 19 eventos) se conserva en `data/lookup/stopwords_observacion.csv` (ignorado en git).
 
 2. **Paso 2 — Consolidar y Sincronizar a Azure Blob:**
    Ejecuta la consolidación:
    ```bash
    python scripts/proponer_stopwords.py --consolidar
    ```
-   Esto promueve las entradas aprobadas a [`data/lookup/stopwords_marketing.csv`](data/lookup/stopwords_marketing.csv) incrementando `version_vocab` (ej. `v1` $\to$ `v2`), limpia la cola de revisión y, si `AZURE_STOPWORDS_URL` está configurada en el entorno, sube el CSV directamente a Azure Blob Storage.
+   Esto promueve las entradas aprobadas a [`data/lookup/stopwords_marketing.csv`](data/lookup/stopwords_marketing.csv) incrementando `version_vocab` (ej. `v1` $\to$ `v2`), sella la marca de consolidación en el historial de revisión y, si `AZURE_STOPWORDS_URL` está configurada en el entorno, sube el CSV oficial directamente a Azure Blob Storage.
 
 3. **Paso 3 — Reiniciar el Servicio / Endpoint:**
    Reinicia el pod o el Managed Online Endpoint en Azure ML. Durante la inicialización (`init()`), `cargar_stopwords()` resolverá en Nivel 1 descargando el artefacto actualizado en caliente.
 
-> **Nota de Gobernanza:** En el modelo actual en producción (v2.5), el vocabulario es **inerte** (las predicciones se mantienen idénticas celda a celda). Su propósito principal es desacoplar el ciclo de vida del vocabulario y proteger la pureza del espacio TF-IDF para el re-entrenamiento mayor **v2.6** (ver Sección 10.3 de la documentación técnica).
+> **Nota de Gobernanza:** En el modelo actual en producción (v2.5), el vocabulario es **inerte** (las predicciones se mantienen idénticas celda a celda). Su propósito principal es desacoplar el ciclo de vida del vocabulario y proteger la pureza del espacio TF-IDF para el re-entrenamiento mayor **v2.6** (ver Sección 10.3 de la documentación técnica). La cola de revisión versionada en git es siempre el top-100 comprimido (~8KB); el universo completo de candidatos es 100% regenerable con el script.
 
 ---
 

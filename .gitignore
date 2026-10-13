@@ -226,8 +226,8 @@ data/*
 !data/lookup/*.csv
 *.parquet
 *.joblib
-*.csv
 !data/lookup/*.csv
+data/lookup/stopwords_observacion.csv
 !reports/microclusters_resultados.csv
 !reports/diagnostico_subespacios.csv
 !reports/frecuencias_type_site_v2.csv

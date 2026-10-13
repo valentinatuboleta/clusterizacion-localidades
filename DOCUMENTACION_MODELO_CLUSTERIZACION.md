@@ -201,15 +201,31 @@ Para evitar la contaminación del espacio semántico TF-IDF y la distorsión de 
    * **Nivel 2 (Local):** Lectura directa de `data/lookup/stopwords_marketing.csv`.
    * **Nivel 3 (Red de Seguridad):** Fallback a constantes embebidas `DEFAULT_STOPWORDS_MARKETING` con emisión de `logging.warning`. Ningún fallo en la cadena interrumpe el servicio con excepción.
 
-3. **Minería y Protocolo de Revisión Humana (`scripts/proponer_stopwords.py`):**
+3. **Minería y Protocolo de Revisión Humana Navegable (`scripts/proponer_stopwords.py`):**
    Precedente exacto del flujo curado de venues (`scripts/clasificar_sites.py`):
-   * Analiza productos recientes en datos crudos (`product`) extrayendo n-gramas ($1$ a $3$) que superen **4 rejillas de seguridad**:
-     * **Rejilla (a):** Fuera del vocabulario de los tags estructurales/espaciales/restricción (18 tags).
-     * **Rejilla (b):** Fuera del vocabulario TF-IDF vigente del modelo en producción.
-     * **Rejilla (c):** Fuera del vocabulario estructural auxiliar (`PALCO`, `PLATEA`, `VIP`, `GENERAL`, `GRADA`, `BALCON`, `MESA`, `SILLA`, `PISO`, etc.).
-     * **Rejilla (d):** Frecuencia $\ge 3$ eventos distintos (`t_performance_id`).
-   * **Salida de Revisión:** `data/lookup/stopwords_revision_humana.csv` (`patron, frecuencia, n_eventos, ejemplo_producto, decision`).
-   * **Consolidación (`--consolidar`):** Mueve las filas con `decision = "aceptar"` al CSV oficial, asigna `fuente="propuesto"`, incrementa `version_vocab` (ej. `v1` $\to$ `v2`) y sube el archivo a Azure Blob Storage si `AZURE_STOPWORDS_URL` está configurada.
+   * **3 Vías de Adición de Vocabulario:**
+     1. *Vía Directa (Manual):* Inserción manual directamente en el CSV oficial (`stopwords_marketing.csv`) con `fuente="manual"`.
+     2. *Vía Asistida (Proposer + Curaduría Humana):* Minería sobre productos recientes (`product`) bajo las 4 rejillas de seguridad y deduplicación por subsumción, con curaduría sobre el top-100 en `stopwords_revision_humana.csv`.
+     3. *Vía de Clase Sistemática:* Detección previa por expresiones regulares de alto impacto que colapsan categorías enteras en una sola fila representativa (`calendario`, `ciudad`, `credito`, `duracion`, `venue_paren`).
+   * **Mecanismos de Navegabilidad y Compresión de la Cola:**
+     * **Piso de Frecuencia:** Umbral de corte de $\ge 20$ eventos distintos (`t_performance_id`). Candidatos entre 3 y 19 eventos se derivan a `data/lookup/stopwords_observacion.csv` (ignorado en git).
+     * **Deduplicación por Subsumción:** Si un n-grama compuesto sobrevive (ej. `"AHI AFUERA LA BUSQUEDA"`), todas las sub-frases contenidas de igual o menor frecuencia (`"AHI"`, `"AFUERA"`, `"LA BUSQUEDA"`) son absorbidas y se contabilizan en la columna `subsumidos`.
+     * **Clases Sistemáticas Pre-agrupadas:**
+       * *Calendario:* `\b(ENE|FEB|MAR|ABR|MAYO|JUN|JUL|AGO|SEP|OCT|NOV|DIC)\b` (tipo=`calendario`, agrupa meses).
+       * *Crédito:* `\(DIR\.[^\)]*\)` (tipo=`credito`, directores de cine/teatro).
+       * *Duración:* `\b\d+\s*MIN\b` (tipo=`duracion`, minutajes).
+       * *Ciudad:* Ciudades capitales mayores (tipo=`ciudad`).
+       * *Venue en Paréntesis:* `\([^\)]*(TEATRO|MUSEO|PARQUE|ARENA|COLISEO)[^\)]*\)` (tipo=`venue_paren`).
+     * **Tope Estricto Top-100:** `stopwords_revision_humana.csv` nunca excede 100 filas (~8KB, commiteable). El excedente se archiva en observación.
+     * **No Re-Proposición y Registro Permanente:** Al ejecutar el script, los patrones con `decision="rechazar"` o `decision="aceptar"` se preservan junto a su `motivo` ("es un venue", "vocabulario estructural", etc.). La ronda siguiente no re-litiga decisiones previas.
+   * **Resultado de la Corrida Real (Métrica de Compresión):**
+     $$\mathbf{18,589\text{ brutos}} \longrightarrow \mathbf{659\text{ tras subsumción}} \longrightarrow \mathbf{663\text{ tras clases}} \longrightarrow \mathbf{100\text{ final (top-100)}}$$
+     *Composición del Top-100:* 96 de tipo `tour`, 1 `calendario`, 1 `ciudad`, 1 `credito`, 1 `duracion`.
+   * **Consolidación (`--consolidar`):**
+     * Valida estrictamente `decision ∈ {"", "aceptar", "rechazar"}` (emite warning y omite typos como `"si"` o `"acepto"`).
+     * Promueve aceptadas al CSV oficial con `fuente="propuesto"`, fecha actual y versión incrementada (ej. `v1` $\to$ `v2`).
+     * Preserva el historial en `stopwords_revision_humana.csv` sellando el motivo (`consolidado YYYY-MM-DD`).
+     * Sube a Azure Blob Storage si `AZURE_STOPWORDS_URL` está presente en el entorno.
 
 4. **Regla Explícita de Gobernanza (Inercia en Producción):**
    > **Regla de Inercia:** *El vocabulario de stopwords es inerte en inferencia sobre el modelo vigente (v2.5) hasta el próximo re-entrenamiento formal (v2.6). Su actualización en Blob o CSV permite actualizar el vocabulario comercial reiniciando el servicio sin rebuild de imagen Docker; este desacoplamiento es prerequisito de la versión mayor v2.6 junto con la política definitiva de precio-0 (ver [Sección 10.3](#103-deuda-conocida-alineación-filtro-entrenamiento)).*
