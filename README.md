@@ -176,6 +176,36 @@ Una vez iniciado el servidor local, se puede verificar de dos formas:
    * Pegar el contenido del archivo `deploy/fixtures/ejemplo_evento.json` en el cuerpo de la petición y presionar **Execute**.
    * Comparar la respuesta JSON (`micro_cluster`, `arquetipo`, `confianza`, `es_frontera`) contra las asignaciones históricas del parquet o catálogo de marcha blanca.
 
+### 6. Despliegue Local con Docker (Contenedor con Volumen de Modelos)
+
+La imagen Docker empaqueta el entorno Python 3.11, dependencias y código fuente, manteniendo los artefactos de modelos desacoplados mediante un volumen montado en tiempo de ejecución:
+
+1. **Construir la imagen Docker:**
+   ```bash
+   docker build -t tuboleta-clustering-api .
+   ```
+
+2. **Ejecutar el contenedor montando el volumen de modelos:**
+   * En Bash (Linux / macOS):
+     ```bash
+     docker run -d --name clustering-api -p 8000:8000 -v $(pwd)/data/processed:/app/data/processed tuboleta-clustering-api
+     ```
+   * En PowerShell (Windows):
+     ```powershell
+     docker run -d --name clustering-api -p 8000:8000 -v ${PWD}/data/processed:/app/data/processed tuboleta-clustering-api
+     ```
+
+3. **Ejecutar el smoke test contra el contenedor:**
+   ```bash
+   python scripts/smoke_local.py
+   ```
+   Valida que el servicio corriendo dentro de Docker devuelva exactamente las mismas predicciones que el proceso local.
+
+4. **Detener y limpiar el contenedor:**
+   ```bash
+   docker stop clustering-api && docker rm clustering-api
+   ```
+
 > [!NOTE]
 > `src/azure_utils.py` cuenta con validaciones preventivas (*guards*) que alertarán inmediatamente si las variables conservan los nombres de placeholder sin configurar.
 

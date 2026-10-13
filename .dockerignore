@@ -1,0 +1,31 @@
+# Exclusiones de contexto Docker para el microservicio de clustering
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales y configuracion local
+.venv/
+.env*
+.git/
+.gitignore
+.github/
+.pytest_cache/
+
+# Notebooks, reportes y pruebas (no requeridos en imagen de produccion)
+notebooks/
+reports/
+tests/
+
+# Datos crudos, procesados y artefactos pesados (los modelos se montan como volumen)
+data/raw/
+data/processed/
+*.joblib
+*.parquet
+
+# Excluir CSVs excepto tablas maestras en data/lookup/
+*.csv
+!data/lookup/*.csv
+
+# Logs y temporales
+*.log
+scratch/
