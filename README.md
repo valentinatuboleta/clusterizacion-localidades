@@ -267,6 +267,29 @@ df_segmentado = predecir_arquetipos_demanda(df_nuevas_localidades, modelo)
 python scripts/monitorear_drift.py --datos data/raw/localidades_eda.parquet --output reports/drift_report.json
 ```
 
+### Opción F: Actualizar Vocabulario de Marketing sin Redeploy (Gobernanza Desacoplada)
+
+Para incorporar nuevos nombres de giras musicales y patrocinios comerciales sin reconstruir la imagen Docker, sin modificar código fuente y sin redeploy:
+
+1. **Paso 1 — Minería y Curaduría Humana:**
+   Extrae candidatos contra las 4 rejillas de seguridad (tags, TF-IDF, estructurales, $\ge 3$ eventos):
+   ```bash
+   python scripts/proponer_stopwords.py --input data/raw/localidades_eda.parquet
+   ```
+   Abre [`data/lookup/stopwords_revision_humana.csv`](data/lookup/stopwords_revision_humana.csv) y asigna `decision = aceptar` a las filas que correspondan a giras o ruido publicitario.
+
+2. **Paso 2 — Consolidar y Sincronizar a Azure Blob:**
+   Ejecuta la consolidación:
+   ```bash
+   python scripts/proponer_stopwords.py --consolidar
+   ```
+   Esto promueve las entradas aprobadas a [`data/lookup/stopwords_marketing.csv`](data/lookup/stopwords_marketing.csv) incrementando `version_vocab` (ej. `v1` $\to$ `v2`), limpia la cola de revisión y, si `AZURE_STOPWORDS_URL` está configurada en el entorno, sube el CSV directamente a Azure Blob Storage.
+
+3. **Paso 3 — Reiniciar el Servicio / Endpoint:**
+   Reinicia el pod o el Managed Online Endpoint en Azure ML. Durante la inicialización (`init()`), `cargar_stopwords()` resolverá en Nivel 1 descargando el artefacto actualizado en caliente.
+
+> **Nota de Gobernanza:** En el modelo actual en producción (v2.5), el vocabulario es **inerte** (las predicciones se mantienen idénticas celda a celda). Su propósito principal es desacoplar el ciclo de vida del vocabulario y proteger la pureza del espacio TF-IDF para el re-entrenamiento mayor **v2.6** (ver Sección 10.3 de la documentación técnica).
+
 ---
 
 ## Micro-clusters (exploración)

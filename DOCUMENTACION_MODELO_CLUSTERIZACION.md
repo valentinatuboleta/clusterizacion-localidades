@@ -173,7 +173,7 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 * **¿Para qué se crea?**: Para suprimir marcas, nombres de giras musicales, patrocinios y números de silletería internos.
 * **¿Por qué se usa?**: En `PALCOS CANTINERO - LLEGÓ EL PODER`, la palabra `"CANTINERO"` o `"LLEGÓ EL PODER"` es el nombre del tour de Silvestre Dangond, no un tipo de asiento. Si la dejamos, el modelo pensará que es una localidad única y no un palco estándar.
 * **Lógica interna**: 
-  1. Aplica expresiones regulares sobre el diccionario `STOPWORDS_MARKETING` (*SENDÉ, BOMBASTIK, LLEGÓ EL PODER, TA MALO, EL REENCUENTRO, EXPERIENCIA, etc.*).
+  1. Aplica expresiones regulares sobre la lista de patrones `STOPWORDS_MARKETING` resuelta en tiempo de importación mediante una cadena de fallback desacoplada.
   2. Elimina rangos numéricos irrelevantes (ej. `302 - 306 & 314 - 318`).
 * **Transformación en Datos Reales:**
 
@@ -184,6 +184,35 @@ Este módulo limpia el lenguaje de marketing y extrae el ADN estructural de la l
 | `"PISO 3 - 302 - 306 & 314 - 318"` | **`"PISO 3"`** | Rangos de sillas numéricas borradas |
 | `"PALCO NEGRA PULOY SENDÉ"` | **`"PALCO"`** | Patrocinio y nombre de comparsa eliminado |
 | `"EXPERIENCIA PASEO DE LA AURORA PLATINO"` | **`"PLATINO"`** | Nombres promocionales removidos |
+
+---
+
+##### Gobernanza de Vocabulario de Marketing (Artefacto Desacoplado Blob-Download)
+
+Para evitar la contaminación del espacio semántico TF-IDF y la distorsión de etiquetas automáticas (`label_auto`) en micro-clusters durante futuros ciclos de modelado, las stopwords de marketing están desacopladas del código fuente (`src/nlp_utils.py`) mediante un artefacto versionado:
+
+1. **Artefacto CSV Oficial (`data/lookup/stopwords_marketing.csv`):**
+   * **Columnas:** `patron, tipo, fecha_agregado, fuente, version_vocab`.
+   * **Tipología:** `tipo ∈ {tour, generico}`, `fuente=manual|propuesto`, `version_vocab` incremental (`v1`, `v2`, ...).
+   * **Normalización:** Patrones sin tildes (consistente con la descomposición NFD previa al regex matching).
+
+2. **Cadena de Resolución de Tres Niveles (`cargar_stopwords`):**
+   * **Nivel 1 (Nube - Hot Reload):** Si existe la variable de entorno `AZURE_STOPWORDS_URL` (URL SAS o Blob URL), descarga el CSV a memoria mediante `azure-storage-blob` (`BlobClient.from_blob_url`).
+   * **Nivel 2 (Local):** Lectura directa de `data/lookup/stopwords_marketing.csv`.
+   * **Nivel 3 (Red de Seguridad):** Fallback a constantes embebidas `DEFAULT_STOPWORDS_MARKETING` con emisión de `logging.warning`. Ningún fallo en la cadena interrumpe el servicio con excepción.
+
+3. **Minería y Protocolo de Revisión Humana (`scripts/proponer_stopwords.py`):**
+   Precedente exacto del flujo curado de venues (`scripts/clasificar_sites.py`):
+   * Analiza productos recientes en datos crudos (`product`) extrayendo n-gramas ($1$ a $3$) que superen **4 rejillas de seguridad**:
+     * **Rejilla (a):** Fuera del vocabulario de los tags estructurales/espaciales/restricción (18 tags).
+     * **Rejilla (b):** Fuera del vocabulario TF-IDF vigente del modelo en producción.
+     * **Rejilla (c):** Fuera del vocabulario estructural auxiliar (`PALCO`, `PLATEA`, `VIP`, `GENERAL`, `GRADA`, `BALCON`, `MESA`, `SILLA`, `PISO`, etc.).
+     * **Rejilla (d):** Frecuencia $\ge 3$ eventos distintos (`t_performance_id`).
+   * **Salida de Revisión:** `data/lookup/stopwords_revision_humana.csv` (`patron, frecuencia, n_eventos, ejemplo_producto, decision`).
+   * **Consolidación (`--consolidar`):** Mueve las filas con `decision = "aceptar"` al CSV oficial, asigna `fuente="propuesto"`, incrementa `version_vocab` (ej. `v1` $\to$ `v2`) y sube el archivo a Azure Blob Storage si `AZURE_STOPWORDS_URL` está configurada.
+
+4. **Regla Explícita de Gobernanza (Inercia en Producción):**
+   > **Regla de Inercia:** *El vocabulario de stopwords es inerte en inferencia sobre el modelo vigente (v2.5) hasta el próximo re-entrenamiento formal (v2.6). Su actualización en Blob o CSV permite actualizar el vocabulario comercial reiniciando el servicio sin rebuild de imagen Docker; este desacoplamiento es prerequisito de la versión mayor v2.6 junto con la política definitiva de precio-0 (ver [Sección 10.3](#103-deuda-conocida-alineación-filtro-entrenamiento)).*
 
 ---
 
@@ -920,6 +949,7 @@ Se mantiene como pregunta estratégica abierta para Data Engineering y Producto 
 1. **Definir Tratamiento de Negocio:** Acordar si las filas con precio $\$0$ deben imputarse (e.g. precio mínimo del evento), conservarse mediante un indicador explícito (`flag_cortesia_precio_cero=True`) sin ser descartadas, o excluirse desde el origen de datos.
 2. **Re-entrenamiento Formal v2.6:** Entrenar el pipeline completo bajo el filtro estricto alineado con la política acordada.
 3. **Re-baseline General:** Actualizar la distribución esperada (`DISTRIBUCION_ESPERADA_ARQUETIPOS`), los percentiles condicionales (`distribucion_percentil_tipo`) y los histogramas de referencia de drift estadístico (PSI).
+4. **Incorporación del Vocabulario de Marketing Gobernado:** Integrar formalmente la lista desacoplada de stopwords de marketing (`data/lookup/stopwords_marketing.csv`, resuelta vía Azure Blob en Nivel 1) para regenerar la matriz de features TF-IDF y re-calibrar los nombres automáticos (`label_auto`) de micro-clusters, asegurando que nuevas giras no sesguen el espacio latente.
 
 ---
 
