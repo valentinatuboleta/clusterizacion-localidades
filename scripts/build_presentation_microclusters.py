@@ -8,11 +8,19 @@ Genera:
 
 import os
 import copy
+import pandas as pd
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.dml import MSO_LINE_DASH_STYLE
+
+def format_precio_cop(precio):
+    """Formatea valores monetarios COP con separador de miles."""
+    if precio >= 1000:
+        return f"${precio:,.0f} COP".replace(",", ".")
+    return f"${precio:.0f} COP"
 
 def build_presentation(
     template_path="template.pptx",
@@ -32,12 +40,33 @@ def build_presentation(
     COLOR_STEEL = RGBColor(19, 64, 116)     # #134074
     COLOR_TEAL = RGBColor(0, 150, 136)      # #009688
     COLOR_CORAL = RGBColor(231, 111, 81)    # #E76F51
+    COLOR_AMBER = RGBColor(244, 162, 97)    # #F4A261
     COLOR_DARK = RGBColor(33, 37, 41)       # #212529
     COLOR_WHITE = RGBColor(255, 255, 255)
     COLOR_CARD_BORDER = RGBColor(215, 220, 228)
     COLOR_CARD_BG = RGBColor(255, 255, 255)
     COLOR_MUTED = RGBColor(108, 117, 125)
-    
+    COLOR_BG_GRAY = RGBColor(245, 245, 245)
+    COLOR_BAR_BG = RGBColor(226, 232, 240)  # #E2E8F0
+
+    COLOR_MAP = {
+        "Admisión Única / Tarifa Plana": RGBColor(0, 150, 136),
+        "VIP / Palcos / Premium": RGBColor(231, 111, 81),
+        "Popular / Balcón / Visibilidad Parcial": RGBColor(11, 37, 69),
+        "Platea General / Intermedia": RGBColor(19, 64, 116),
+        "Preferencial / Platea Frontal": RGBColor(244, 162, 97),
+        "Grada General / Masiva": RGBColor(108, 117, 125)
+    }
+
+    BG_LIGHT_MAP = {
+        "Admisión Única / Tarifa Plana": RGBColor(224, 242, 241),
+        "VIP / Palcos / Premium": RGBColor(251, 233, 231),
+        "Popular / Balcón / Visibilidad Parcial": RGBColor(232, 234, 246),
+        "Platea General / Intermedia": RGBColor(227, 242, 253),
+        "Preferencial / Platea Frontal": RGBColor(255, 243, 224),
+        "Grada General / Masiva": RGBColor(245, 245, 245)
+    }
+
     FONT_NAME = "Montserrat"
 
     # Helper para configurar títulos y encabezados sobre cualquier slide
@@ -305,6 +334,347 @@ def build_presentation(
         p2.font.color.rgb = COLOR_DARK
 
     # -------------------------------------------------------------
+    # HELPERS PARA RENDERIZADO NATIVO DE TARJETAS Y ESCALERAS (TEXTO EDITABLE)
+    # -------------------------------------------------------------
+    df_mb_pred = pd.read_parquet("data/processed/marcha_blanca_predicciones.parquet") if os.path.exists("data/processed/marcha_blanca_predicciones.parquet") else None
+    df_eventos_sel = pd.read_csv("reports/eventos_seleccionados.csv") if os.path.exists("reports/eventos_seleccionados.csv") else None
+    df_galeria_ext = pd.read_csv("reports/ejemplos_galeria_extendida.csv") if os.path.exists("reports/ejemplos_galeria_extendida.csv") else None
+    df_ejemplos_prs = pd.read_csv("reports/ejemplos_presentacion.csv") if os.path.exists("reports/ejemplos_presentacion.csv") else None
+
+    def render_event_ladder(slide, ev, sub_locs):
+        total_locs = len(sub_locs)
+        nota_corte = ""
+        if total_locs > 12:
+            sub_locs = sub_locs.head(12)
+            nota_corte = f"*(Mostrando las 12 localidades principales de mayor precio; +{total_locs - 12} localidades adicionales en el anexo verificable)*"
+
+        n_rows = len(sub_locs)
+        if n_rows == 0:
+            return
+
+        # 1. Encabezado Premium del Evento (Editable)
+        head_box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.45), Inches(11.7), Inches(0.60))
+        head_box.fill.solid()
+        head_box.fill.fore_color.rgb = COLOR_NAVY
+        head_box.line.fill.background()
+
+        tb_head = slide.shapes.add_textbox(Inches(0.95), Inches(1.47), Inches(11.4), Inches(0.56))
+        tf_head = tb_head.text_frame
+        tf_head.word_wrap = True
+        tf_head.margin_left = Inches(0.04)
+        tf_head.margin_right = Inches(0.04)
+        tf_head.margin_top = Inches(0.02)
+        tf_head.margin_bottom = Inches(0.02)
+
+        p_h1 = tf_head.paragraphs[0]
+        prod_title = f"ESCALERA DE EVENTO: {str(ev['product']).upper()}"
+        if len(prod_title) > 75:
+            prod_title = prod_title[:73] + "..."
+        p_h1.text = prod_title
+        p_h1.font.name = FONT_NAME
+        p_h1.font.size = Pt(11)
+        p_h1.font.bold = True
+        p_h1.font.color.rgb = COLOR_WHITE
+        p_h1.space_after = Pt(1)
+
+        p_h2 = tf_head.add_paragraph()
+        p_h2.text = f"Recinto: {ev['site']}  |  Aforo Total: {float(ev['performance_quota']):,.0f} personas  |  Localidades: {total_locs}  |  Estrato: {str(ev['estrato_objetivo']).upper()} ({str(ev['estrato_real']).upper()})"
+        p_h2.font.name = FONT_NAME
+        p_h2.font.size = Pt(8.5)
+        p_h2.font.color.rgb = RGBColor(224, 242, 241)
+
+        # 2. Dibujar cada peldaño de la escalera con texto y formas editables
+        max_p = sub_locs["base_unit_amt_itx"].max() if len(sub_locs) > 0 else 1.0
+        if max_p <= 0:
+            max_p = 1.0
+
+        y_start = 2.15
+        total_space = 4.80
+        row_step = min(0.55, total_space / n_rows)
+        row_h = max(0.32, row_step - 0.06)
+
+        for idx, (_, r) in enumerate(sub_locs.reset_index().iterrows()):
+            y_pos = Inches(y_start + idx * row_step)
+            arq = r["arquetipo_demanda"]
+            c_color = COLOR_MAP.get(arq, COLOR_STEEL)
+            c_bg = BG_LIGHT_MAP.get(arq, COLOR_BG_GRAY)
+            precio = float(r["base_unit_amt_itx"])
+            conf = float(r["score_confianza"])
+            es_fr = bool(r["es_frontera"])
+            label_auto = str(r["label_auto"])
+            es_hib = label_auto.startswith("hibrido")
+
+            # Tarjeta de fondo de la fila
+            row_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), y_pos, Inches(11.7), Inches(row_h))
+            row_card.fill.solid()
+            row_card.fill.fore_color.rgb = c_bg
+            if es_fr:
+                row_card.line.color.rgb = COLOR_CORAL
+                row_card.line.width = Pt(1.5)
+                row_card.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+            elif es_hib:
+                row_card.line.color.rgb = COLOR_AMBER
+                row_card.line.width = Pt(1.0)
+            else:
+                row_card.line.color.rgb = COLOR_CARD_BORDER
+                row_card.line.width = Pt(0.75)
+
+            # Barra horizontal de precio relativo con texto editable
+            bar_w = Inches(0.95 + (precio / max_p) * 2.2)
+            price_bar = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.9), y_pos + Inches(0.04), bar_w, Inches(row_h - 0.08))
+            price_bar.fill.solid()
+            price_bar.fill.fore_color.rgb = c_color
+            price_bar.line.fill.background()
+
+            tf_p = price_bar.text_frame
+            tf_p.word_wrap = False
+            tf_p.margin_left = Inches(0.06)
+            tf_p.margin_right = Inches(0.04)
+            tf_p.margin_top = Inches(0.01)
+            tf_p.margin_bottom = Inches(0.01)
+            p_p = tf_p.paragraphs[0]
+            p_p.text = format_precio_cop(precio)
+            p_p.font.name = FONT_NAME
+            p_p.font.size = Pt(8.5 if n_rows > 8 else 9.5)
+            p_p.font.bold = True
+            p_p.font.color.rgb = COLOR_WHITE
+            p_p.alignment = PP_ALIGN.LEFT
+
+            # Nombre de la Localidad y doble identidad (Texto editable)
+            tb_loc = slide.shapes.add_textbox(Inches(4.2), y_pos + Inches(0.01), Inches(4.3), Inches(row_h - 0.02))
+            tf_loc = tb_loc.text_frame
+            tf_loc.word_wrap = True
+            tf_loc.margin_left = Inches(0.04)
+            tf_loc.margin_right = Inches(0.04)
+            tf_loc.margin_top = Inches(0.01)
+            tf_loc.margin_bottom = Inches(0.01)
+
+            p_l1 = tf_loc.paragraphs[0]
+            loc_name = str(r["logical_seat_category"])
+            if len(loc_name) > 34:
+                loc_name = loc_name[:32] + "..."
+            p_l1.text = loc_name
+            p_l1.font.name = FONT_NAME
+            p_l1.font.size = Pt(8.5 if n_rows > 8 else 9.5)
+            p_l1.font.bold = True
+            p_l1.font.color.rgb = COLOR_NAVY
+            p_l1.space_after = Pt(0)
+
+            p_l2 = tf_loc.add_paragraph()
+            sub_id = f"{arq.split(' / ')[0]}  •  {r['micro_cluster_id']} ({label_auto})"
+            if len(sub_id) > 42:
+                sub_id = sub_id[:40] + "..."
+            p_l2.text = sub_id
+            p_l2.font.name = FONT_NAME
+            p_l2.font.size = Pt(7.5 if n_rows > 8 else 8.0)
+            p_l2.font.color.rgb = COLOR_MUTED
+
+            # Badges de Frontera / Híbrido (Formas y textos editables)
+            bx = 8.6
+            if es_fr:
+                b_fr = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(bx), y_pos + Inches(0.04), Inches(0.95), Inches(row_h - 0.08))
+                b_fr.fill.solid()
+                b_fr.fill.fore_color.rgb = COLOR_CORAL
+                b_fr.line.fill.background()
+                tf_fr = b_fr.text_frame
+                tf_fr.margin_left = Inches(0.02)
+                tf_fr.margin_right = Inches(0.02)
+                tf_fr.margin_top = Inches(0.01)
+                tf_fr.margin_bottom = Inches(0.01)
+                p_fr = tf_fr.paragraphs[0]
+                p_fr.text = "FRONTERA"
+                p_fr.font.name = FONT_NAME
+                p_fr.font.size = Pt(7.5)
+                p_fr.font.bold = True
+                p_fr.font.color.rgb = COLOR_WHITE
+                p_fr.alignment = PP_ALIGN.CENTER
+                bx += 1.05
+
+            if es_hib:
+                b_hib = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(bx), y_pos + Inches(0.04), Inches(0.90), Inches(row_h - 0.08))
+                b_hib.fill.solid()
+                b_hib.fill.fore_color.rgb = COLOR_AMBER
+                b_hib.line.fill.background()
+                tf_hib = b_hib.text_frame
+                tf_hib.margin_left = Inches(0.02)
+                tf_hib.margin_right = Inches(0.02)
+                tf_hib.margin_top = Inches(0.01)
+                tf_hib.margin_bottom = Inches(0.01)
+                p_hib = tf_hib.paragraphs[0]
+                p_hib.text = "HÍBRIDO"
+                p_hib.font.name = FONT_NAME
+                p_hib.font.size = Pt(7.5)
+                p_hib.font.bold = True
+                p_hib.font.color.rgb = COLOR_WHITE
+                p_hib.alignment = PP_ALIGN.CENTER
+
+            # Barra de Confianza en el extremo derecho
+            c_bg_pill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(10.8), y_pos + Inches(0.04), Inches(1.55), Inches(row_h - 0.08))
+            c_bg_pill.fill.solid()
+            c_bg_pill.fill.fore_color.rgb = COLOR_BAR_BG
+            c_bg_pill.line.fill.background()
+
+            conf_w = max(0.18, conf * 1.55)
+            c_fill_pill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(10.8), y_pos + Inches(0.04), Inches(conf_w), Inches(row_h - 0.08))
+            c_col = COLOR_TEAL if conf >= 0.70 else (COLOR_AMBER if conf >= 0.50 else COLOR_CORAL)
+            c_fill_pill.fill.solid()
+            c_fill_pill.fill.fore_color.rgb = c_col
+            c_fill_pill.line.fill.background()
+
+            tb_c = slide.shapes.add_textbox(Inches(10.8), y_pos + Inches(0.02), Inches(1.55), Inches(row_h - 0.04))
+            tf_c = tb_c.text_frame
+            tf_c.margin_left = Inches(0.02)
+            tf_c.margin_right = Inches(0.02)
+            tf_c.margin_top = Inches(0.01)
+            tf_c.margin_bottom = Inches(0.01)
+            p_c = tf_c.paragraphs[0]
+            p_c.text = f"Conf: {conf * 100:.1f}%"
+            p_c.font.name = FONT_NAME
+            p_c.font.size = Pt(8.0)
+            p_c.font.bold = True
+            p_c.font.color.rgb = COLOR_DARK if conf < 0.45 else COLOR_WHITE
+            p_c.alignment = PP_ALIGN.CENTER
+
+        if nota_corte:
+            tb_nc = slide.shapes.add_textbox(Inches(0.8), Inches(6.98), Inches(11.7), Inches(0.35))
+            p_nc = tb_nc.text_frame.paragraphs[0]
+            p_nc.text = nota_corte
+            p_nc.font.name = FONT_NAME
+            p_nc.font.size = Pt(8.0)
+            p_nc.font.color.rgb = COLOR_MUTED
+            p_nc.font.italic = True
+
+    def render_card_grid(slide, df_cards, x_start, y_start, total_w, total_h, n_cols, n_rows, is_hero=False):
+        gap_x = Inches(0.16)
+        gap_y = Inches(0.14)
+        card_w = (total_w - (n_cols - 1) * gap_x) / n_cols
+        card_h = (total_h - (n_rows - 1) * gap_y) / n_rows
+
+        for idx, (_, r) in enumerate(df_cards.reset_index().iterrows()):
+            col = idx % n_cols
+            row = idx // n_cols
+            if row >= n_rows:
+                break
+
+            card_x = x_start + col * (card_w + gap_x)
+            card_y = y_start + row * (card_h + gap_y)
+
+            arq = r["arquetipo_demanda"]
+            c_color = COLOR_MAP.get(arq, COLOR_STEEL)
+            c_bg = BG_LIGHT_MAP.get(arq, COLOR_BG_GRAY)
+            caso = str(r.get("caso", ""))
+            is_front = (caso == "frontera") or bool(r.get("es_frontera", False))
+            label_auto = str(r.get("label_auto", ""))
+            is_hib = (caso == "hibrido") or label_auto.startswith("hibrido")
+
+            # Fondo de la tarjeta
+            card_bg = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, card_x, card_y, card_w, card_h)
+            card_bg.fill.solid()
+            card_bg.fill.fore_color.rgb = COLOR_WHITE
+            if is_front:
+                card_bg.line.color.rgb = COLOR_CORAL
+                card_bg.line.width = Pt(1.5)
+                card_bg.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+            elif is_hib:
+                card_bg.line.color.rgb = COLOR_AMBER
+                card_bg.line.width = Pt(1.0)
+            else:
+                card_bg.line.color.rgb = COLOR_CARD_BORDER
+                card_bg.line.width = Pt(0.75)
+
+            # Franja superior de encabezado
+            hdr_h = card_h * 0.24
+            hdr_bar = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, card_x, card_y, card_w, hdr_h)
+            hdr_bar.fill.solid()
+            hdr_bar.fill.fore_color.rgb = c_color
+            hdr_bar.line.fill.background()
+
+            tb_hdr = slide.shapes.add_textbox(card_x + Inches(0.08), card_y + Inches(0.01), card_w - Inches(0.16), hdr_h - Inches(0.02))
+            tf_h = tb_hdr.text_frame
+            tf_h.word_wrap = True
+            tf_h.margin_left = Inches(0.02)
+            tf_h.margin_right = Inches(0.02)
+            tf_h.margin_top = Inches(0.01)
+            tf_h.margin_bottom = Inches(0.01)
+            p_h = tf_h.paragraphs[0]
+            if is_hero:
+                p_h.text = arq.split(" / ")[0]
+            else:
+                p_h.text = f"{r['micro_cluster_id']} • {label_auto}"
+            p_h.font.name = FONT_NAME
+            p_h.font.size = Pt(8.5)
+            p_h.font.bold = True
+            p_h.font.color.rgb = COLOR_WHITE
+
+            # Badges en la cabecera si aplica
+            if is_front:
+                b_fr = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, card_x + card_w - Inches(0.85), card_y + Inches(0.03), Inches(0.80), hdr_h - Inches(0.06))
+                b_fr.fill.solid(); b_fr.fill.fore_color.rgb = COLOR_CORAL; b_fr.line.fill.background()
+                tf_bf = b_fr.text_frame; tf_bf.margin_left = Inches(0.01); tf_bf.margin_right = Inches(0.01); tf_bf.margin_top = Inches(0.01); tf_bf.margin_bottom = Inches(0.01)
+                p_bf = tf_bf.paragraphs[0]; p_bf.text = "FRONTERA"; p_bf.font.name = FONT_NAME; p_bf.font.size = Pt(6.5); p_bf.font.bold = True; p_bf.font.color.rgb = COLOR_WHITE; p_bf.alignment = PP_ALIGN.CENTER
+            elif is_hib:
+                b_hb = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, card_x + card_w - Inches(0.80), card_y + Inches(0.03), Inches(0.75), hdr_h - Inches(0.06))
+                b_hb.fill.solid(); b_hb.fill.fore_color.rgb = COLOR_AMBER; b_hb.line.fill.background()
+                tf_bh = b_hb.text_frame; tf_bh.margin_left = Inches(0.01); tf_bh.margin_right = Inches(0.01); tf_bh.margin_top = Inches(0.01); tf_bh.margin_bottom = Inches(0.01)
+                p_bh = tf_bh.paragraphs[0]; p_bh.text = "HÍBRIDO"; p_bh.font.name = FONT_NAME; p_bh.font.size = Pt(6.5); p_bh.font.bold = True; p_bh.font.color.rgb = COLOR_WHITE; p_bh.alignment = PP_ALIGN.CENTER
+
+            # Contenido textual del cuerpo de la tarjeta (100% editable)
+            tb_body = slide.shapes.add_textbox(card_x + Inches(0.08), card_y + hdr_h + Inches(0.03), card_w - Inches(0.16), card_h - hdr_h - Inches(0.05))
+            tf_b = tb_body.text_frame
+            tf_b.word_wrap = True
+            tf_b.margin_left = Inches(0.02); tf_b.margin_right = Inches(0.02); tf_b.margin_top = Inches(0.01); tf_b.margin_bottom = Inches(0.01)
+
+            # Localidad
+            p_b1 = tf_b.paragraphs[0]
+            loc_name = str(r["logical_seat_category"])
+            if len(loc_name) > 28:
+                loc_name = loc_name[:26] + "..."
+            p_b1.text = loc_name
+            p_b1.font.name = FONT_NAME
+            p_b1.font.size = Pt(8.5 if n_rows > 2 else 9.5)
+            p_b1.font.bold = True
+            p_b1.font.color.rgb = COLOR_NAVY
+            p_b1.space_after = Pt(1)
+
+            # Recinto
+            p_b2 = tf_b.add_paragraph()
+            site_str = str(r.get("site", r.get("recinto", "")))
+            if len(site_str) > 26:
+                site_str = site_str[:24] + "..."
+            p_b2.text = f"Recinto: {site_str}"
+            p_b2.font.name = FONT_NAME
+            p_b2.font.size = Pt(7.5 if n_rows > 2 else 8.0)
+            p_b2.font.color.rgb = COLOR_MUTED
+            p_b2.space_after = Pt(1)
+
+            # Precio
+            p_b3 = tf_b.add_paragraph()
+            p_b3.text = f"Precio: {format_precio_cop(float(r['precio']))}"
+            p_b3.font.name = FONT_NAME
+            p_b3.font.size = Pt(8.0 if n_rows > 2 else 8.5)
+            p_b3.font.bold = True
+            p_b3.font.color.rgb = COLOR_STEEL
+            p_b3.space_after = Pt(1)
+
+            # Doble identidad
+            p_b4 = tf_b.add_paragraph()
+            p_b4.text = f"• {r['micro_cluster_id']} ({label_auto})"
+            p_b4.font.name = FONT_NAME
+            p_b4.font.size = Pt(7.5 if n_rows > 2 else 8.0)
+            p_b4.font.bold = True
+            p_b4.font.color.rgb = c_color
+            p_b4.space_after = Pt(1)
+
+            # Confianza
+            conf_val = float(r["score_confianza"])
+            p_b5 = tf_b.add_paragraph()
+            p_b5.text = f"Conf: {conf_val * 100:.1f}%"
+            p_b5.font.name = FONT_NAME
+            p_b5.font.size = Pt(7.0 if n_rows > 2 else 7.5)
+            p_b5.font.bold = True
+            p_b5.font.color.rgb = COLOR_TEAL if conf_val >= 0.60 else (COLOR_AMBER if conf_val >= 0.40 else COLOR_CORAL)
+
+    # -------------------------------------------------------------
     # SLIDE 5: PORTADA DE LA GALERÍA + MATRIZ DE RECINTOS (DENSIDAD)
     # -------------------------------------------------------------
     print("• Configurando Slide 5: Portada de Galería + Matriz de Recintos...")
@@ -315,10 +685,15 @@ def build_presentation(
         "A la izquierda, los 6 arquetipos héroes de portada; a la derecha, la matriz de distribución "
         "sobre los 10 recintos con mayor volumen, mostrando cómo conviven los arquetipos según la tipología del venue."
     )
-    fig_heroes_path = "reports/figures/fig_tarjetas_ejemplos_marcha.png"
+    if df_ejemplos_prs is not None:
+        df_tarjetas_hero = df_ejemplos_prs[df_ejemplos_prs["es_tarjeta_slide_6"]].copy()
+        render_card_grid(s5, df_tarjetas_hero, Inches(0.8), Inches(1.4), Inches(6.0), Inches(5.5), n_cols=2, n_rows=3, is_hero=True)
+    else:
+        fig_heroes_path = "reports/figures/fig_tarjetas_ejemplos_marcha.png"
+        if os.path.exists(fig_heroes_path):
+            s5.shapes.add_picture(fig_heroes_path, Inches(0.8), Inches(1.4), Inches(6.0), Inches(5.5))
+
     fig_matriz_path = "reports/figures/fig_matriz_recintos_arquetipos.png"
-    if os.path.exists(fig_heroes_path):
-        s5.shapes.add_picture(fig_heroes_path, Inches(0.8), Inches(1.4), Inches(6.0), Inches(5.5))
     if os.path.exists(fig_matriz_path):
         s5.shapes.add_picture(fig_matriz_path, Inches(7.0), Inches(1.4), Inches(5.6), Inches(5.5))
 
@@ -356,9 +731,23 @@ def build_presentation(
     for est_key, slide_tema, slide_desc, slide_notas in eventos_slides:
         print(f"• Configurando Slide de Evento: Estrato {est_key.upper()}...")
         s_ev = create_slide(slide_tema, slide_desc, slide_notas)
-        fig_ev_path = f"reports/figures/fig_evento_{est_key}.png"
-        if os.path.exists(fig_ev_path):
-            s_ev.shapes.add_picture(fig_ev_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+        
+        # Renderizado nativo editable de la escalera del evento
+        rendered_native = False
+        if df_eventos_sel is not None and df_mb_pred is not None:
+            ev_match = df_eventos_sel[df_eventos_sel["estrato_objetivo"] == est_key]
+            if len(ev_match) > 0:
+                ev_row = ev_match.iloc[0]
+                pid = ev_row["t_performance_id"]
+                sub_locs = df_mb_pred[df_mb_pred["t_performance_id"] == pid].sort_values("base_unit_amt_itx", ascending=False).copy()
+                if len(sub_locs) > 0:
+                    render_event_ladder(s_ev, ev_row, sub_locs)
+                    rendered_native = True
+
+        if not rendered_native:
+            fig_ev_path = f"reports/figures/fig_evento_{est_key}.png"
+            if os.path.exists(fig_ev_path):
+                s_ev.shapes.add_picture(fig_ev_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
 
     # -------------------------------------------------------------
     # SLIDE 11: GALERÍA SEGMENTO PREMIUM (VIP + PREFERENCIAL)
@@ -371,9 +760,13 @@ def build_presentation(
         "el arquetipo es el lenguaje de negocio. Observen cómo dentro de Preferencial distinguimos "
         "plateas centrales de laterales y posteriores; y en VIP aislamos palcos puros frente a balcones mixtos."
     )
-    fig_prem_path = "reports/figures/fig_galeria_premium.png"
-    if os.path.exists(fig_prem_path):
-        s11.shapes.add_picture(fig_prem_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+    if df_galeria_ext is not None:
+        df_prem = df_galeria_ext[df_galeria_ext["grupo"] == "premium"].copy()
+        render_card_grid(s11, df_prem, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5), n_cols=4, n_rows=2)
+    else:
+        fig_prem_path = "reports/figures/fig_galeria_premium.png"
+        if os.path.exists(fig_prem_path):
+            s11.shapes.add_picture(fig_prem_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
 
     # -------------------------------------------------------------
     # SLIDE 12: GALERÍA SEGMENTO MASIVOS (PLATEA GENERAL + POPULAR + GRADA)
@@ -386,9 +779,13 @@ def build_presentation(
         "el arquetipo es el lenguaje de negocio. En eventos masivos, Popular separa pisos altos de balcones, "
         "mientras Grada General aísla tiquetes de festival de localidades de admisión por gradería."
     )
-    fig_mas_path = "reports/figures/fig_galeria_masivos.png"
-    if os.path.exists(fig_mas_path):
-        s12.shapes.add_picture(fig_mas_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
+    if df_galeria_ext is not None:
+        df_mas = df_galeria_ext[df_galeria_ext["grupo"] == "masivos"].copy()
+        render_card_grid(s12, df_mas, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5), n_cols=4, n_rows=3)
+    else:
+        fig_mas_path = "reports/figures/fig_galeria_masivos.png"
+        if os.path.exists(fig_mas_path):
+            s12.shapes.add_picture(fig_mas_path, Inches(0.8), Inches(1.4), Inches(11.7), Inches(5.5))
 
     # -------------------------------------------------------------
     # SLIDE 13: CASOS ESPECIALES (AU-0, FRONTERAS E HÍBRIDOS)
@@ -401,9 +798,13 @@ def build_presentation(
         "de auditoría; los micro-clusters híbridos capturan recintos con nomenclatura mixta sin colapsar la asignación; "
         "y Admisión Única resuelve determinísticamente eventos mono-zona al 100% de confianza."
     )
-    fig_esp_path = "reports/figures/fig_galeria_especiales.png"
-    if os.path.exists(fig_esp_path):
-        s13.shapes.add_picture(fig_esp_path, Inches(0.8), Inches(1.4), Inches(7.5), Inches(5.5))
+    if df_galeria_ext is not None:
+        df_esp = df_galeria_ext[df_galeria_ext["grupo"] == "especiales"].copy()
+        render_card_grid(s13, df_esp, Inches(0.8), Inches(1.4), Inches(7.4), Inches(5.5), n_cols=2, n_rows=3)
+    else:
+        fig_esp_path = "reports/figures/fig_galeria_especiales.png"
+        if os.path.exists(fig_esp_path):
+            s13.shapes.add_picture(fig_esp_path, Inches(0.8), Inches(1.4), Inches(7.5), Inches(5.5))
     
     card_s13 = s13.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.5), Inches(1.4), Inches(4.0), Inches(5.5))
     card_s13.fill.solid()
