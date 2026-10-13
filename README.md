@@ -142,6 +142,24 @@ El sistema cuenta con un esquema de precedencia de 3 niveles: `revision_humana >
   python scripts/clasificar_sites.py --aplicar-revision
   ```
 
+### 5. Servicio local (API de Inferencia FastAPI)
+Para levantar el microservicio de inferencia localmente:
+
+1. **Instalar dependencias del API:**
+   ```bash
+   pip install -r requirements-api.txt
+   ```
+
+2. **Iniciar el servidor local con uvicorn:**
+   ```bash
+   uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+La documentación interactiva OpenAPI/Swagger queda disponible en:
+* Interfaz interactiva: `http://localhost:8000/docs`
+* Endpoint de verificación: `http://localhost:8000/health`
+* Endpoint de inferencia: `POST http://localhost:8000/v1/predecir-localidades`
+
 > [!NOTE]
 > `src/azure_utils.py` cuenta con validaciones preventivas (*guards*) que alertarán inmediatamente si las variables conservan los nombres de placeholder sin configurar.
 
