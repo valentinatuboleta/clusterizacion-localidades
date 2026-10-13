@@ -160,6 +160,22 @@ La documentación interactiva OpenAPI/Swagger queda disponible en:
 * Endpoint de verificación: `http://localhost:8000/health`
 * Endpoint de inferencia: `POST http://localhost:8000/v1/predecir-localidades`
 
+#### Verificación manual y Smoke Test
+Una vez iniciado el servidor local, se puede verificar de dos formas:
+
+1. **Smoke test automatizado por terminal:**
+   ```bash
+   python scripts/smoke_local.py
+   ```
+   Lee el fixture del catálogo `deploy/fixtures/ejemplo_evento.json` (evento real *Hans Zimmer vs John Williams* en el *Teatro Jorge Eliécer Gaitán* con sus 6 localidades), realiza la petición al endpoint, valida la aserción de versión (`modelo_version` contiene `2.5`) e imprime las predicciones formateadas en tabla.
+
+2. **Verificación interactiva vía Swagger UI:**
+   * Levantar el servidor: `uvicorn src.api.main:app --reload`
+   * Abrir en el navegador: `http://localhost:8000/docs`
+   * Desplegar el endpoint `POST /v1/predecir-localidades` y presionar **Try it out**.
+   * Pegar el contenido del archivo `deploy/fixtures/ejemplo_evento.json` en el cuerpo de la petición y presionar **Execute**.
+   * Comparar la respuesta JSON (`micro_cluster`, `arquetipo`, `confianza`, `es_frontera`) contra las asignaciones históricas del parquet o catálogo de marcha blanca.
+
 > [!NOTE]
 > `src/azure_utils.py` cuenta con validaciones preventivas (*guards*) que alertarán inmediatamente si las variables conservan los nombres de placeholder sin configurar.
 

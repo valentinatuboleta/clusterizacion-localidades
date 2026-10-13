@@ -1,0 +1,50 @@
+{
+  "t_performance_id": 10230442113886,
+  "product": "HANS ZIMMER VS JOHN WILLIAMS",
+  "site": "TEATRO JORGE ELIECER GAITAN",
+  "performance_quota": 1650.0,
+  "localidades": [
+    {
+      "logical_seat_category": "BALCON POSTERIOR",
+      "dn_quota": 222.0,
+      "med_base_unit_amt_itx": 79920.0,
+      "net_sold_p_qty": 1.0,
+      "net_sold_c_qty": 0.0
+    },
+    {
+      "logical_seat_category": "PALCO",
+      "dn_quota": 127.0,
+      "med_base_unit_amt_itx": 124000.0,
+      "net_sold_p_qty": 1.0,
+      "net_sold_c_qty": 0.0
+    },
+    {
+      "logical_seat_category": "PLATEA POSTERIOR",
+      "dn_quota": 334.0,
+      "med_base_unit_amt_itx": 152000.0,
+      "net_sold_p_qty": 1.0,
+      "net_sold_c_qty": 0.0
+    },
+    {
+      "logical_seat_category": "PLATEA LATERAL",
+      "dn_quota": 363.0,
+      "med_base_unit_amt_itx": 176000.0,
+      "net_sold_p_qty": 1.0,
+      "net_sold_c_qty": 0.0
+    },
+    {
+      "logical_seat_category": "BALCON DELANTERO",
+      "dn_quota": 344.0,
+      "med_base_unit_amt_itx": 100000.0,
+      "net_sold_p_qty": 1.0,
+      "net_sold_c_qty": 0.0
+    },
+    {
+      "logical_seat_category": "PLATEA CENTRO",
+      "dn_quota": 260.0,
+      "med_base_unit_amt_itx": 200000.0,
+      "net_sold_p_qty": 1.0,
+      "net_sold_c_qty": 0.0
+    }
+  ]
+}
