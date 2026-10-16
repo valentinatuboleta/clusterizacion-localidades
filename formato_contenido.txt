@@ -1,0 +1,572 @@
+FORMATO DE SOLICITUD DE DATOS PARA PREDICCIONES
+EQUIPO DE CIENCIA DE DATOS
+Centro de Excelencia de Datos (CED) · Plantilla oficial para solicitud de datasets, variables y fuentes de información para modelos analíticos y predictivos
+Código del documento
+CED-FOR-DS-002
+Versión
+1.0
+Propietario del documento
+Centro de Excelencia de Datos (CED)
+Clasificación
+Uso interno
+Aplica a
+Equipo de Ciencia de Datos / Equipo de Ingeniería de Datos
+Próxima revisión
+12 meses después de la fecha de publicación
+PROPÓSITO DEL DOCUMENTO
+Este formato estandariza la solicitud de datos, variables y fuentes de información para realizar predicciones que el equipo de Ciencia de Datos realiza al equipo de Ingeniería de Datos para la construcción de modelos predictivos. Su diligenciamiento completo busca minimizar ambigüedades, reuniones innecesarias y retrabajos durante la construcción de datasets analíticos.
+CÓMO USAR ESTA PLANTILLA
+Cada sección incluye: (1) el objetivo de la sección, (2) instrucciones de diligenciamiento y (3) un ejemplo completamente diligenciado, basado en un caso real de construcción de un modelo de churn de clientes en una empresa de retail. Diligencie todas las tablas marcadas como “Campos a diligenciar” antes de enviar la solicitud al equipo de Ingeniería de Datos. Use el ejemplo como referencia de nivel de detalle esperado, no como contenido a copiar literalmente.
+1. Información General del Proyecto
+OBJETIVO DE LA SECCIÓN
+Identificar de forma única el proyecto analítico, las personas responsables y los tiempos asociados a la solicitud, de manera que Ingeniería de Datos pueda priorizar, asignar recursos y dar trazabilidad a la solicitud.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Use el nombre y código oficial del proyecto tal como está registrado en el repositorio de proyectos analíticos del CED. Si el proyecto es nuevo, solicite el código antes de enviar este formato.
+Indique un único solicitante responsable de aclarar dudas funcionales durante la construcción del dataset.
+Defina la prioridad de acuerdo con la matriz de priorización vigente del CED (Alta / Media / Baja).
+La fecha requerida de entrega debe considerar un tiempo razonable de análisis, construcción y validación por parte de Ingeniería de Datos (mínimo 10 días hábiles para solicitudes de complejidad media).
+CAMPOS A DILIGENCIAR
+Nombre del proyecto
+Click o escriba aquí
+Código del proyecto (CED)
+Click o escriba aquí
+Solicitante (Data Scientist)
+Click o escriba aquí
+Área / equipo solicitante
+Click o escriba aquí
+Sponsor / líder de negocio
+Click o escriba aquí
+Líder de Ciencia de Datos
+Click o escriba aquí
+Fecha de la solicitud
+Click o escriba aquí
+Fecha requerida de entrega
+Click o escriba aquí
+Prioridad (Alta / Media / Baja)
+Click o escriba aquí
+Ingeniero de Datos asignado (si se conoce)
+Click o escriba aquí
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Nombre del proyecto
+Modelo predictivo de churn de clientes – Canal Retail
+Código del proyecto (CED)
+CED-DS-2026-014
+Solicitante (Data Scientist)
+María Fernanda Ríos – Científica de Datos Senior
+Área / equipo solicitante
+Ciencia de Datos – Analítica Avanzada
+Sponsor / líder de negocio
+Carlos Eduardo Gómez – Director Comercial
+Líder de Ciencia de Datos
+Daniel Esteban Vargas
+Fecha de la solicitud
+01 de junio de 2026
+Fecha requerida de entrega
+26 de junio de 2026
+Prioridad (Alta / Media / Baja)
+Alta
+Ingeniero de Datos asignado (si se conoce)
+Andrés Felipe Cárdenas
+2. Objetivo del Modelo
+OBJETIVO DE LA SECCIÓN
+Describir el propósito analítico y de negocio del modelo, de forma que Ingeniería de Datos comprenda para qué se usarán los datos solicitados y pueda anticipar requerimientos de calidad, frecuencia y formato.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Especifique el tipo de modelo (clasificación binaria, clasificación multiclase, regresión, series de tiempo, segmentación, sistema de recomendación, entre otros).
+Describa el problema de negocio en una frase clara y medible.
+Indique qué acción de negocio se tomará a partir del resultado del modelo (esto condiciona la frecuencia y el SLA de los datos).
+CAMPOS A DILIGENCIAR
+Tipo de modelo
+Click o escriba aquí
+Problema de negocio a resolver
+Click o escriba aquí
+Objetivo técnico del modelo
+Click o escriba aquí
+Resultado esperado / acción derivada de la predicción
+Click o escriba aquí
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Tipo de modelo
+Clasificación binaria
+Problema de negocio a resolver
+Disminuir la tasa de abandono de clientes activos del canal retail mediante intervenciones comerciales tempranas.
+Objetivo técnico del modelo
+Predecir la probabilidad de que un cliente activo deje de realizar compras en los próximos 30 días calendario, a partir de su comportamiento transaccional y de servicio.
+Resultado esperado / acción derivada de la predicción
+Los clientes con probabilidad de churn ≥ 0.7 serán incluidos en campañas de retención gestionadas por el equipo de CRM (descuentos personalizados, contacto proactivo del asesor de cuenta).
+3. Descripción del Caso de Uso
+OBJETIVO DE LA SECCIÓN
+Brindar contexto de negocio suficiente para que Ingeniería de Datos entienda el alcance, el usuario final y la criticidad operativa del modelo, más allá de la definición técnica.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Describa el contexto de negocio en máximo un párrafo, evitando lenguaje exclusivamente técnico.
+Identifique el usuario final del modelo (quién consume el resultado y en qué sistema o proceso).
+Indique la frecuencia con la que se ejecutará el modelo en producción una vez esté en operación.
+CAMPOS A DILIGENCIAR
+Contexto de negocio
+Click o escriba aquí
+Usuario final del modelo
+Click o escriba aquí
+Frecuencia de ejecución del modelo en producción
+Click o escriba aquí
+Acción derivada de la predicción
+Click o escriba aquí
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Contexto de negocio
+La compañía ha identificado un incremento sostenido en la tasa de abandono de clientes del canal retail durante los últimos tres trimestres. El área comercial requiere identificar de forma anticipada a los clientes con mayor riesgo de abandono para activar estrategias de retención antes de que el cliente deje de comprar.
+Usuario final del modelo
+Equipo de CRM y asesores comerciales de cuenta, a través del tablero de retención integrado en el CRM corporativo.
+Frecuencia de ejecución del modelo en producción
+Semanal (scoring de toda la base de clientes activos cada lunes a las 6:00 a.m.).
+Acción derivada de la predicción
+Generación automática de una lista priorizada de clientes en riesgo para gestión comercial durante la semana.
+4. Definición de la Variable Objetivo (Target)
+OBJETIVO DE LA SECCIÓN
+Eliminar cualquier ambigüedad sobre cómo debe calcularse la variable que el modelo intentará predecir, ya que es el elemento más sensible de la solicitud y el más costoso de corregir si se construye incorrectamente.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Defina la variable objetivo con una regla de cálculo verificable, no solo con una descripción conceptual.
+Indique explícitamente el horizonte de predicción (ej. próximos 30 días) y el momento de observación o “fecha de corte” desde el cual se mide ese horizonte.
+Aclare qué población es elegible para tener target (por ejemplo, solo clientes activos al momento de la fecha de corte).
+Especifique los valores posibles de la variable y su tipo de dato.
+CAMPOS A DILIGENCIAR
+Nombre de la variable objetivo
+Click o escriba aquí
+Definición funcional (negocio)
+Click o escriba aquí
+Regla de cálculo / lógica detallada
+Click o escriba aquí
+Tipo de variable
+Click o escriba aquí
+Valores posibles
+Click o escriba aquí
+Horizonte de predicción
+Click o escriba aquí
+Momento de observación (fecha de corte)
+Click o escriba aquí
+Población elegible para el target
+Click o escriba aquí
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Nombre de la variable objetivo
+churn_30d
+Definición funcional (negocio)
+Indica si un cliente activo dejará de realizar compras durante los 30 días posteriores a la fecha de corte.
+Regla de cálculo / lógica detallada
+churn_30d = 1 si el cliente no registra ninguna transacción de compra (todos los canales) entre la fecha de corte + 1 día y la fecha de corte + 30 días. churn_30d = 0 si registra al menos una transacción en ese periodo.
+Tipo de variable
+Binaria
+Valores posibles
+1 = Churn, 0 = No churn
+Horizonte de predicción
+30 días calendario hacia adelante desde la fecha de corte
+Momento de observación (fecha de corte)
+Último día de cada mes calendario (ej. 31 de mayo de 2026)
+Población elegible para el target
+Clientes clasificados como “activos” a la fecha de corte (ver regla de negocio en sección 10)
+5. Variables Requeridas
+OBJETIVO DE LA SECCIÓN
+Listar de forma completa y organizada todas las variables (features) que Ciencia de Datos requiere para la construcción del modelo, indicando su prioridad para que Ingeniería de Datos pueda planificar la construcción por fases si es necesario.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Agrupe las variables por categoría o dominio de negocio (transaccional, servicio, demográfico, digital, etc.).
+Clasifique cada variable como “Crítica” (indispensable para la primera versión del modelo) o “Deseable” (mejora el modelo pero no bloquea su construcción).
+Si conoce la fuente probable de la variable, indíquela; si no la conoce, déjelo en blanco para que Ingeniería de Datos la identifique.
+No incluya variables “por si acaso”: cada variable debe tener una justificación analítica.
+CAMPOS A DILIGENCIAR
+#
+Nombre variable
+Categoría / dominio
+Prioridad
+Fuente sugerida
+Comentarios
+1
+—
+—
+—
+—
+—
+2
+—
+—
+—
+—
+—
+3
+—
+—
+—
+—
+—
+4
+—
+—
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+#
+Nombre variable
+Categoría / dominio
+Prioridad
+Fuente sugerida
+Comentarios
+1
+Recencia de compra
+Transaccional
+Crítica
+Core de ventas (POS)
+Días desde la última compra a la fecha de corte
+2
+Frecuencia de compra 90d
+Transaccional
+Crítica
+Core de ventas (POS)
+N.º de compras en los últimos 90 días
+3
+Ticket promedio 90d
+Transaccional
+Crítica
+Core de ventas (POS)
+Valor promedio de compra últimos 90 días
+4
+Variación de gasto mensual
+Transaccional
+Deseable
+Core de ventas (POS)
+% de cambio del gasto mes vs. mes anterior
+5
+Antigüedad del cliente
+Demográfico
+Crítica
+CRM
+Meses desde la fecha de vinculación
+6
+N.º de quejas / PQR 90d
+Servicio al cliente
+Crítica
+Plataforma de PQR
+Conteo de casos registrados últimos 90 días
+7
+Uso de canal digital (app/web)
+Digital
+Deseable
+Analítica web/app
+Indicador binario de uso en los últimos 30 días
+8
+Participación en programa de lealtad
+Lealtad
+Crítica
+Plataforma de lealtad
+Indicador binario de membresía activa
+9
+NPS más reciente
+Servicio al cliente
+Deseable
+Encuestas de satisfacción
+Última calificación disponible (0-10)
+10
+Categoría de producto preferida
+Transaccional
+Deseable
+Core de ventas (POS)
+Categoría con mayor gasto acumulado 180 días
+6. Definición Funcional de cada Variable
+OBJETIVO DE LA SECCIÓN
+Detallar la lógica de cálculo de cada variable crítica listada en la sección anterior, para que Ingeniería de Datos pueda construirla sin necesidad de reuniones adicionales de aclaración.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Diligencie una fila por cada variable marcada como “Crítica” en la sección 5. Para variables “Deseables” es opcional, pero recomendado.
+La fórmula o lógica debe ser lo suficientemente explícita para programarse directamente (evite descripciones ambiguas como “compras recientes”).
+Indique el tratamiento esperado para valores nulos (ej. imputar con 0, imputar con la mediana, marcar como categoría “sin información”).
+CAMPOS A DILIGENCIAR
+Variable
+Definición de negocio
+Fórmula / lógica de cálculo
+Tipo de dato
+Periodo de cálculo
+Tratamiento de nulos
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Variable
+Definición de negocio
+Fórmula / lógica de cálculo
+Tipo de dato
+Periodo de cálculo
+Tratamiento de nulos
+Recencia de compra
+Días transcurridos desde la última compra del cliente
+fecha_corte − fecha_última_compra (en días)
+Entero
+A la fecha de corte
+Si no hay compras históricas, imputar con 999 (proxy de inactividad)
+Frecuencia de compra 90d
+N.º de transacciones de compra realizadas en los últimos 90 días
+COUNT(transacciones) WHERE fecha BETWEEN fecha_corte-90 AND fecha_corte
+Entero
+Ventana móvil de 90 días
+Si no hay transacciones, imputar con 0
+N.º de quejas / PQR 90d
+Cantidad de casos de servicio registrados por el cliente
+COUNT(casos_pqr) WHERE fecha_creacion BETWEEN fecha_corte-90 AND fecha_corte
+Entero
+Ventana móvil de 90 días
+Si no hay casos, imputar con 0
+Participación en programa de lealtad
+Indica si el cliente tiene membresía activa en el programa de lealtad
+1 si estado_membresia = ‘ACTIVA’ a la fecha de corte, 0 en caso contrario
+Binario
+A la fecha de corte
+Si el cliente no existe en la plataforma de lealtad, imputar con 0
+7. Variables Requeridas para Realizar Predicciones
+OBJETIVO DE LA SECCIÓN
+Detallar la lógica de cada variable crítica para realizar una predicción (en caso de que aplique). Cada una de las variables puestas deben ser las esperadas por el modelo para realizar una predicción correctamente.
+CAMPOS A DILIGENCIAR
+#
+Nombre variable
+Categoría / dominio
+Regla de negocio aplicada para su obtención
+Comentarios
+1
+—
+—
+—
+—
+2
+—
+—
+—
+—
+3
+—
+—
+—
+—
+4
+—
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+#
+Nombre variable
+Categoría / dominio
+Regla de negocio aplicada para su obtención
+Comentarios
+1
+Recencia de compra
+Transaccional
+-
+Días desde la última compra a la fecha de corte
+2
+Frecuencia de compra 90d
+Transaccional
+Se toma el id del usuario, se filtra por la columna “purchase” y se cuenta el número de registros desde la compra más reciente los últimos 90 días.
+N.º de compras en los últimos 90 días
+3
+Ticket promedio 90d
+Transaccional
+Se toma el id del usuario, se filtra por la columna “tickets” y se toma el valor de las compras desde la compra más reciente los últimos 90 días.
+Valor promedio de compra últimos 90 días
+5
+Antigüedad del cliente
+Demográfico
+Se calcula a partir de la fecha de vinculación (“created_at”) del cliente.
+Meses desde la fecha de vinculación
+6
+N.º de quejas / PQR 90d
+Servicio al cliente
+Se toma el id del usuario, se filtra por las columnas “p_cliente”, “q_cliente” y “r_cliente” y se cuenta el número de registros de los casos registrados de los últimos 90 días.
+Conteo de casos registrados últimos 90 días
+8
+Participación en programa de lealtad
+Lealtad
+-
+Indicador binario de membresía activa
+8. Restricciones y Exclusiones
+OBJETIVO DE LA SECCIÓN
+Especificar qué clientes, periodos, canales o datos deben excluirse del dataset, ya sea por razones de negocio, calidad de datos o cumplimiento normativo.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Incluya exclusiones de negocio (ej. segmentos no objetivo) y restricciones de cumplimiento o privacidad (ej. datos sensibles, anonimización requerida).
+Justifique cada restricción para que Ingeniería de Datos pueda validar su correcta aplicación.
+CAMPOS A DILIGENCIAR
+Tipo de restricción
+Descripción
+Justificación
+—
+—
+—
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Tipo de restricción
+Descripción
+Justificación
+Exclusión de negocio
+Excluir clientes corporativos y de canal mayorista; el dataset debe incluir únicamente clientes del canal retail (persona natural).
+El comportamiento de compra y los drivers de churn de clientes corporativos son distintos y se modelan por separado.
+Exclusión de negocio
+Excluir empleados de la compañía y cuentas de prueba/demo identificadas en el maestro de clientes.
+Estas cuentas no representan comportamiento real de consumo y distorsionan el entrenamiento.
+Exclusión de negocio
+Excluir clientes con antigüedad menor a 3 meses a la fecha de corte.
+No cuentan con suficiente historia transaccional para calcular variables de comportamiento de forma confiable.
+Cumplimiento / privacidad
+No incluir número de identificación, teléfono ni correo electrónico en el dataset analítico; usar exclusivamente el id_cliente anonimizado.
+Cumplimiento de la política corporativa de tratamiento de datos personales y principio de minimización de datos.
+9. Formato Esperado de Entrega
+OBJETIVO DE LA SECCIÓN
+Especificar cómo espera Ciencia de Datos recibir el dataset, de modo que sea directamente consumible por las herramientas y procesos de modelamiento sin transformaciones adicionales no planeadas.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Indique el formato de archivo o tipo de tabla esperado y, si aplica, el esquema o ubicación preferida dentro de la plataforma de datos del CED.
+Especifique si el dataset debe entregarse en formato ancho (una columna por variable) o largo (una fila por variable).
+CAMPOS A DILIGENCIAR
+Formato de archivo / tabla
+Click o escriba aquí
+Ubicación esperada
+Click o escriba aquí
+Estructura (ancho / largo)
+Click o escriba aquí
+Convención de nombres sugerida
+Click o escriba aquí
+Mecanismo de acceso esperado
+Click o escriba aquí
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Formato de archivo / tabla
+Parquet (tabla en Data Lake)
+Ubicación esperada
+Zona analítica del Data Lake corporativo, esquema de Ciencia de Datos
+Estructura (ancho / largo)
+Ancho: una fila por cliente-mes, una columna por variable
+Convención de nombres sugerida
+analytics_ds.churn_features_clientes
+Mecanismo de acceso esperado
+Consulta vía motor de consulta distribuido (Spark SQL / Presto) con permisos de lectura para el equipo de Ciencia de Datos
+10. Criterios de Aceptación
+OBJETIVO DE LA SECCIÓN
+Definir de forma medible cómo se determinará si el dataset entregado cumple con lo solicitado, evitando discusiones subjetivas al momento de la recepción.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Defina criterios cuantificables (umbrales, porcentajes, reglas de validación) siempre que sea posible.
+Incluya al menos criterios de completitud, exactitud del target y consistencia de la llave única.
+CAMPOS A DILIGENCIAR
+Criterio
+Descripción
+Umbral / métrica esperada
+—
+—
+—
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Criterio
+Descripción
+Umbral / métrica esperada
+Completitud de clientes
+Proporción de clientes activos elegibles que efectivamente quedan representados en el dataset
+≥ 98% de la población elegible
+Nulos en variables críticas
+Porcentaje de valores nulos no tratados en variables marcadas como críticas
+< 5% por variable crítica
+Unicidad de la llave
+El par id_cliente + periodo no debe presentar duplicados
+0% de duplicados
+Exactitud del target
+Validación del cálculo de churn_30d sobre una muestra aleatoria contra el dato transaccional fuente
+100% de coincidencia en muestra de 200 registros
+11. Riesgos o Consideraciones Especiales
+OBJETIVO DE LA SECCIÓN
+Anticipar riesgos relacionados con la disponibilidad, calidad o sensibilidad de los datos solicitados, para que Ingeniería de Datos pueda planificar mitigaciones desde el inicio.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+Incluya riesgos de disponibilidad de fuentes, calidad histórica de datos, estacionalidad del negocio o sensibilidad de la información.
+Proponga una mitigación cuando sea posible; si no la conoce, indíquelo explícitamente para discusión conjunta.
+CAMPOS A DILIGENCIAR
+Riesgo identificado
+Impacto potencial
+Mitigación propuesta
+—
+—
+—
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Riesgo identificado
+Impacto potencial
+Mitigación propuesta
+La plataforma de lealtad solo tiene historia disponible desde enero de 2025.
+Periodos anteriores a esa fecha quedarían sin la variable de participación en lealtad.
+Imputar como “sin información” para periodos previos y documentarlo como limitación conocida en la entrega.
+Estacionalidad comercial (temporada de fin de año, días sin IVA) puede distorsionar variables de recencia y frecuencia.
+El modelo podría sobreestimar o subestimar el riesgo de churn en meses atípicos.
+Incluir variables de estacionalidad (mes del año) y evaluar el desempeño del modelo de forma separada en meses pico.
+Información de contacto del cliente (teléfono, correo) es dato sensible.
+Riesgo de incumplimiento de la política de tratamiento de datos personales.
+Entregar únicamente variables agregadas/derivadas; nunca datos de identificación o contacto directo.
+12. Aprobaciones
+OBJETIVO DE LA SECCIÓN
+Formalizar el visto bueno de los responsables antes de remitir la solicitud al equipo de Ingeniería de Datos, asegurando que el contenido fue validado a nivel funcional y de negocio.
+INSTRUCCIONES DE DILIGENCIAMIENTO
+La solicitud debe estar aprobada por el solicitante y por el líder de Ciencia de Datos antes de ser enviada.
+El campo de Ingeniería de Datos se diligencia al momento de la recepción formal de la solicitud, como acuse de recibo.
+CAMPOS A DILIGENCIAR
+Rol
+Nombre
+Firma / visto bueno
+Fecha
+Solicitante (Data Scientist)
+—
+—
+—
+Líder de Ciencia de Datos
+—
+—
+—
+Ingeniería de Datos (recepción)
+—
+—
+—
+EJEMPLO DILIGENCIADO  ·  Modelo de churn de clientes – Retail
+Rol
+Nombre
+Firma / visto bueno
+Fecha
+Solicitante (Data Scientist)
+María Fernanda Ríos
+Aprobado
+01/06/2026
+Líder de Ciencia de Datos
+Daniel Esteban Vargas
+Aprobado
+02/06/2026
+Ingeniería de Datos (recepción)+
+Andrés Felipe Cárdenas
+Recibido
+03/06/2026
+Buenas Prácticas de Interacción entre Ciencia de Datos e Ingeniería de Datos
+Recomendaciones del Centro de Excelencia de Datos para evitar errores comunes durante la definición y entrega de datasets para modelos predictivos. Estas prácticas aplican tanto al equipo solicitante (Ciencia de Datos) como al equipo constructor (Ingeniería de Datos).
+ANTES DE ENVIAR LA SOLICITUD
+Defina y valide el target y sus reglas de negocio antes de solicitar variables; un target ambiguo invalida todo el trabajo posterior.
+Solicite únicamente las variables que tienen una hipótesis analítica clara; evite listas de variables “por si acaso”.
+Revise si una solicitud similar ya fue atendida previamente para el mismo dominio de negocio, y reutilice definiciones existentes en el catálogo de datos del CED.
+Use este formato como único canal formal de solicitud, evitando solicitudes informales por chat o correo que no quedan trazadas.
+DURANTE LA CONSTRUCCIÓN DEL DATASET
+Mantenga un código de solicitud único para garantizar trazabilidad entre la solicitud y la entrega.
+Si surge una ambigüedad no cubierta por el formato, resuélvala por escrito (comentario en el formato o hilo de seguimiento) antes de agendar una reunión.
+Agende reuniones de aclaración únicamente cuando la ambigüedad no pueda resolverse por escrito, y documente las decisiones tomadas en la reunión dentro del formato.
+Ingeniería de Datos debe comunicar de forma proactiva cualquier limitación de las fuentes (cobertura histórica, calidad, disponibilidad) tan pronto se identifique, sin esperar a la entrega final.
+AL MOMENTO DE LA ENTREGA
+Verifique siempre la tabla “Variables solicitadas vs. variables entregadas” del formato de entrega antes de aceptar el dataset.
+Valide los indicadores de calidad de datos contra los criterios de aceptación definidos en la solicitud original, no contra criterios definidos después de la entrega.
+Documente explícitamente toda limitación conocida; no asuma que es “obvia” para quien consumirá el dataset.
+Versione cada entrega del dataset y mantenga actualizado el diccionario de datos asociado a cada versión.
+CULTURA DE COLABORACIÓN
+Trate cada solicitud y entrega como un contrato de datos: cambios posteriores deben documentarse y comunicarse a ambas partes.
+Centralice toda la documentación (solicitudes, entregas, diccionarios de datos) en el repositorio del CED para que sea consultable por futuros proyectos.
+Promueva retroalimentación corta y frecuente entre ambos equipos durante la construcción, en lugar de validaciones únicas al final del proceso.
+Reconozca que una solicitud bien diligenciada reduce significativamente el tiempo de construcción y la necesidad de retrabajo; invertir tiempo en este formato es invertir en velocidad del proyecto.
